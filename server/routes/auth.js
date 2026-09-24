@@ -69,9 +69,29 @@ router.post('/login', async (req, res) => {
     }
 
     if (!isDbConnected()) {
+      // Allow default administrator login in local demo mode when MongoDB is offline
+      if (email.toLowerCase() === 'admin@apexbinary.ke' && password === 'ApexAdmin@2026') {
+        const mockAdmin = {
+          _id: '66f2dc98b4728f321098abcd',
+          email: 'admin@apexbinary.ke',
+          phone: '254700000000',
+          fullName: 'Apex System Administrator',
+          role: 'admin',
+          balances: { demo: 10000000, real: 500000 },
+          kyc: { status: 'approved' },
+        };
+        const token = generateToken(mockAdmin);
+        return res.json({
+          success: true,
+          message: 'Admin authenticated (Local Demo Mode)',
+          token,
+          user: mockAdmin,
+        });
+      }
+
       return res.status(503).json({
         success: false,
-        message: 'Database is currently offline. Please configure MONGODB_URI in your environment settings.',
+        message: 'Database offline. Use admin@apexbinary.ke / ApexAdmin@2026 to log in, or set MONGODB_URI.',
       });
     }
 
@@ -133,18 +153,22 @@ router.get('/me', authenticate, async (req, res) => {
 // Seed default administrator if none exists
 router.post('/seed-admin', async (req, res) => {
   try {
+    const adminEmail = req.body.email || 'admin@apexbinary.ke';
+    const adminPassword = req.body.password || 'ApexAdmin@2026';
+    const adminPhone = req.body.phone || '254700000000';
+
     if (!isDbConnected()) {
-      return res.status(503).json({ success: false, message: 'Database not connected' });
+      return res.status(200).json({
+        success: true,
+        message: 'Default admin credentials ready (Local Demo Mode).',
+        credentials: { email: adminEmail, defaultPassword: adminPassword },
+      });
     }
 
     const adminExists = await User.findOne({ role: 'admin' });
     if (adminExists) {
       return res.status(400).json({ success: false, message: 'An administrator account already exists.' });
     }
-
-    const adminEmail = req.body.email || 'admin@apexbinary.ke';
-    const adminPassword = req.body.password || 'ApexAdmin@2026';
-    const adminPhone = req.body.phone || '254700000000';
 
     const admin = new User({
       email: adminEmail.toLowerCase(),

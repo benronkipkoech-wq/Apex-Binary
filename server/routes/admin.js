@@ -18,15 +18,15 @@ router.get('/metrics', async (req, res) => {
       return res.json({
         success: true,
         metrics: {
-          totalUsers: 0,
-          totalDeposits: 0,
-          totalWithdrawals: 0,
-          pendingWithdrawals: 0,
-          pendingWithdrawalsAmount: 0,
-          houseNetRevenue: 0,
-          totalVolume: 0,
-          openRisk: 0,
-          activeTradesCount: 0,
+          totalUsers: 1420,
+          totalDeposits: 4850000,
+          totalWithdrawals: 1920000,
+          pendingWithdrawals: 3,
+          pendingWithdrawalsAmount: 85000,
+          houseNetRevenue: 2930000,
+          totalVolume: 12400000,
+          openRisk: 145000,
+          activeTradesCount: 18,
         },
       });
     }
@@ -99,7 +99,53 @@ router.get('/metrics', async (req, res) => {
 // Users Management: List & Search
 router.get('/users', async (req, res) => {
   try {
-    if (!isDbConnected()) return res.json({ success: true, users: [] });
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        users: [
+          {
+            _id: 'usr_mock_1',
+            fullName: 'Kevin Mwangi',
+            email: 'kevin.mwangi@gmail.com',
+            phone: '254712345678',
+            role: 'trader',
+            balances: { real: 84500, demo: 1000000 },
+            kyc: { status: 'approved' },
+            isBanned: false,
+          },
+          {
+            _id: 'usr_mock_2',
+            fullName: 'Faith Chebet',
+            email: 'faith.chebet@yahoo.com',
+            phone: '254722998877',
+            role: 'trader',
+            balances: { real: 12000, demo: 950000 },
+            kyc: { status: 'pending' },
+            isBanned: false,
+          },
+          {
+            _id: 'usr_mock_3',
+            fullName: 'Brian Otieno',
+            email: 'brian.otieno@outlook.com',
+            phone: '254701234567',
+            role: 'trader',
+            balances: { real: 154200, demo: 2400000 },
+            kyc: { status: 'approved' },
+            isBanned: false,
+          },
+          {
+            _id: 'usr_mock_4',
+            fullName: 'Mercy Wanjiku',
+            email: 'mercy.w@gmail.com',
+            phone: '254799112233',
+            role: 'trader',
+            balances: { real: 0, demo: 1000000 },
+            kyc: { status: 'unverified' },
+            isBanned: false,
+          },
+        ],
+      });
+    }
 
     const search = req.query.search || '';
     const query = search
@@ -122,7 +168,9 @@ router.get('/users', async (req, res) => {
 // Update User (Ban, KYC, Adjust Balance, Change Role)
 router.patch('/users/:id', async (req, res) => {
   try {
-    if (!isDbConnected()) return res.status(503).json({ success: false, message: 'Database offline' });
+    if (!isDbConnected()) {
+      return res.json({ success: true, message: 'User updated successfully (Demo Mode)' });
+    }
 
     const { isBanned, role, kycStatus, adjustRealBalance, adjustDemoBalance } = req.body;
     const user = await User.findById(req.params.id);
@@ -152,7 +200,37 @@ router.patch('/users/:id', async (req, res) => {
 // Pending Withdrawals Queue
 router.get('/withdrawals/pending', async (req, res) => {
   try {
-    if (!isDbConnected()) return res.json({ success: true, withdrawals: [] });
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        withdrawals: [
+          {
+            _id: 'tx_mock_1',
+            amount: 45000,
+            phone: '254712345678',
+            method: 'MPESA_B2C',
+            createdAt: new Date(Date.now() - 10 * 60 * 1000),
+            userId: { fullName: 'Kevin Mwangi', phone: '254712345678', balances: { real: 84500 } },
+          },
+          {
+            _id: 'tx_mock_2',
+            amount: 10000,
+            phone: '254722998877',
+            method: 'MPESA_B2C',
+            createdAt: new Date(Date.now() - 35 * 60 * 1000),
+            userId: { fullName: 'Faith Chebet', phone: '254722998877', balances: { real: 12000 } },
+          },
+          {
+            _id: 'tx_mock_3',
+            amount: 30000,
+            phone: '254701234567',
+            method: 'MPESA_B2C',
+            createdAt: new Date(Date.now() - 70 * 60 * 1000),
+            userId: { fullName: 'Brian Otieno', phone: '254701234567', balances: { real: 154200 } },
+          },
+        ],
+      });
+    }
 
     const withdrawals = await Transaction.find({ type: 'WITHDRAWAL', status: 'PENDING' })
       .populate('userId', 'email phone fullName balances')
@@ -167,13 +245,19 @@ router.get('/withdrawals/pending', async (req, res) => {
 // Approve Withdrawal (Simulate B2C disbursement or complete)
 router.post('/withdrawals/:id/approve', async (req, res) => {
   try {
-    if (!isDbConnected()) return res.status(503).json({ success: false, message: 'Database offline' });
+    const receipt = req.body.mpesaReceipt || 'B2C' + Math.random().toString(36).substring(2, 9).toUpperCase();
+
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        message: `Withdrawal approved & disbursed! Receipt: ${receipt} (Demo Mode)`,
+      });
+    }
 
     const tx = await Transaction.findById(req.params.id);
     if (!tx || tx.type !== 'WITHDRAWAL') return res.status(404).json({ success: false, message: 'Withdrawal not found' });
     if (tx.status !== 'PENDING') return res.status(400).json({ success: false, message: `Withdrawal is already ${tx.status}` });
 
-    const receipt = req.body.mpesaReceipt || 'B2C' + Math.random().toString(36).substring(2, 9).toUpperCase();
     tx.status = 'COMPLETED';
     tx.mpesaReceipt = receipt;
     tx.adminReviewer = req.user._id;
@@ -192,7 +276,12 @@ router.post('/withdrawals/:id/approve', async (req, res) => {
 // Reject Withdrawal (Refunds trader's real balance)
 router.post('/withdrawals/:id/reject', async (req, res) => {
   try {
-    if (!isDbConnected()) return res.status(503).json({ success: false, message: 'Database offline' });
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        message: 'Withdrawal rejected & refunded to trader balance (Demo Mode)',
+      });
+    }
 
     const { reason } = req.body;
     const tx = await Transaction.findById(req.params.id);
@@ -224,7 +313,49 @@ router.post('/withdrawals/:id/reject', async (req, res) => {
 // Live / Recent Platform Trades
 router.get('/trades/recent', async (req, res) => {
   try {
-    if (!isDbConnected()) return res.json({ success: true, trades: [] });
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        trades: [
+          {
+            _id: 'tr_1',
+            openedAt: new Date(Date.now() - 30 * 1000),
+            asset: 'BTC/USD',
+            direction: 'CALL',
+            amount: 15000,
+            entryPrice: 64210.50,
+            closePrice: 64285.20,
+            outcome: 'WIN',
+            profit: 13500,
+            userId: { fullName: 'Kevin Mwangi', phone: '254712345678' },
+          },
+          {
+            _id: 'tr_2',
+            openedAt: new Date(Date.now() - 120 * 1000),
+            asset: 'ETH/USD',
+            direction: 'PUT',
+            amount: 5000,
+            entryPrice: 3455.00,
+            closePrice: 3462.10,
+            outcome: 'LOSS',
+            profit: -5000,
+            userId: { fullName: 'Faith Chebet', phone: '254722998877' },
+          },
+          {
+            _id: 'tr_3',
+            openedAt: new Date(Date.now() - 180 * 1000),
+            asset: 'EUR/USD',
+            direction: 'CALL',
+            amount: 8000,
+            entryPrice: 1.0845,
+            closePrice: 1.0858,
+            outcome: 'WIN',
+            profit: 6800,
+            userId: { fullName: 'Brian Otieno', phone: '254701234567' },
+          },
+        ],
+      });
+    }
 
     const limit = parseInt(req.query.limit) || 50;
     const trades = await Trade.find({})
