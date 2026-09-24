@@ -369,6 +369,137 @@ router.get('/trades/recent', async (req, res) => {
   }
 });
 
+// Win-Rate Analytics: Per-Asset & Overall House Edge
+router.get('/analytics/win-rate', async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      // Offline demo data
+      return res.json({
+        success: true,
+        analytics: {
+          overall: { total: 3840, wins: 1728, losses: 2112, winRate: 45.0, houseEdge: 55.0 },
+          byAsset: [
+            { asset: 'BTC/USD', total: 980, wins: 441, losses: 539, winRate: 45.0, volume: 14700000 },
+            { asset: 'ETH/USD', total: 720, wins: 324, losses: 396, winRate: 45.0, volume: 7200000 },
+            { asset: 'SOL/USD', total: 540, wins: 238, losses: 302, winRate: 44.1, volume: 4050000 },
+            { asset: 'EUR/USD', total: 890, wins: 409, losses: 481, winRate: 45.9, volume: 2225000 },
+            { asset: 'GBP/USD', total: 420, wins: 185, losses: 235, winRate: 44.0, volume: 2100000 },
+            { asset: 'USD/KES', total: 290, wins: 131, losses: 159, winRate: 45.2, volume: 725000 },
+          ],
+          byDirection: {
+            CALL: { total: 2150, wins: 968, losses: 1182, winRate: 45.0 },
+            PUT: { total: 1690, wins: 760, losses: 930, winRate: 45.0 },
+          },
+          dailyTrend: [
+            { date: '2026-09-18', total: 480, wins: 214, losses: 266, winRate: 44.6 },
+            { date: '2026-09-19', total: 520, wins: 237, losses: 283, winRate: 45.6 },
+            { date: '2026-09-20', total: 610, wins: 278, losses: 332, winRate: 45.6 },
+            { date: '2026-09-21', total: 490, wins: 219, losses: 271, winRate: 44.7 },
+            { date: '2026-09-22', total: 570, wins: 256, losses: 314, winRate: 44.9 },
+            { date: '2026-09-23', total: 640, wins: 295, losses: 345, winRate: 46.1 },
+            { date: '2026-09-24', total: 530, wins: 229, losses: 301, winRate: 43.2 },
+          ],
+        },
+      });
+    }
+
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [overallAgg, byAssetAgg, byDirectionAgg, dailyAgg] = await Promise.all([
+      // Overall totals
+      Trade.aggregate([
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            wins: { $sum: { $cond: [{ $eq: ['$outcome', 'WIN'] }, 1, 0] } },
+            losses: { $sum: { $cond: [{ $eq: ['$outcome', 'LOSS'] }, 1, 0] } },
+          },
+        },
+      ]),
+
+      // Per-asset breakdown
+      Trade.aggregate([
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        {
+          $group: {
+            _id: '$asset',
+            total: { $sum: 1 },
+            wins: { $sum: { $cond: [{ $eq: ['$outcome', 'WIN'] }, 1, 0] } },
+            losses: { $sum: { $cond: [{ $eq: ['$outcome', 'LOSS'] }, 1, 0] } },
+            volume: { $sum: '$amount' },
+          },
+        },
+        { $sort: { volume: -1 } },
+      ]),
+
+      // CALL vs PUT breakdown
+      Trade.aggregate([
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        {
+          $group: {
+            _id: '$direction',
+            total: { $sum: 1 },
+            wins: { $sum: { $cond: [{ $eq: ['$outcome', 'WIN'] }, 1, 0] } },
+            losses: { $sum: { $cond: [{ $eq: ['$outcome', 'LOSS'] }, 1, 0] } },
+          },
+        },
+      ]),
+
+      // 7-day daily trend
+      Trade.aggregate([
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, openedAt: { $gte: sevenDaysAgo } } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$openedAt', timezone: 'Africa/Nairobi' } },
+            total: { $sum: 1 },
+            wins: { $sum: { $cond: [{ $eq: ['$outcome', 'WIN'] }, 1, 0] } },
+            losses: { $sum: { $cond: [{ $eq: ['$outcome', 'LOSS'] }, 1, 0] } },
+          },
+        },
+        { $sort: { _id: 1 } },
+      ]),
+    ]);
+
+    const overall = overallAgg[0] || { total: 0, wins: 0, losses: 0 };
+    overall.winRate = overall.total > 0 ? parseFloat(((overall.wins / overall.total) * 100).toFixed(1)) : 0;
+    overall.houseEdge = overall.total > 0 ? parseFloat(((overall.losses / overall.total) * 100).toFixed(1)) : 0;
+
+    const byAsset = byAssetAgg.map((a) => ({
+      asset: a._id,
+      total: a.total,
+      wins: a.wins,
+      losses: a.losses,
+      winRate: a.total > 0 ? parseFloat(((a.wins / a.total) * 100).toFixed(1)) : 0,
+      volume: a.volume,
+    }));
+
+    const byDirection = {};
+    byDirectionAgg.forEach((d) => {
+      byDirection[d._id] = {
+        total: d.total,
+        wins: d.wins,
+        losses: d.losses,
+        winRate: d.total > 0 ? parseFloat(((d.wins / d.total) * 100).toFixed(1)) : 0,
+      };
+    });
+
+    const dailyTrend = dailyAgg.map((d) => ({
+      date: d._id,
+      total: d.total,
+      wins: d.wins,
+      losses: d.losses,
+      winRate: d.total > 0 ? parseFloat(((d.wins / d.total) * 100).toFixed(1)) : 0,
+    }));
+
+    return res.json({ success: true, analytics: { overall, byAsset, byDirection, dailyTrend } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Get Platform Settings (Payouts, Limits)
 router.get('/settings', async (req, res) => {
   try {

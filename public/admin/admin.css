@@ -957,3 +957,166 @@ body.admin-body {
   font-size: 0.75rem;
   margin-top: 0.25rem;
 }
+
+/* =============================================
+   WIN RATE ANALYTICS TAB
+   ============================================= */
+
+/* KPI Row */
+.wr-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media (max-width: 1200px) { .wr-kpi-row { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 700px)  { .wr-kpi-row { grid-template-columns: 1fr 1fr; } }
+
+.wr-kpi-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+.wr-kpi-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+.wr-kpi-icon { font-size: 1.6rem; }
+.wr-kpi-val {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+}
+.wr-kpi-label { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+
+.wr-kpi-card.wr-total  { border-color: rgba(0,240,255,0.2);  }
+.wr-kpi-card.wr-wins   { border-color: rgba(0,255,136,0.25); }
+.wr-kpi-card.wr-wins .wr-kpi-val { color: var(--accent-green); }
+.wr-kpi-card.wr-losses { border-color: rgba(255,51,102,0.25); }
+.wr-kpi-card.wr-losses .wr-kpi-val { color: var(--accent-red); }
+.wr-kpi-card.wr-rate   { border-color: rgba(58,134,255,0.25); }
+.wr-kpi-card.wr-rate .wr-kpi-val { color: var(--accent-blue); }
+.wr-kpi-card.wr-edge   { border-color: rgba(255,208,0,0.25); }
+.wr-kpi-card.wr-edge .wr-kpi-val { color: var(--accent-gold); }
+
+/* Split Grid */
+.wr-split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 900px) { .wr-split-grid { grid-template-columns: 1fr; } }
+
+/* Per-Asset Bar Chart */
+.wr-bar-chart { display: flex; flex-direction: column; gap: 1rem; }
+
+.wr-bar-row { display: grid; grid-template-columns: 80px 1fr 54px; align-items: center; gap: 0.75rem; }
+.wr-bar-label { font-size: 0.78rem; font-weight: 600; font-family: var(--font-mono); color: var(--text-muted); }
+.wr-bar-track {
+  position: relative;
+  height: 28px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.wr-bar-fill-win {
+  position: absolute;
+  left: 0; top: 0; height: 100%;
+  background: linear-gradient(90deg, var(--accent-green) 0%, rgba(0,255,136,0.4) 100%);
+  border-radius: 6px;
+  transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+  display: flex; align-items: center; padding-left: 8px;
+  font-size: 0.7rem; font-weight: 700; color: #000;
+  min-width: 0;
+}
+.wr-bar-fill-house {
+  position: absolute;
+  right: 0; top: 0; height: 100%;
+  background: linear-gradient(270deg, rgba(255,51,102,0.5) 0%, rgba(255,51,102,0.15) 100%);
+  transition: width 0.7s cubic-bezier(0.4,0,0.2,1);
+}
+.wr-bar-pct { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; text-align: right; }
+
+/* Direction Cards */
+.wr-direction-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+.wr-dir-card {
+  border-radius: 12px;
+  padding: 1.25rem;
+  text-align: center;
+  border: 1px solid var(--border-subtle);
+}
+.wr-dir-card.call { background: linear-gradient(135deg, rgba(0,255,136,0.08), rgba(0,255,136,0.02)); border-color: rgba(0,255,136,0.2); }
+.wr-dir-card.put  { background: linear-gradient(135deg, rgba(255,51,102,0.08), rgba(255,51,102,0.02)); border-color: rgba(255,51,102,0.2); }
+.wr-dir-icon { font-size: 0.85rem; font-weight: 800; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+.wr-dir-card.call .wr-dir-icon { color: var(--accent-green); }
+.wr-dir-card.put  .wr-dir-icon { color: var(--accent-red); }
+.wr-dir-val { font-family: var(--font-display); font-size: 2rem; font-weight: 800; }
+.wr-dir-sub { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.4rem; }
+.wr-dir-rate { font-size: 0.9rem; font-weight: 700; font-family: var(--font-mono); color: var(--accent-cyan); }
+
+/* Conic Gauge */
+.wr-gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; }
+.wr-gauge {
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  background: conic-gradient(
+    var(--accent-green) 0deg,
+    var(--accent-green) var(--wr-deg, 162deg),
+    rgba(255,51,102,0.6) var(--wr-deg, 162deg),
+    rgba(255,51,102,0.6) 360deg
+  );
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: --wr-deg 0.8s ease;
+  box-shadow: 0 0 28px rgba(0,255,136,0.2);
+}
+.wr-gauge-inner {
+  width: 94px; height: 94px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px;
+}
+.wr-gauge-pct { font-family: var(--font-display); font-size: 1.35rem; font-weight: 800; color: var(--accent-green); }
+.wr-gauge-lbl { font-size: 0.62rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+.wr-gauge-legend { display: flex; gap: 1rem; }
+.wr-legend-win  { font-size: 0.75rem; color: var(--accent-green); }
+.wr-legend-loss { font-size: 0.75rem; color: rgba(255,51,102,0.8); }
+
+/* 7-Day Trend Chart */
+.wr-trend-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.6rem;
+  height: 120px;
+  padding: 0 0.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.wr-trend-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.wr-trend-bar {
+  width: 100%;
+  border-radius: 4px 4px 0 0;
+  min-height: 4px;
+  transition: height 0.6s cubic-bezier(0.4,0,0.2,1);
+  position: relative;
+}
+.wr-trend-bar.good  { background: linear-gradient(180deg, var(--accent-green), rgba(0,255,136,0.35)); }
+.wr-trend-bar.warn  { background: linear-gradient(180deg, var(--accent-gold), rgba(255,208,0,0.35)); }
+.wr-trend-bar.bad   { background: linear-gradient(180deg, var(--accent-red), rgba(255,51,102,0.25)); }
+.wr-trend-pct { font-size: 0.65rem; font-weight: 700; font-family: var(--font-mono); color: var(--text-muted); }
+
+.wr-trend-axis { display: flex; gap: 0.6rem; padding: 0.4rem 0.25rem 0; }
+.wr-trend-axis-label { flex: 1; text-align: center; font-size: 0.65rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+@property --wr-deg {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+

@@ -117,6 +117,10 @@
             <span class="nav-icon">⚙️</span>
             <span>Risk & Payout Limits</span>
           </button>
+          <button class="nav-item" data-tab="analytics">
+            <span class="nav-icon">🎯</span>
+            <span>Win Rate Analytics</span>
+          </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -440,6 +444,102 @@
                 <input type="checkbox" id="setting-maintenance" class="styled-checkbox">
               </div>
             </div>
+          </div>
+        </section>
+
+        <!-- =====================================
+             TAB 6: WIN RATE ANALYTICS
+             ===================================== -->
+        <section id="tab-analytics" class="admin-tab-pane">
+          <div class="pane-header">
+            <div>
+              <h1 class="pane-title">Win Rate & House Edge Analytics</h1>
+              <p class="pane-desc">Platform-wide trader win rate, house edge, per-asset breakdown, and 7-day trend.</p>
+            </div>
+            <button id="btn-refresh-analytics" class="btn-secondary">↻ Refresh Analytics</button>
+          </div>
+
+          <!-- Overall KPI Row -->
+          <div class="wr-kpi-row" id="wr-kpi-row">
+            <div class="wr-kpi-card wr-total">
+              <span class="wr-kpi-icon">🎯</span>
+              <span class="wr-kpi-val" id="wr-total-trades">—</span>
+              <span class="wr-kpi-label">Total Resolved Trades</span>
+            </div>
+            <div class="wr-kpi-card wr-wins">
+              <span class="wr-kpi-icon">✅</span>
+              <span class="wr-kpi-val" id="wr-total-wins">—</span>
+              <span class="wr-kpi-label">Trader Wins</span>
+            </div>
+            <div class="wr-kpi-card wr-losses">
+              <span class="wr-kpi-icon">❌</span>
+              <span class="wr-kpi-val" id="wr-total-losses">—</span>
+              <span class="wr-kpi-label">Trader Losses (House Wins)</span>
+            </div>
+            <div class="wr-kpi-card wr-rate">
+              <span class="wr-kpi-icon">👤</span>
+              <span class="wr-kpi-val" id="wr-overall-win-rate">—</span>
+              <span class="wr-kpi-label">Trader Win Rate</span>
+            </div>
+            <div class="wr-kpi-card wr-edge">
+              <span class="wr-kpi-icon">🏦</span>
+              <span class="wr-kpi-val" id="wr-house-edge">—</span>
+              <span class="wr-kpi-label">House Edge (Win Rate)</span>
+            </div>
+          </div>
+
+          <div class="wr-split-grid">
+            <!-- Per-Asset Bar Chart -->
+            <div class="card-glass">
+              <h3 class="card-title">Win Rate by Asset</h3>
+              <p class="card-subtitle">Trader win % per instrument (lower = better house edge)</p>
+              <div class="wr-bar-chart" id="wr-asset-chart"></div>
+            </div>
+
+            <!-- CALL vs PUT Split -->
+            <div class="card-glass">
+              <h3 class="card-title">CALL vs PUT Direction Split</h3>
+              <p class="card-subtitle">Which direction traders prefer — and how often they win</p>
+              <div class="wr-direction-cards" id="wr-direction-cards">
+                <div class="wr-dir-card call" id="wr-dir-call">
+                  <div class="wr-dir-icon">▲ CALL</div>
+                  <div class="wr-dir-val" id="wr-call-total">—</div>
+                  <div class="wr-dir-sub">Trades</div>
+                  <div class="wr-dir-rate" id="wr-call-rate">—% Win</div>
+                </div>
+                <div class="wr-dir-card put" id="wr-dir-put">
+                  <div class="wr-dir-icon">▼ PUT</div>
+                  <div class="wr-dir-val" id="wr-put-total">—</div>
+                  <div class="wr-dir-sub">Trades</div>
+                  <div class="wr-dir-rate" id="wr-put-rate">—% Win</div>
+                </div>
+              </div>
+              <!-- Overall win rate ring (CSS) -->
+              <div class="wr-gauge-wrap">
+                <div class="wr-gauge" id="wr-gauge">
+                  <div class="wr-gauge-inner">
+                    <span class="wr-gauge-pct" id="wr-gauge-pct">—%</span>
+                    <span class="wr-gauge-lbl">Trader Win</span>
+                  </div>
+                </div>
+                <div class="wr-gauge-legend">
+                  <span class="wr-legend-win">■ Trader Wins</span>
+                  <span class="wr-legend-loss">■ House Wins</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 7-Day Daily Win Rate Trend -->
+          <div class="card-glass" style="margin-top:1.5rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem;">
+              <div>
+                <h3 class="card-title" style="margin:0;">7-Day Win Rate Trend</h3>
+                <p class="card-subtitle" style="margin:0;">Daily trader win rate over the past week</p>
+              </div>
+            </div>
+            <div class="wr-trend-chart" id="wr-trend-chart"></div>
+            <div class="wr-trend-axis" id="wr-trend-axis"></div>
           </div>
         </section>
 

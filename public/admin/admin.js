@@ -196,6 +196,7 @@
       if (targetTab === 'traders') loadTraders();
       if (targetTab === 'trades') loadRecentTrades();
       if (targetTab === 'risk') loadSettings();
+      if (targetTab === 'analytics') loadWinRateAnalytics();
     });
   });
 
@@ -608,6 +609,99 @@
     downloadCsv(`apex_live_trades_${Date.now()}.csv`, rows);
   });
 
+  // ==========================================
+  // TAB 6: WIN RATE ANALYTICS
+  // ==========================================
+  async function loadWinRateAnalytics() {
+    const { ok, data } = await apiCall('/admin/analytics/win-rate');
+    if (!ok || !data.analytics) {
+      showToast('Failed to load analytics data', 'error');
+      return;
+    }
+
+    const a = data.analytics;
+    const o = a.overall;
+
+    // KPI row
+    document.getElementById('wr-total-trades').textContent = Number(o.total).toLocaleString();
+    document.getElementById('wr-total-wins').textContent = Number(o.wins).toLocaleString();
+    document.getElementById('wr-total-losses').textContent = Number(o.losses).toLocaleString();
+    document.getElementById('wr-overall-win-rate').textContent = `${o.winRate}%`;
+    document.getElementById('wr-house-edge').textContent = `${o.houseEdge}%`;
+
+    // Per-asset bar chart
+    const assetChart = document.getElementById('wr-asset-chart');
+    assetChart.innerHTML = '';
+    (a.byAsset || []).forEach(asset => {
+      const winPct = asset.winRate;
+      const housePct = (100 - winPct).toFixed(1);
+      const colorClass = winPct < 45 ? 'var(--accent-green)' : winPct < 50 ? 'var(--accent-gold)' : 'var(--accent-red)';
+      const row = document.createElement('div');
+      row.className = 'wr-bar-row';
+      row.innerHTML = `
+        <span class="wr-bar-label">${asset.asset}</span>
+        <div class="wr-bar-track">
+          <div class="wr-bar-fill-house" style="width:${housePct}%;"></div>
+          <div class="wr-bar-fill-win" style="width:${winPct}%; background:linear-gradient(90deg,${colorClass},${colorClass}66);">
+            ${winPct >= 12 ? winPct + '%' : ''}
+          </div>
+        </div>
+        <span class="wr-bar-pct" style="color:${colorClass}">${winPct}%</span>
+      `;
+      assetChart.appendChild(row);
+    });
+
+    // Direction split
+    const call = a.byDirection?.CALL || { total: 0, winRate: 0 };
+    const put  = a.byDirection?.PUT  || { total: 0, winRate: 0 };
+    document.getElementById('wr-call-total').textContent = Number(call.total).toLocaleString();
+    document.getElementById('wr-call-rate').textContent = `${call.winRate}% Win`;
+    document.getElementById('wr-put-total').textContent = Number(put.total).toLocaleString();
+    document.getElementById('wr-put-rate').textContent = `${put.winRate}% Win`;
+
+    // Gauge: set CSS conic-gradient via inline style (deg = winRate * 3.6)
+    const gauge = document.getElementById('wr-gauge');
+    const deg = (o.winRate * 3.6).toFixed(1);
+    gauge.style.background = `conic-gradient(
+      var(--accent-green) 0deg,
+      var(--accent-green) ${deg}deg,
+      rgba(255,51,102,0.55) ${deg}deg,
+      rgba(255,51,102,0.55) 360deg
+    )`;
+    document.getElementById('wr-gauge-pct').textContent = `${o.winRate}%`;
+
+    // 7-day trend bars
+    const trendChart = document.getElementById('wr-trend-chart');
+    const trendAxis  = document.getElementById('wr-trend-axis');
+    trendChart.innerHTML = '';
+    trendAxis.innerHTML  = '';
+    const maxPct = Math.max(...(a.dailyTrend || []).map(d => d.winRate), 60);
+    (a.dailyTrend || []).forEach(day => {
+      const heightPct = ((day.winRate / maxPct) * 100).toFixed(0);
+      const cls = day.winRate < 44 ? 'bad' : day.winRate < 47 ? 'warn' : 'good';
+      const shortDate = day.date.slice(5); // MM-DD
+
+      const wrap = document.createElement('div');
+      wrap.className = 'wr-trend-bar-wrap';
+      wrap.title = `${day.date}: ${day.winRate}% (${day.wins}W / ${day.losses}L)`;
+      wrap.innerHTML = `
+        <span class="wr-trend-pct">${day.winRate}%</span>
+        <div class="wr-trend-bar ${cls}" style="height:${heightPct}%;"></div>
+      `;
+      trendChart.appendChild(wrap);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'wr-trend-axis-label';
+      lbl.textContent = shortDate;
+      trendAxis.appendChild(lbl);
+    });
+  }
+
+  document.getElementById('btn-refresh-analytics')?.addEventListener('click', () => {
+    loadWinRateAnalytics();
+    showToast('Analytics refreshed', 'success');
+  });
+
   // Auto-Refresh Loop (Every 5s when active)
   let currentActiveTab = 'overview';
   navItems.forEach((btn) => {
@@ -622,6 +716,7 @@
       loadOverviewMetrics();
       if (currentActiveTab === 'cashier') loadPendingWithdrawals();
       if (currentActiveTab === 'trades') loadRecentTrades();
+      if (currentActiveTab === 'analytics') loadWinRateAnalytics();
     }
   }, 5000);
 
