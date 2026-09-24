@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Binary — Kenya's Premier Binary Options & Fixed-Time Trading</title>
+  <meta name="description" content="Experience high-speed binary options and fixed-time trading on Apex Binary. Fast M-Pesa deposits & withdrawals, real-time candlestick charts, up to 98% payouts, and KSh 1,000,000 demo account.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#080b12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Apex Binary">
+  
+  <!-- Security Meta Tags -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' wss://stream.binance.com; img-src 'self' data:;">
+  
+  <!-- Anti-Clickjacking Frame Buster -->
+  <style id="antiClickjack">body{display:none !important;}</style>
+  <script>
+    if (self === top) {
+      var antiClickjack = document.getElementById("antiClickjack");
+      antiClickjack.parentNode.removeChild(antiClickjack);
+    } else {
+      top.location = self.location;
+    }
+  </script>
+
+  <link rel="stylesheet" href="/src/styles/index.css">
+</head>
+<body class="theme-dark">
+
+  <!-- ============================================================
+       AUTH SCREEN — Full-Page Login / Registration Gate
+       ============================================================ -->
+  <div id="auth-screen" class="auth-screen">
+    <div class="auth-backdrop">
+      <div class="auth-grid-pattern"></div>
+      <div class="auth-glow-orb auth-orb-1"></div>
+      <div class="auth-glow-orb auth-orb-2"></div>
+    </div>
+
+    <div class="auth-container">
+      <!-- Logo & Welcome -->
+      <div class="auth-hero">
+        <div class="auth-logo">
+          <span class="auth-logo-icon">▲</span>
+          <div class="auth-logo-text">
+            <span class="auth-brand">APEX <span class="auth-dot">BINARY</span></span>
+            <span class="auth-sub">SECURE TRADING PLATFORM</span>
+          </div>
+        </div>
+        <p class="auth-tagline">Kenya's #1 Binary Options & Fixed-Time Trading Platform</p>
+        <div class="auth-trust-badges">
+          <span class="auth-trust-badge">🔒 256-bit SSL</span>
+          <span class="auth-trust-badge">🇰🇪 CBK Licensed</span>
+          <span class="auth-trust-badge">⚡ Instant M-Pesa</span>
+        </div>
+      </div>
+
+      <!-- Auth Card -->
+      <div class="auth-card">
+        <!-- Close Auth Modal Button -->
+        <button class="auth-close-btn" id="btn-close-auth" title="Close and browse as guest">✕</button>
+
+        <!-- Tab Switch -->
+        <div class="auth-tabs">
+          <button class="auth-tab active" id="auth-tab-login" data-auth-tab="login">Sign In</button>
+          <button class="auth-tab" id="auth-tab-register" data-auth-tab="register">Create Account</button>
+          <div class="auth-tab-slider" id="auth-tab-slider"></div>
+        </div>
+
+        <!-- Error/Success Banner -->
+        <div class="auth-message hidden" id="auth-message"></div>
+
+        <!-- LOGIN FORM -->
+        <form class="auth-form" id="auth-login-form">
+          <div class="auth-input-group">
+            <label class="auth-label" for="login-phone">Phone Number</label>
+            <div class="auth-input-wrapper">
+              <span class="auth-input-prefix">🇰🇪 +254</span>
+              <input type="tel" id="login-phone" class="auth-input" placeholder="712 345 678" maxlength="12" autocomplete="tel">
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-label" for="login-pin-display">M-Pesa Style PIN</label>
+            <div class="auth-pin-display" id="login-pin-display">
+              <span class="pin-dot" id="login-dot-0"></span>
+              <span class="pin-dot" id="login-dot-1"></span>
+              <span class="pin-dot" id="login-dot-2"></span>
+              <span class="pin-dot" id="login-dot-3"></span>
+            </div>
+            <input type="hidden" id="login-pin" maxlength="4">
+          </div>
+
+          <!-- PIN Keypad -->
+          <div class="auth-keypad" id="login-keypad">
+            <button type="button" class="keypad-btn" data-key="1">1</button>
+            <button type="button" class="keypad-btn" data-key="2">2</button>
+            <button type="button" class="keypad-btn" data-key="3">3</button>
+            <button type="button" class="keypad-btn" data-key="4">4</button>
+            <button type="button" class="keypad-btn" data-key="5">5</button>
+            <button type="button" class="keypad-btn" data-key="6">6</button>
+            <button type="button" class="keypad-btn" data-key="7">7</button>
+            <button type="button" class="keypad-btn" data-key="8">8</button>
+            <button type="button" class="keypad-btn" data-key="9">9</button>
+            <button type="button" class="keypad-btn keypad-bio" data-key="bio" title="Biometric Login">🔐</button>
+            <button type="button" class="keypad-btn" data-key="0">0</button>
+            <button type="button" class="keypad-btn keypad-del" data-key="del">⌫</button>
+          </div>
+
+          <button type="submit" class="auth-submit-btn" id="btn-login">
+            <span class="auth-btn-icon">🔓</span>
+            <span>Sign In Securely</span>
+          </button>
+
+          <div class="auth-footer-links">
+            <button type="button" class="auth-link" id="btn-forgot-pin">Forgot PIN?</button>
+          </div>
+        </form>
+
+        <!-- REGISTER FORM -->
+        <form class="auth-form hidden" id="auth-register-form">
+          <div class="auth-input-group">
+            <label class="auth-label" for="reg-name">Full Name</label>
+            <div class="auth-input-wrapper">
+              <span class="auth-input-icon">👤</span>
+              <input type="text" id="reg-name" class="auth-input" placeholder="Wanjiku Kamau" autocomplete="name">
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-label" for="reg-phone">Safaricom Number</label>
+            <div class="auth-input-wrapper">
+              <span class="auth-input-prefix">🇰🇪 +254</span>
+              <input type="tel" id="reg-phone" class="auth-input" placeholder="712 345 678" maxlength="12" autocomplete="tel">
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-label" for="reg-email">Email (Optional)</label>
+            <div class="auth-input-wrapper">
+              <span class="auth-input-icon">✉️</span>
+              <input type="email" id="reg-email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+            </div>
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-label">Create 4-Digit PIN</label>
+            <div class="auth-pin-display" id="reg-pin-display">
+              <span class="pin-dot" id="reg-dot-0"></span>
+              <span class="pin-dot" id="reg-dot-1"></span>
+              <span class="pin-dot" id="reg-dot-2"></span>
+              <span class="pin-dot" id="reg-dot-3"></span>
+            </div>
+            <input type="hidden" id="reg-pin" maxlength="4">
+          </div>
+
+          <div class="auth-input-group">
+            <label class="auth-label">Confirm PIN</label>
+            <div class="auth-pin-display" id="reg-confirm-pin-display">
+              <span class="pin-dot" id="reg-confirm-dot-0"></span>
+              <span class="pin-dot" id="reg-confirm-dot-1"></span>
+              <span class="pin-dot" id="reg-confirm-dot-2"></span>
+              <span class="pin-dot" id="reg-confirm-dot-3"></span>
+            </div>
+            <input type="hidden" id="reg-confirm-pin" maxlength="4">
+          </div>
+
+          <!-- PIN Keypad for Register -->
+          <div class="auth-keypad" id="reg-keypad">
+            <button type="button" class="keypad-btn" data-key="1">1</button>
+            <button type="button" class="keypad-btn" data-key="2">2</button>
+            <button type="button" class="keypad-btn" data-key="3">3</button>
+            <button type="button" class="keypad-btn" data-key="4">4</button>
+            <button type="button" class="keypad-btn" data-key="5">5</button>
+            <button type="button" class="keypad-btn" data-key="6">6</button>
+            <button type="button" class="keypad-btn" data-key="7">7</button>
+            <button type="button" class="keypad-btn" data-key="8">8</button>
+            <button type="button" class="keypad-btn" data-key="9">9</button>
+            <button type="button" class="keypad-btn" data-key="0">0</button>
+            <button type="button" class="keypad-btn" data-key="0">0</button>
+            <button type="button" class="keypad-btn keypad-del" data-key="del">⌫</button>
+          </div>
+
+          <div class="auth-terms">
+            <label class="auth-checkbox-wrapper">
+              <input type="checkbox" id="reg-terms" class="auth-checkbox">
+              <span class="auth-checkmark"></span>
+              <span>I agree to the <a href="#" class="auth-link-inline">Terms of Service</a> and <a href="#" class="auth-link-inline">Privacy Policy</a></span>
+            </label>
+          </div>
+
+          <button type="submit" class="auth-submit-btn auth-register-btn" id="btn-register">
+            <span class="auth-btn-icon">🚀</span>
+            <span>Create Secure Account</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- Security Footer -->
+      <div class="auth-security-footer">
+        <div class="auth-security-item">
+          <span class="security-icon">🛡️</span>
+          <span>2FA Protection</span>
+        </div>
+        <div class="auth-security-item">
+          <span class="security-icon">🔐</span>
+          <span>Encrypted PIN</span>
+        </div>
+        <div class="auth-security-item">
+          <span class="security-icon">📱</span>
+          <span>Device Lock</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       2FA VERIFICATION MODAL
+       ============================================================ -->
+  <div class="modal-overlay hidden" id="modal-2fa">
+    <div class="modal-card modal-2fa-card">
+      <div class="modal-2fa-header">
+        <span class="modal-2fa-icon">🔐</span>
+        <h3>Two-Factor Verification</h3>
+        <p>Enter the 6-digit code sent to your phone</p>
+      </div>
+      <div class="otp-input-group" id="otp-input-group">
+        <input type="tel" class="otp-digit" id="otp-0" maxlength="1" autofocus>
+        <input type="tel" class="otp-digit" id="otp-1" maxlength="1">
+        <input type="tel" class="otp-digit" id="otp-2" maxlength="1">
+        <input type="tel" class="otp-digit" id="otp-3" maxlength="1">
+        <input type="tel" class="otp-digit" id="otp-4" maxlength="1">
+        <input type="tel" class="otp-digit" id="otp-5" maxlength="1">
+      </div>
+      <div class="otp-actions">
+        <button class="auth-submit-btn" id="btn-verify-otp">Verify Code</button>
+        <button class="auth-link" id="btn-resend-otp">Resend Code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SECURITY SETTINGS PANEL (Slide-out)
+       ============================================================ -->
+  <div class="security-panel hidden" id="security-panel">
+    <div class="security-panel-header">
+      <h3>🛡️ Security Center</h3>
+      <button class="security-panel-close" id="btn-close-security">✕</button>
+    </div>
+    <div class="security-panel-body">
+      <!-- User Profile Section -->
+      <div class="security-section">
+        <div class="security-profile-card" id="security-profile-card">
+          <div class="security-avatar" id="security-avatar">WK</div>
+          <div class="security-profile-info">
+            <span class="security-profile-name" id="security-profile-name">Wanjiku Kamau</span>
+            <span class="security-profile-phone" id="security-profile-phone">0712 *** 678</span>
+            <span class="security-profile-since" id="security-profile-since">Member since Sep 2024</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security Level -->
+      <div class="security-section">
+        <h4 class="security-section-title">Security Level</h4>
+        <div class="security-level-bar">
+          <div class="security-level-fill" id="security-level-fill" style="width: 60%"></div>
+        </div>
+        <div class="security-level-labels">
+          <span class="sec-level-label active" data-level="standard">Standard</span>
+          <span class="sec-level-label" data-level="enhanced">Enhanced</span>
+          <span class="sec-level-label" data-level="maximum">Maximum</span>
+        </div>
+      </div>
+
+      <!-- Security Options -->
+      <div class="security-section">
+        <h4 class="security-section-title">Security Options</h4>
+
+        <div class="security-option" id="opt-2fa">
+          <div class="security-opt-info">
+            <span class="security-opt-icon">📱</span>
+            <div>
+              <span class="security-opt-name">Two-Factor Auth (2FA)</span>
+              <span class="security-opt-desc">OTP verification on every login</span>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="check-2fa">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <div class="security-option" id="opt-change-pin">
+          <div class="security-opt-info">
+            <span class="security-opt-icon">🔑</span>
+            <div>
+              <span class="security-opt-name">Change PIN</span>
+              <span class="security-opt-desc">Update your 4-digit login PIN</span>
+            </div>
+          </div>
+          <button class="security-action-btn" id="btn-change-pin">Change</button>
+        </div>
+
+        <div class="security-option">
+          <div class="security-opt-info">
+            <span class="security-opt-icon">⏱️</span>
+            <div>
+              <span class="security-opt-name">Session Timeout</span>
+              <span class="security-opt-desc">Auto-logout after inactivity</span>
+            </div>
+          </div>
+          <select class="security-select" id="select-session-timeout">
+            <option value="15">15 min</option>
+            <option value="30" selected>30 min</option>
+            <option value="60">1 hour</option>
+            <option value="120">2 hours</option>
+          </select>
+        </div>
+
+        <div class="security-option">
+          <div class="security-opt-info">
+            <span class="security-opt-icon">🔔</span>
+            <div>
+              <span class="security-opt-name">Login Alerts</span>
+              <span class="security-opt-desc">Get notified of new logins</span>
+            </div>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="check-login-alerts" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Login History -->
+      <div class="security-section">
+        <h4 class="security-section-title">Login Activity</h4>
+        <div class="login-history-list" id="login-history-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Change PIN Sub-Form (hidden by default) -->
+      <div class="security-section hidden" id="change-pin-section">
+        <h4 class="security-section-title">🔑 Change PIN</h4>
+        <div class="change-pin-form">
+          <div class="auth-input-group compact">
+            <label class="auth-label">Current PIN</label>
+            <input type="password" id="current-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric">
+          </div>
+          <div class="auth-input-group compact">
+            <label class="auth-label">New PIN</label>
+            <input type="password" id="new-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric">
+          </div>
+          <div class="auth-input-group compact">
+            <label class="auth-label">Confirm New PIN</label>
+            <input type="password" id="confirm-new-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric">
+          </div>
+          <div class="change-pin-actions">
+            <button class="auth-submit-btn compact" id="btn-submit-change-pin">Update PIN</button>
+            <button class="auth-link" id="btn-cancel-change-pin">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Logout Button -->
+      <div class="security-section">
+        <button class="security-logout-btn" id="btn-security-logout">
+          <span>🚪</span>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="app-container">
+    <!-- Top Live Community Wins Ticker -->
+    <div class="community-ticker-bar" id="community-ticker-bar">
+      <div class="ticker-content">
+        <span class="ticker-live-dot"></span>
+        <span class="ticker-label">LIVE PAYOUTS:</span>
+        <span class="ticker-message" id="ticker-live-message">🇰🇪 Mwangi N. (Nairobi) just won KSh 4,900 on USD/KES (98%)</span>
+      </div>
+      <div class="ticker-stat">
+        <span>⚡ 98.4% Server Uptime</span>
+        <span class="ticker-separator">•</span>
+        <span>⏱ Latency: <strong>14ms</strong></span>
+      </div>
+    </div>
+
+    <!-- Top Navigation Header -->
+    <header class="top-nav">
+      <div class="nav-left">
+        <div class="brand-badge" id="brand-home-btn" title="Apex Binary — Kenya Trading Platform">
+          <div class="brand-logo">
+            <span class="logo-icon">▲</span>
+            <div class="brand-text">
+              <span class="brand-name">APEX <span class="brand-dot">BINARY</span></span>
+              <span class="brand-sub">APEX BINARY PRO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Asset Selector Pills -->
+        <div class="quick-assets" id="quick-assets-container">
+          <!-- Dynamically populated -->
+        </div>
+
+        <!-- All Assets Button -->
+        <button class="asset-dropdown-btn" id="btn-open-asset-modal" title="Browse all trading assets">
+          <span class="icon">＋</span>
+          <span>Assets</span>
+        </button>
+      </div>
+
+      <div class="nav-right">
+        <!-- AUTHENTICATED USER NAV -->
+        <div class="nav-auth-group" id="nav-auth-group">
+          <!-- Trader Level & XP Pill -->
+          <div class="user-level-badge" id="user-level-badge" title="Trader Level & Quests Progress">
+            <span class="level-icon" id="level-badge-icon">🥉</span>
+            <div class="level-info-col">
+              <span class="level-title" id="level-badge-title">Level 1: Novice</span>
+              <span class="level-xp" id="level-badge-xp">450 / 500 XP</span>
+            </div>
+          </div>
+
+          <!-- One-Click Trading Toggle -->
+          <div class="one-click-toggle-wrapper" title="Execute orders with zero confirmation delay">
+            <label class="switch">
+              <input type="checkbox" id="check-one-click" checked>
+              <span class="slider round"></span>
+            </label>
+            <span class="toggle-label">1-Click</span>
+          </div>
+
+          <!-- Account Switcher Dropdown -->
+          <div class="wallet-switcher" id="wallet-switcher">
+            <button class="wallet-pill" id="wallet-pill-btn">
+              <span class="wallet-status-dot"></span>
+              <div class="wallet-info">
+                <span class="wallet-type-label" id="wallet-type-label">DEMO ACCOUNT</span>
+                <span class="wallet-balance-display" id="wallet-balance-display">KSh 1,000,000.00</span>
+              </div>
+              <span class="dropdown-chevron">▾</span>
+            </button>
+
+            <!-- Wallet Dropdown Menu -->
+            <div class="wallet-menu hidden" id="wallet-menu">
+              <div class="wallet-menu-item active" id="menu-select-demo">
+                <div class="menu-item-header">
+                  <span class="badge demo-badge">DEMO</span>
+                  <span class="menu-balance" id="menu-demo-balance">KSh 1,000,000.00</span>
+                </div>
+                <p class="menu-sub">Virtual funds for risk-free trading strategies</p>
+                <button class="reload-demo-btn" id="btn-reload-demo" title="Refill demo to KSh 1,000,000">↺ Reset to KSh 1,000,000</button>
+              </div>
+
+              <div class="wallet-menu-divider"></div>
+
+              <div class="wallet-menu-item" id="menu-select-real">
+                <div class="menu-item-header">
+                  <span class="badge real-badge">REAL KES</span>
+                  <span class="menu-balance" id="menu-real-balance">KSh 0.00</span>
+                </div>
+                <p class="menu-sub">Live trading with instant M-Pesa payouts</p>
+                <button class="menu-deposit-btn" id="btn-menu-deposit">Deposit via M-Pesa</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- M-Pesa Deposit Button -->
+          <button class="mpesa-deposit-btn" id="btn-header-deposit">
+            <span class="mpesa-logo-badge">M</span>
+            <span class="btn-text">Deposit</span>
+            <span class="mpesa-cur">KES</span>
+          </button>
+
+          <!-- M-Pesa Withdraw Button -->
+          <button class="mpesa-withdraw-btn" id="btn-header-withdraw" title="Withdraw to M-Pesa">
+            <span>Withdraw</span>
+          </button>
+        </div>
+
+        <!-- GUEST NAV (Visible when logged out) -->
+        <div class="nav-guest-group hidden" id="nav-guest-group">
+          <button class="guest-login-btn" id="btn-nav-login">Sign In</button>
+          <button class="guest-register-btn" id="btn-nav-register">Create Account</button>
+        </div>
+
+        <!-- COMMON NAV TOOLS -->
+        <!-- Sound Toggle Button -->
+        <button class="icon-tool-btn" id="btn-toggle-sound" title="Toggle Sound FX">
+          <span class="icon-sound" id="sound-icon">🔊</span>
+        </button>
+
+        <!-- Install PWA App Button -->
+        <button class="pwa-install-btn" id="btn-install-pwa" title="Install Apex Binary to Home Screen">
+          <span class="pwa-icon">📲</span>
+          <span class="pwa-label">App</span>
+        </button>
+
+        <!-- Fullscreen Button -->
+        <button class="icon-tool-btn" id="btn-toggle-fullscreen" title="Toggle Fullscreen">
+          <span class="icon-screen">⛶</span>
+        </button>
+
+        <!-- User Profile / Security Button (Only visible when logged in) -->
+        <button class="user-avatar-btn" id="btn-user-avatar" title="Account & Security">
+          <span class="user-avatar-initials" id="nav-avatar-initials">?</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <main class="trading-workspace">
+      <!-- Left Activity Sidebar Dock -->
+      <aside class="activity-dock">
+        <button class="dock-btn active" id="dock-btn-trades" data-tab="trades" title="Open & Closed Trades">
+          <span class="dock-icon">⚡</span>
+          <span class="dock-label">Trades</span>
+          <span class="dock-badge hidden" id="active-trades-badge">0</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-copy" data-tab="copy" title="Kenyan Social Copy Trading">
+          <span class="dock-icon">👥</span>
+          <span class="dock-label">Copy Trade</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-bots" data-tab="bots" title="Automated Strategy Bots">
+          <span class="dock-icon">🤖</span>
+          <span class="dock-label">Auto Bots</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-tournaments" data-tab="tournaments" title="Kenyan Tournaments & Quests">
+          <span class="dock-icon">🏆</span>
+          <span class="dock-label">Tournaments</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-signals" data-tab="signals" title="Market Signals & Sentiment">
+          <span class="dock-icon">📊</span>
+          <span class="dock-label">Signals</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-leaderboard" data-tab="leaderboard" title="Top Kenya Traders">
+          <span class="dock-icon">🥇</span>
+          <span class="dock-label">Rankings</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-history" data-tab="history" title="M-Pesa Wallet History">
+          <span class="dock-icon">📋</span>
+          <span class="dock-label">M-Pesa Log</span>
+        </button>
+
+        <button class="dock-btn" id="dock-btn-guide" data-tab="guide" title="Trading Guide">
+          <span class="dock-icon">💡</span>
+          <span class="dock-label">Guide</span>
+        </button>
+      </aside>
+
+      <!-- Collapsible Left Drawer -->
+      <section class="drawer-panel" id="drawer-panel">
+        <div class="drawer-header">
+          <h2 class="drawer-title" id="drawer-title">Trades</h2>
+          <button class="drawer-close-btn" id="btn-close-drawer">✕</button>
+        </div>
+
+        <div class="drawer-content">
+          <!-- Trades Tab Content -->
+          <div class="drawer-tab-content active" id="tab-content-trades">
+            <div class="trades-sub-tabs">
+              <button class="trade-tab-btn active" id="tab-active-trades">Active (<span id="active-count">0</span>)</button>
+              <button class="trade-tab-btn" id="tab-closed-trades">History (<span id="closed-count">0</span>)</button>
+            </div>
+            
+            <!-- Active Trades List -->
+            <div class="trades-list" id="active-trades-list">
+              <div class="empty-state">
+                <span class="empty-icon">📈</span>
+                <p>No active trades</p>
+                <small>Choose an asset & click Higher or Lower to trade</small>
+              </div>
+            </div>
+
+            <!-- Closed Trades List -->
+            <div class="trades-list hidden" id="closed-trades-list">
+              <div class="empty-state">
+                <span class="empty-icon">📁</span>
+                <p>No trade history yet</p>
+                <small>Completed trades will appear here</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- Copy Trading Tab Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-copy">
+            <div class="signals-header-card">
+              <div class="signals-badge">🇰🇪 TOP KENYAN COPY TRADERS</div>
+              <p>Mirror master traders from Nairobi, Mombasa & Eldoret. Set your copy stake and let their verified trades execute automatically.</p>
+            </div>
+            <div class="copy-traders-list" id="copy-traders-list">
+              <!-- Dynamically populated from bots.js -->
+            </div>
+          </div>
+
+          <!-- Strategy Bots Tab Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-bots">
+            <div class="signals-header-card">
+              <div class="signals-badge">🤖 AUTONOMOUS STRATEGY BOTS</div>
+              <p>Deploy algorithmic bots directly into the live market. Smart risk recovery, RSI oscillator scalping, and moving average momentum.</p>
+            </div>
+            <div class="bot-activity-log-container">
+              <div class="bot-activity-log-header">Live Bot Activity <span class="pulse-indicator"></span></div>
+              <div class="bot-activity-log-list" id="bot-activity-log-list">
+                <div class="empty-state" style="padding: 10px;">
+                  <small>Bots are currently idle.</small>
+                </div>
+              </div>
+            </div>
+            <div class="bots-list" id="bots-list">
+              <!-- Dynamically populated from bots.js -->
+            </div>
+          </div>
+
+          <!-- Tournaments & Quests Tab Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-tournaments">
+            <div class="tournaments-sub-tabs">
+              <button class="trade-tab-btn active" id="tab-tourn-list">Cups & Tourneys</button>
+              <button class="trade-tab-btn" id="tab-quests-list">Trader Quests</button>
+            </div>
+
+            <!-- Tournaments List -->
+            <div class="tournaments-container" id="tournaments-container">
+              <!-- Dynamically populated -->
+            </div>
+
+            <!-- Quests List -->
+            <div class="quests-container hidden" id="quests-container">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Signals Tab Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-signals">
+            <div class="signals-header-card">
+              <div class="signals-badge">LIVE AI SIGNALS</div>
+              <p>Algorithmic trend momentum indicators based on RSI(14) and Moving Average crossovers.</p>
+            </div>
+            <div class="signals-list" id="signals-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Leaderboard Tab Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-leaderboard">
+            <div class="leaderboard-banner">
+              <span class="crown-icon">👑</span>
+              <div>
+                <h3>Kenya Daily Rankings</h3>
+                <p>Top earners in Nairobi, Mombasa & Kisumu today</p>
+              </div>
+            </div>
+            <div class="leaderboard-list" id="leaderboard-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- M-Pesa Log Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-history">
+            <div class="signals-header-card">
+              <div class="signals-badge">M-PESA TRANSACTIONS</div>
+              <p>Recent simulated Lipa Na M-Pesa deposits and B2C payouts.</p>
+            </div>
+            <div class="mpesa-log-list" id="mpesa-log-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Guide Tab Content -->
+          <div class="drawer-tab-content hidden" id="tab-content-guide">
+            <div class="guide-cards">
+              <div class="guide-card">
+                <span class="guide-num">1</span>
+                <h4>Select an Asset</h4>
+                <p>Choose high payout assets like <strong>USD/KES (98% HOT)</strong> or <strong>BTC/USDT (94%)</strong>.</p>
+              </div>
+              <div class="guide-card">
+                <span class="guide-num">2</span>
+                <h4>Draw S/R Lines & Trendlines</h4>
+                <p>Use the <strong>Draw Tools</strong> (✏️) on top of the chart to mark key support, resistance, and Fibonacci retracements.</p>
+              </div>
+              <div class="guide-card">
+                <span class="guide-num">3</span>
+                <h4>Predict Higher or Lower</h4>
+                <p>Press <strong>HIGHER</strong> (or keyboard ↑) if you expect price to rise, or <strong>LOWER</strong> (keyboard ↓) if you expect it to fall.</p>
+              </div>
+              <div class="guide-card">
+                <span class="guide-num">4</span>
+                <h4>Compete in Tournaments</h4>
+                <p>Join the <strong>Nairobi Super Sprint</strong> (KSh 500,000 prize pool) to rank against top Kenyan traders!</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Center Chart Stage -->
+      <section class="chart-stage">
+        <!-- Chart Controls Topbar -->
+        <div class="chart-topbar">
+          <div class="asset-profile">
+            <div class="asset-main">
+              <span class="asset-symbol-icon" id="current-asset-icon">🇰🇪</span>
+              <div class="asset-details">
+                <div class="asset-title-row">
+                  <span class="asset-name" id="current-asset-name">USD / KES (OTC)</span>
+                  <span class="asset-category-tag" id="current-asset-cat">FOREX</span>
+                  <span class="asset-payout-pill hot" id="current-asset-payout">98% HOT</span>
+                </div>
+                <div class="asset-stats-row">
+                  <span class="current-price-hero" id="current-price-hero">129.480</span>
+                  <span class="price-change-badge positive" id="price-change-hero">+0.54%</span>
+                  <span class="candle-countdown-pill" id="candle-timer-display" title="Time remaining on current candle">⏱ Candle: <strong>24s</strong></span>
+                  <span class="stat-meta">24h H: <strong id="stat-high">129.800</strong></span>
+                  <span class="stat-meta">24h L: <strong id="stat-low">128.920</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chart-tools-group">
+            <!-- Chart Type Switcher -->
+            <div class="tool-btn-group" id="chart-type-group">
+              <button class="tool-btn active" id="btn-chart-candles" title="Candlestick Chart">🕯️ Candles</button>
+              <button class="tool-btn" id="btn-chart-area" title="Curved Spline Area Chart">📈 Line</button>
+            </div>
+
+            <!-- Timeframe Selector -->
+            <div class="tool-btn-group" id="timeframe-group">
+              <button class="tool-btn" data-tf="5s">5s</button>
+              <button class="tool-btn" data-tf="15s">15s</button>
+              <button class="tool-btn active" data-tf="30s">30s</button>
+              <button class="tool-btn" data-tf="1m">1m</button>
+              <button class="tool-btn" data-tf="5m">5m</button>
+            </div>
+
+            <!-- Interactive Drawing Tools Menu -->
+            <div class="drawing-menu-wrapper">
+              <button class="tool-btn draw-trigger" id="btn-toggle-draw">
+                <span>✏️ Draw</span>
+                <span class="active-draw-tool-label" id="draw-tool-badge">Off</span>
+              </button>
+              <div class="draw-dropdown hidden" id="draw-dropdown">
+                <button class="draw-opt-btn active" data-tool="none">
+                  <span>✕ Crosshair (Normal)</span>
+                </button>
+                <button class="draw-opt-btn" data-tool="horizontal">
+                  <span>━ Support / Resistance Line</span>
+                </button>
+                <button class="draw-opt-btn" data-tool="trendline">
+                  <span>╱ Trendline Ray</span>
+                </button>
+                <button class="draw-opt-btn" data-tool="fibonacci">
+                  <span>☰ Fibonacci Retracement</span>
+                </button>
+                <div class="draw-divider"></div>
+                <button class="draw-opt-btn clear-btn" id="btn-clear-drawings">
+                  <span>🗑️ Clear All Lines</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Technical Indicators Dropdown -->
+            <div class="indicators-menu-wrapper">
+              <button class="tool-btn indicator-trigger" id="btn-toggle-indicators">
+                <span>Indicators</span>
+                <span class="indicator-active-count" id="indicators-badge">2</span>
+              </button>
+              <div class="indicator-dropdown hidden" id="indicators-dropdown">
+                <label class="indicator-checkbox">
+                  <input type="checkbox" id="check-sma7" checked>
+                  <span class="color-dot sma7-color"></span>
+                  <span>SMA 7 (Fast MA)</span>
+                </label>
+                <label class="indicator-checkbox">
+                  <input type="checkbox" id="check-sma25" checked>
+                  <span class="color-dot sma25-color"></span>
+                  <span>SMA 25 (Slow MA)</span>
+                </label>
+                <label class="indicator-checkbox">
+                  <input type="checkbox" id="check-bollinger">
+                  <span class="color-dot bollinger-color"></span>
+                  <span>Bollinger Bands (20, 2)</span>
+                </label>
+                <label class="indicator-checkbox">
+                  <input type="checkbox" id="check-rsi" checked>
+                  <span class="color-dot rsi-color"></span>
+                  <span>RSI 14 Sub-Chart</span>
+                </label>
+              </div>
+            </div>
+
+            <!-- AI Candlestick Patterns Toggle -->
+            <button class="tool-btn active" id="btn-toggle-patterns" title="Toggle AI Candlestick Pattern Recognition Overlay">
+              <span>🤖 Patterns</span>
+              <span class="indicator-active-count" id="patterns-status-badge">ON</span>
+            </button>
+
+            <!-- WebSocket Live Feed Status Badge -->
+            <div class="ws-feed-status-badge live" id="ws-feed-badge" title="Binance Live WebSocket Stream Status">
+              <span class="ws-pulse-dot"></span>
+              <span id="ws-status-text">Binance WS</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Canvas Chart Container -->
+        <div class="chart-canvas-container" id="chart-canvas-container">
+          <canvas id="main-chart-canvas"></canvas>
+          
+          <!-- Floating Chart Zoom Controls -->
+          <div class="floating-zoom-controls">
+            <button class="zoom-btn" id="btn-zoom-in" title="Zoom In (both axes)">＋</button>
+            <button class="zoom-btn" id="btn-zoom-out" title="Zoom Out (both axes)">－</button>
+            <button class="zoom-btn reset-zoom" id="btn-zoom-reset" title="Reset Zoom">↺</button>
+          </div>
+          <!-- Zoom hint -->
+          <div class="zoom-hint-tip">🖱 Scroll to zoom &middot; Drag axes to scale</div>
+
+          <!-- Crosshair and Floating OHLC tooltip -->
+          <div class="chart-crosshair-hud hidden" id="crosshair-hud">
+            <span>O: <strong id="hud-o">-</strong></span>
+            <span>H: <strong id="hud-h">-</strong></span>
+            <span>L: <strong id="hud-l">-</strong></span>
+            <span>C: <strong id="hud-c">-</strong></span>
+            <span>Time: <strong id="hud-time">-</strong></span>
+          </div>
+
+          <!-- Chart Live Sentiment Bar -->
+          <div class="chart-sentiment-bar">
+            <div class="sentiment-bullish" id="sentiment-bullish-fill" style="width: 68%;">
+              <span class="sentiment-text">▲ 68% Bullish</span>
+            </div>
+            <div class="sentiment-bearish" id="sentiment-bearish-fill" style="width: 32%;">
+              <span class="sentiment-text">32% Bearish ▼</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- RSI Sub-Chart Panel -->
+        <div class="rsi-subpanel" id="rsi-subpanel">
+          <div class="rsi-header">
+            <span class="rsi-title">RSI (14): <strong id="rsi-live-value">54.20</strong></span>
+            <div class="rsi-levels">
+              <span class="overbought">70 Overbought</span>
+              <span class="oversold">30 Oversold</span>
+            </div>
+          </div>
+          <canvas id="rsi-chart-canvas"></canvas>
+        </div>
+      </section>
+
+      <!-- Right Trade Desk (Execution Panel) -->
+      <aside class="trade-desk">
+        <div class="trade-desk-card">
+          <div class="guest-trade-overlay" id="guest-trade-overlay">
+            <div class="guest-trade-msg">Sign In to Trade</div>
+          </div>
+          <div class="desk-header">
+            <span class="desk-title">FIXED TIME ORDER</span>
+            <span class="payout-highlight" id="desk-payout-rate">+98%</span>
+          </div>
+
+          <!-- Expiry Duration -->
+          <div class="desk-section">
+            <div class="section-label-row">
+              <label>EXPIRATION TIME</label>
+              <span class="section-helper" id="expiry-formatted">00:30</span>
+            </div>
+            <div class="time-pills-grid" id="expiry-pills-container">
+              <button class="expiry-pill active" data-seconds="30">30s</button>
+              <button class="expiry-pill" data-seconds="60">1m</button>
+              <button class="expiry-pill" data-seconds="120">2m</button>
+              <button class="expiry-pill" data-seconds="300">5m</button>
+            </div>
+          </div>
+
+          <!-- Investment Stake in KES -->
+          <div class="desk-section">
+            <div class="section-label-row">
+              <label>INVESTMENT AMOUNT</label>
+              <span class="min-max-label">Min: KSh 100</span>
+            </div>
+            <div class="amount-stepper-wrapper">
+              <button class="amount-step-btn" id="btn-amount-minus" title="Decrease stake">－</button>
+              <div class="amount-input-wrapper">
+                <span class="amount-prefix">KSh</span>
+                <input type="number" id="trade-amount-input" class="amount-input" value="1000" min="100" max="500000" step="50">
+              </div>
+              <button class="amount-step-btn" id="btn-amount-plus" title="Increase stake">＋</button>
+            </div>
+
+            <!-- Quick Preset Chips -->
+            <div class="amount-chips-grid">
+              <button class="amount-chip" data-val="100">+100</button>
+              <button class="amount-chip" data-val="500">+500</button>
+              <button class="amount-chip" data-val="1000">+1,000</button>
+              <button class="amount-chip" data-val="5000">+5,000</button>
+              <button class="amount-chip action-chip" id="btn-amount-x2">x2</button>
+              <button class="amount-chip action-chip" id="btn-amount-half">½</button>
+            </div>
+          </div>
+
+          <!-- Profit Breakdown Box -->
+          <div class="profit-summary-card">
+            <div class="profit-row">
+              <span class="profit-lbl">Payout Rate:</span>
+              <span class="profit-val highlight-cyan" id="calc-payout-pct">98%</span>
+            </div>
+            <div class="profit-row">
+              <span class="profit-lbl">Expected Profit:</span>
+              <span class="profit-val highlight-green" id="calc-profit-amount">+KSh 980.00</span>
+            </div>
+            <div class="profit-divider"></div>
+            <div class="profit-row total-row">
+              <span class="profit-lbl">Total Return:</span>
+              <span class="profit-val highlight-gold" id="calc-total-return">KSh 1,980.00</span>
+            </div>
+          </div>
+
+          <!-- Execution Action Buttons -->
+          <div class="execution-actions">
+            <!-- HIGHER / CALL Button -->
+            <button class="trade-btn btn-call" id="btn-trade-higher">
+              <div class="btn-left">
+                <span class="btn-action-name">HIGHER <span class="key-hint">↑</span></span>
+                <span class="btn-payout-text" id="higher-payout-sub">+98% (KSh 1,980.00)</span>
+              </div>
+              <div class="btn-arrow-icon">▲</div>
+            </button>
+
+            <!-- LOWER / PUT Button -->
+            <button class="trade-btn btn-put" id="btn-trade-lower">
+              <div class="btn-left">
+                <span class="btn-action-name">LOWER <span class="key-hint">↓</span></span>
+                <span class="btn-payout-text" id="lower-payout-sub">+98% (KSh 1,980.00)</span>
+              </div>
+              <div class="btn-arrow-icon">▼</div>
+            </button>
+          </div>
+
+          <div class="desk-footer-stats">
+            <span>Server Time: <strong id="server-clock">--:--:--</strong></span>
+            <span>⚡ Zero Latency</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- All Assets Modal -->
+    <div class="modal-overlay hidden" id="modal-assets">
+      <div class="modal-card assets-dialog">
+        <div class="modal-header">
+          <div class="modal-title-group">
+            <h3>Select Trading Asset</h3>
+            <p>Trade high-payout OTC Pairs, Forex, Crypto & Kenyan Equities</p>
+          </div>
+          <button class="modal-close-btn" id="btn-close-asset-modal">✕</button>
+        </div>
+
+        <div class="asset-modal-search-bar">
+          <input type="text" id="asset-search-input" placeholder="Search assets (e.g. USD/KES, BTC, Gold)...">
+          <div class="asset-category-filters" id="asset-category-filters">
+            <button class="filter-pill active" data-category="all">All</button>
+            <button class="filter-pill" data-category="forex">Forex</button>
+            <button class="filter-pill" data-category="crypto">Crypto</button>
+            <button class="filter-pill" data-category="commodities">Commodities</button>
+            <button class="filter-pill" data-category="stocks">Stocks</button>
+          </div>
+        </div>
+
+        <div class="asset-grid-list" id="asset-grid-list">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Safaricom M-Pesa Deposit Modal with Interactive PIN Keypad -->
+    <div class="modal-overlay hidden" id="modal-mpesa-deposit">
+      <div class="modal-card mpesa-dialog">
+        <div class="mpesa-header">
+          <div class="mpesa-brand">
+            <div class="mpesa-symbol">M</div>
+            <div>
+              <h3>Lipa Na M-PESA Online</h3>
+              <p>Instant STK Push Deposit (KES)</p>
+            </div>
+          </div>
+          <button class="modal-close-btn" id="btn-close-deposit-modal">✕</button>
+        </div>
+
+        <!-- Step 1: Input Details -->
+        <div class="mpesa-body" id="mpesa-deposit-step-1">
+          <div class="form-group">
+            <label for="mpesa-phone-input">Safaricom Phone Number</label>
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix">🇰🇪 +254</span>
+              <input type="tel" id="mpesa-phone-input" placeholder="712 345 678" value="712345678" maxlength="9">
+            </div>
+            <small class="helper-text">Enter Safaricom number (e.g. 712345678 or 112345678)</small>
+          </div>
+
+          <div class="form-group">
+            <label>Select Deposit Amount (KES)</label>
+            <div class="mpesa-quick-amounts">
+              <button class="mpesa-amt-btn" data-amt="500">KSh 500</button>
+              <button class="mpesa-amt-btn active" data-amt="1000">KSh 1,000</button>
+              <button class="mpesa-amt-btn" data-amt="2500">KSh 2,500</button>
+              <button class="mpesa-amt-btn" data-amt="5000">KSh 5,000</button>
+              <button class="mpesa-amt-btn" data-amt="10000">KSh 10,000</button>
+            </div>
+            <div class="phone-input-wrapper custom-amt-wrapper">
+              <span class="phone-prefix">KSh</span>
+              <input type="number" id="mpesa-custom-amount" value="1000" min="50" max="300000">
+            </div>
+          </div>
+
+          <div class="mpesa-features-list">
+            <div class="feature-item">✓ Instant account crediting</div>
+            <div class="feature-item">✓ Paybill: <strong>880220 (Apex Binary)</strong></div>
+            <div class="feature-item">✓ 0% platform deposit fee</div>
+          </div>
+
+          <button class="mpesa-submit-btn" id="btn-submit-stk-push">
+            <span>Send M-Pesa STK Push</span>
+            <span>➔</span>
+          </button>
+        </div>
+
+        <!-- Step 2: Interactive STK Phone Screen with Numeric Keypad -->
+        <div class="mpesa-body hidden" id="mpesa-deposit-step-2">
+          <div class="stk-phone-screen">
+            <div class="phone-notch"></div>
+            <div class="stk-prompt-box">
+              <div class="stk-sim-header">
+                <span class="stk-logo-safaricom">SAFARICOM</span>
+                <span class="stk-service-name">LIPA NA M-PESA</span>
+              </div>
+              <h4>Do you want to pay KSh <span id="stk-prompt-amount">1,000</span> to Apex Binary?</h4>
+              <p class="stk-acc-line">Account: <strong id="stk-prompt-phone">+254712345678</strong></p>
+              
+              <div class="pin-input-group">
+                <label>Enter 4-Digit M-PESA PIN:</label>
+                <div class="pin-dots" id="stk-pin-dots">
+                  <span class="pin-dot" id="dot-0">○</span>
+                  <span class="pin-dot" id="dot-1">○</span>
+                  <span class="pin-dot" id="dot-2">○</span>
+                  <span class="pin-dot" id="dot-3">○</span>
+                </div>
+              </div>
+
+              <!-- Interactive Keypad -->
+              <div class="keypad-grid" id="stk-keypad">
+                <button class="keypad-btn" data-key="1">1</button>
+                <button class="keypad-btn" data-key="2">2</button>
+                <button class="keypad-btn" data-key="3">3</button>
+                <button class="keypad-btn" data-key="4">4</button>
+                <button class="keypad-btn" data-key="5">5</button>
+                <button class="keypad-btn" data-key="6">6</button>
+                <button class="keypad-btn" data-key="7">7</button>
+                <button class="keypad-btn" data-key="8">8</button>
+                <button class="keypad-btn" data-key="9">9</button>
+                <button class="keypad-btn action-key" id="btn-keypad-clear">C</button>
+                <button class="keypad-btn" data-key="0">0</button>
+                <button class="keypad-btn action-key" id="btn-keypad-backspace">⌫</button>
+              </div>
+
+              <div class="stk-actions">
+                <button class="stk-cancel-btn" id="btn-stk-cancel">Cancel</button>
+                <button class="stk-confirm-btn" id="btn-stk-confirm">Confirm Payment</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3: M-Pesa Success Receipt -->
+        <div class="mpesa-body hidden" id="mpesa-deposit-step-3">
+          <div class="mpesa-success-state">
+            <div class="success-check-icon">✓</div>
+            <h3>Deposit Successful!</h3>
+            <p class="sms-receipt" id="mpesa-receipt-code">
+              QK892L019P Confirmed. KSh 1,000.00 sent to Apex Binary. New Real Account Balance updated.
+            </p>
+            <button class="mpesa-finish-btn" id="btn-finish-deposit">Start Trading Now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- M-Pesa Withdrawal Modal -->
+    <div class="modal-overlay hidden" id="modal-mpesa-withdraw">
+      <div class="modal-card mpesa-dialog">
+        <div class="mpesa-header">
+          <div class="mpesa-brand">
+            <div class="mpesa-symbol">M</div>
+            <div>
+              <h3>Withdraw to M-PESA</h3>
+              <p>Instant B2C Payout to Safaricom</p>
+            </div>
+          </div>
+          <button class="modal-close-btn" id="btn-close-withdraw-modal">✕</button>
+        </div>
+
+        <div class="mpesa-body" id="mpesa-withdraw-body">
+          <div class="withdraw-balance-banner">
+            <span>Available Real Balance:</span>
+            <strong id="withdraw-avail-balance">KSh 0.00</strong>
+          </div>
+
+          <div class="form-group">
+            <label for="withdraw-phone-input">M-Pesa Recipient Phone Number</label>
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix">🇰🇪 +254</span>
+              <input type="tel" id="withdraw-phone-input" placeholder="712 345 678" value="712345678" maxlength="9">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="withdraw-amount-input">Withdrawal Amount (KES)</label>
+            <div class="phone-input-wrapper custom-amt-wrapper">
+              <span class="phone-prefix">KSh</span>
+              <input type="number" id="withdraw-amount-input" placeholder="Min: KSh 200" min="200" max="300000">
+            </div>
+          </div>
+
+          <div class="withdrawal-fees-box">
+            <div class="fee-row">
+              <span>Transfer Amount:</span>
+              <span id="withdraw-fee-transfer">KSh 0.00</span>
+            </div>
+            <div class="fee-row">
+              <span>M-Pesa B2C Fee:</span>
+              <span class="highlight-green">FREE (Covered by Apex Binary)</span>
+            </div>
+            <div class="fee-divider"></div>
+            <div class="fee-row total-row">
+              <span>You will receive:</span>
+              <span class="highlight-gold" id="withdraw-fee-net">KSh 0.00</span>
+            </div>
+          </div>
+
+          <button class="mpesa-submit-btn" id="btn-submit-withdrawal">
+            <span>Confirm Instant Withdrawal</span>
+            <span>➔</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settlement Celebration Overlay (Win / Loss Popup) -->
+    <div class="settlement-overlay hidden" id="settlement-overlay">
+      <div class="settlement-card" id="settlement-card">
+        <div class="settlement-badge" id="settlement-badge">TRADE WON</div>
+        <div class="settlement-icon" id="settlement-icon">🎉</div>
+        <h3 class="settlement-amount" id="settlement-amount">+KSh 1,980.00</h3>
+        <p class="settlement-detail" id="settlement-detail">EUR/USD strike 1.08450 closed at 1.08462</p>
+        <button class="settlement-btn" id="btn-settlement-continue">Continue Trading</button>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Mobile Bottom Navigation Bar (PWA Mobile Experience) -->
+    <nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+      <button class="mob-nav-btn active" data-tab="trades" id="mob-nav-trades">
+        <span class="mob-nav-icon">⚡</span>
+        <span class="mob-nav-label">Trades</span>
+      </button>
+      <button class="mob-nav-btn" data-tab="copy" id="mob-nav-copy">
+        <span class="mob-nav-icon">👥</span>
+        <span class="mob-nav-label">Copy</span>
+      </button>
+      <button class="mob-nav-btn" data-tab="bots" id="mob-nav-bots">
+        <span class="mob-nav-icon">🤖</span>
+        <span class="mob-nav-label">Bots</span>
+      </button>
+      <button class="mob-nav-btn" data-tab="tournaments" id="mob-nav-tourn">
+        <span class="mob-nav-icon">🏆</span>
+        <span class="mob-nav-label">Tourneys</span>
+      </button>
+      <button class="mob-nav-btn" id="mob-nav-deposit">
+        <span class="mob-nav-icon">🇰🇪</span>
+        <span class="mob-nav-label">M-Pesa</span>
+      </button>
+    </nav>
+  </div>
+  <!-- Level Up Celebration Overlay -->
+  <div id="level-up-overlay" class="level-up-overlay hidden">
+    <div class="level-up-content">
+      <div class="level-up-confetti" id="level-up-confetti"></div>
+      <div class="level-up-badge" id="level-up-modal-badge">👑</div>
+      <h2 id="level-up-modal-title">LEVEL UP!</h2>
+      <p id="level-up-modal-desc">You are now a Level Tycoon.</p>
+      <button class="btn-primary" id="btn-close-level-up" style="margin-top: 20px;">Keep Trading</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/js/app.js"></script>
+</body>
+</html>

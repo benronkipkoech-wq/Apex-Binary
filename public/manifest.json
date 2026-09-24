@@ -1,0 +1,21 @@
+{
+  "name": "Apex Binary — Binary Options & Fixed-Time Trading",
+  "short_name": "Apex Binary",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#080b12",
+  "theme_color": "#080b12",
+  "description": "Kenya's premier high-speed binary options and fixed-time trading platform with M-Pesa integration.",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}
