@@ -289,6 +289,18 @@
     if (ok) {
       showToast(data.message || 'Withdrawal approved & disbursed!', 'success');
       playChime(659.25);
+
+      // Synchronize client history if testing on same browser
+      try {
+        const localHistory = JSON.parse(localStorage.getItem('tycoon_mpesa_history') || '[]');
+        const target = localHistory.find(t => t.type === 'withdrawal' && (!t.status || t.status.includes('Pending')));
+        if (target) {
+          target.status = 'Completed';
+          target.id = receipt || target.id;
+          localStorage.setItem('tycoon_mpesa_history', JSON.stringify(localHistory));
+        }
+      } catch (e) {}
+
       loadPendingWithdrawals();
       loadOverviewMetrics();
     } else {
@@ -304,6 +316,20 @@
     if (ok) {
       showToast(data.message || 'Withdrawal rejected & refunded.', 'info');
       playChime(329.63, 'sawtooth');
+
+      // Synchronize client refund and status if testing on same browser
+      try {
+        const localHistory = JSON.parse(localStorage.getItem('tycoon_mpesa_history') || '[]');
+        const target = localHistory.find(t => t.type === 'withdrawal' && (!t.status || t.status.includes('Pending')));
+        if (target) {
+          target.status = 'Rejected & Refunded';
+          target.rejectionReason = reason;
+          localStorage.setItem('tycoon_mpesa_history', JSON.stringify(localHistory));
+          const currentReal = parseFloat(localStorage.getItem('tycoon_real_balance') || '0');
+          localStorage.setItem('tycoon_real_balance', (currentReal + parseFloat(amount)).toString());
+        }
+      } catch (e) {}
+
       loadPendingWithdrawals();
       loadOverviewMetrics();
     } else {

@@ -1227,17 +1227,31 @@ class App {
       return;
     }
 
-    list.innerHTML = txs.map(tx => `
-      <div class="tx-card">
-        <div class="tx-left">
-          <span class="tx-code">${tx.id} • ${tx.type.toUpperCase()}</span>
-          <span class="tx-time">${new Date(tx.time).toLocaleDateString()} ${new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • +254${tx.phone}</span>
+    list.innerHTML = txs.map(tx => {
+      const isPending = (tx.status || '').toLowerCase().includes('pending');
+      const isRejected = (tx.status || '').toLowerCase().includes('reject');
+      const badgeText = isPending ? '⏳ Awaiting Admin Approval' : isRejected ? '✕ Rejected & Refunded' : '✓ Completed';
+      const badgeStyle = isPending
+        ? 'background:rgba(255,170,0,0.15); color:#ffaa00; border:1px solid rgba(255,170,0,0.3);'
+        : isRejected
+        ? 'background:rgba(255,51,102,0.15); color:#ff3366; border:1px solid rgba(255,51,102,0.3);'
+        : 'background:rgba(0,255,136,0.15); color:#00ff88; border:1px solid rgba(0,255,136,0.3);';
+
+      return `
+        <div class="tx-card">
+          <div class="tx-left">
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <span class="tx-code">${tx.id} • ${tx.type.toUpperCase()}</span>
+              <span class="tx-status-badge" style="font-size:0.65rem; padding:0.15rem 0.45rem; border-radius:4px; font-weight:600; font-family:monospace; ${badgeStyle}">${badgeText}</span>
+            </div>
+            <span class="tx-time">${new Date(tx.time).toLocaleDateString()} ${new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • +254${tx.phone}</span>
+          </div>
+          <span class="tx-amt ${tx.type}">
+            ${tx.type === 'deposit' ? '+' : '-'}KSh ${tx.amount.toLocaleString()}
+          </span>
         </div>
-        <span class="tx-amt ${tx.type}">
-          ${tx.type === 'deposit' ? '+' : '-'}KSh ${tx.amount.toLocaleString()}
-        </span>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 
   // Live Community Ticker

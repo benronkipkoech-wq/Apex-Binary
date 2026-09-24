@@ -156,14 +156,14 @@ export class WalletEngine {
       amount,
       phone,
       time: Date.now(),
-      status: 'Completed'
+      status: 'Pending Admin Approval'
     };
     this.transactions.unshift(tx);
     if (this.transactions.length > 20) this.transactions.pop();
     localStorage.setItem('tycoon_mpesa_history', JSON.stringify(this.transactions));
 
     this.notify();
-    sound.playMpesaCash();
+    sound.playClick();
 
     // Sync withdrawal request with backend cashier queue
     api.withdrawMpesa(amount, phone).catch(() => {});
@@ -171,7 +171,7 @@ export class WalletEngine {
     return {
       success: true,
       code,
-      message: `${code} Confirmed. KSh ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2 })} withdrawn to +254${phone} via M-PESA B2C. Instant payout complete.`
+      message: `Withdrawal request of KSh ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2 })} submitted! Queued for Admin Cashier review and approval.`
     };
   }
 
