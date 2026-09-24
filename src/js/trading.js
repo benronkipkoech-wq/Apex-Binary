@@ -1,6 +1,7 @@
 // Fixed-Time & Binary Options Trading Engine (Masterclass Edition)
 import { sound } from './audio.js';
 import { wallet } from './wallet.js';
+import { api } from './api.js';
 
 export class TradingEngine {
   constructor(marketInstance) {
@@ -50,6 +51,15 @@ export class TradingEngine {
     this.activeTrades.push(trade);
     sound.playTradePlaced();
     this.notify();
+
+    // Async sync trade to backend database
+    api.placeTrade({
+      asset: asset.name,
+      direction: direction === 'higher' ? 'CALL' : 'PUT',
+      amount,
+      duration: durationSec,
+      accountType: wallet.getType()
+    }).catch(() => {});
 
     return { success: true, trade };
   }

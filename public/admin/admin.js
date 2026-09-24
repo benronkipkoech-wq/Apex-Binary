@@ -259,7 +259,7 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${new Date(tx.createdAt).toLocaleString('en-GB')}</td>
-        <td><strong>${tx.phone}</strong></td>
+        <td><strong class="copy-cell" style="cursor:pointer;" title="Click to copy">${tx.phone} 📋</strong></td>
         <td>${user.fullName || 'Trader'}</td>
         <td style="color:var(--accent-gold); font-weight:700;">KSh ${Number(tx.amount).toLocaleString()}</td>
         <td>KSh ${(user.balances?.real || 0).toLocaleString()}</td>
@@ -288,6 +288,7 @@
     const { ok, data } = await apiCall(`/admin/withdrawals/${txId}/approve`, 'POST', { mpesaReceipt: receipt || undefined });
     if (ok) {
       showToast(data.message || 'Withdrawal approved & disbursed!', 'success');
+      playChime(659.25);
       loadPendingWithdrawals();
       loadOverviewMetrics();
     } else {
@@ -302,6 +303,7 @@
     const { ok, data } = await apiCall(`/admin/withdrawals/${txId}/reject`, 'POST', { reason });
     if (ok) {
       showToast(data.message || 'Withdrawal rejected & refunded.', 'info');
+      playChime(329.63, 'sawtooth');
       loadPendingWithdrawals();
       loadOverviewMetrics();
     } else {
@@ -519,8 +521,93 @@
     const { ok, data } = await apiCall('/admin/settings', 'PUT', payload);
     if (ok) {
       showToast('Risk parameters and payout rates saved!', 'success');
+      playChime(784); // G5 chime
     } else {
       showToast(data.message || 'Failed to save settings', 'error');
+    }
+  });
+  // Web Audio Synth chime for alerts and approvals
+  function playChime(freq = 587.33, type = 'sine') {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      gain.gain.setValueAtTime(0.12, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch (e) {}
+  }
+
+  // CSV Exporter Helper
+  function downloadCsv(filename, rows) {
+    const csvContent = 'data:text/csv;charset=utf-8,' + rows.map(e => e.map(i => `"${String(i).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    showToast(`Exported ${filename}`, 'success');
+  }
+
+  // Export Cashier Table
+  document.getElementById('btn-export-cashier-csv')?.addEventListener('click', () => {
+    const rows = [['Date', 'Phone', 'Trader Name', 'Amount (KES)', 'Method', 'Status']];
+    const trs = document.querySelectorAll('#withdrawals-tbody tr');
+    trs.forEach(tr => {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length >= 6) {
+        rows.push([tds[0].innerText, tds[1].innerText, tds[2].innerText, tds[3].innerText, tds[5].innerText, 'PENDING']);
+      }
+    });
+    downloadCsv(`apex_cashier_withdrawals_${Date.now()}.csv`, rows);
+  });
+
+  // Export Trades Table
+  document.getElementById('btn-export-trades-csv')?.addEventListener('click', () => {
+    const rows = [['Time', 'Trader', 'Asset', 'Direction', 'Stake (KES)', 'Strike', 'Close Price', 'Outcome', 'Profit/Loss']];
+    const trs = document.querySelectorAll('#trades-tbody tr');
+    trs.forEach(tr => {
+      const tds = tr.querySelectorAll('td');
+      if (tds.length >= 8) {
+        rows.push([tds[0].innerText, tds[1].innerText, tds[2].innerText, tds[3].innerText, tds[4].innerText, tds[5].innerText, tds[6].innerText, tds[7].innerText, tds[8]?.innerText || '']);
+      }
+    });
+    downloadCsv(`apex_live_trades_${Date.now()}.csv`, rows);
+  });
+
+  // Auto-Refresh Loop (Every 5s when active)
+  let currentActiveTab = 'overview';
+  navItems.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      currentActiveTab = btn.getAttribute('data-tab');
+    });
+  });
+
+  setInterval(() => {
+    const check = document.getElementById('check-auto-refresh');
+    if (check && check.checked && adminToken && dashboardContainer && !dashboardContainer.classList.contains('hidden')) {
+      loadOverviewMetrics();
+      if (currentActiveTab === 'cashier') loadPendingWithdrawals();
+      if (currentActiveTab === 'trades') loadRecentTrades();
+    }
+  }, 5000);
+
+  // Delegated copy-to-clipboard handler
+  document.addEventListener('click', (e) => {
+    const copyEl = e.target.closest('.copy-cell');
+    if (copyEl) {
+      const text = copyEl.innerText.replace('📋', '').trim();
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(`Copied ${text} to clipboard!`, 'info');
+        playChime(880); // High chime
+      });
     }
   });
 

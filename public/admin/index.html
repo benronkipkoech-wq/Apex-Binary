@@ -70,8 +70,15 @@
       </div>
 
       <div class="topbar-right">
+        <!-- Auto-Refresh Toggle -->
+        <div class="auto-refresh-pill" id="auto-refresh-container" style="display:flex; align-items:center; gap:0.5rem; font-size:0.75rem; font-family:var(--font-mono); background:rgba(255,255,255,0.04); padding:0.35rem 0.85rem; border-radius:999px; border:1px solid var(--border-subtle);">
+          <span class="status-dot online" style="width:6px; height:6px;"></span>
+          <input type="checkbox" id="check-auto-refresh" checked style="accent-color:var(--accent-cyan); cursor:pointer;">
+          <label for="check-auto-refresh" style="cursor:pointer; color:var(--text-muted);">LIVE (5s)</label>
+        </div>
+
         <div class="system-clock">
-          <span class="clock-label">NAIROBI (EAT UTC+3):</span>
+          <span class="clock-label">NAIROBI:</span>
           <span id="live-clock" class="clock-time">--:--:--</span>
         </div>
         <div class="admin-user-profile">
@@ -244,7 +251,10 @@
               <h1 class="pane-title">M-Pesa Cashier Queue</h1>
               <p class="pane-desc">Review and authorize pending trader withdrawal requests.</p>
             </div>
-            <button id="btn-refresh-withdrawals" class="btn-secondary">↻ Refresh Queue</button>
+            <div style="display:flex; gap:0.75rem;">
+              <button id="btn-export-cashier-csv" class="btn-secondary">📥 Export CSV</button>
+              <button id="btn-refresh-withdrawals" class="btn-secondary">↻ Refresh Queue</button>
+            </div>
           </div>
 
           <div class="table-card glass">
@@ -315,7 +325,10 @@
               <h1 class="pane-title">Live Trading Audit Log</h1>
               <p class="pane-desc">Chronological feed of trades executed across the platform.</p>
             </div>
-            <button id="btn-refresh-trades" class="btn-secondary">↻ Refresh Feed</button>
+            <div style="display:flex; gap:0.75rem;">
+              <button id="btn-export-trades-csv" class="btn-secondary">📥 Export CSV</button>
+              <button id="btn-refresh-trades" class="btn-secondary">↻ Refresh Feed</button>
+            </div>
           </div>
 
           <div class="table-card glass">

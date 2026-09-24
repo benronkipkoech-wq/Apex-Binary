@@ -1,5 +1,6 @@
 // Multi-Wallet & Kenyan M-Pesa Payment Simulation Engine (Masterclass Edition)
 import { sound } from './audio.js';
+import { api } from './api.js';
 
 export class WalletEngine {
   constructor() {
@@ -126,6 +127,10 @@ export class WalletEngine {
     this.setType('real');
     this.clearPin();
     sound.playMpesaCash();
+
+    // Sync deposit to backend database
+    api.depositMpesa(amount, phone).catch(() => {});
+
     return receipt;
   }
 
@@ -159,6 +164,9 @@ export class WalletEngine {
 
     this.notify();
     sound.playMpesaCash();
+
+    // Sync withdrawal request with backend cashier queue
+    api.withdrawMpesa(amount, phone).catch(() => {});
 
     return {
       success: true,
