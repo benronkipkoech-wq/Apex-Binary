@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Apex Binary — Executive Operations & Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body class="admin-body">
+
+  <!-- ==========================================
+       ADMIN AUTH MODAL (Shown when logged out)
+       ========================================== -->
+  <div id="admin-login-modal" class="modal-overlay active">
+    <div class="modal-glass">
+      <div class="login-brand">
+        <span class="brand-triangle">▲</span>
+        <div class="brand-text">
+          <h2>APEX BINARY</h2>
+          <span class="badge-tag">ADMIN CONSOLE</span>
+        </div>
+      </div>
+      <p class="login-subtitle">Restricted operations portal. Authorized personnel only.</p>
+
+      <div id="login-error-alert" class="alert-box error hidden"></div>
+
+      <form id="admin-login-form" class="auth-form">
+        <div class="form-group">
+          <label for="admin-email">Administrator Email</label>
+          <input type="email" id="admin-email" placeholder="admin@apexbinary.ke" required autocomplete="email">
+        </div>
+        <div class="form-group">
+          <label for="admin-password">Secure Password</label>
+          <input type="password" id="admin-password" placeholder="••••••••••••" required autocomplete="current-password">
+        </div>
+        <button type="submit" id="btn-admin-login" class="btn-primary-glow">
+          <span>Authenticate & Access Console</span>
+          <span class="btn-arrow">→</span>
+        </button>
+      </form>
+
+      <div class="seed-helper">
+        <p>First-time setup? <button type="button" id="btn-seed-admin" class="btn-link">Seed Default Admin Account</button></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MAIN ADMIN DASHBOARD LAYOUT
+       ========================================== -->
+  <div id="admin-dashboard-container" class="dashboard-layout hidden">
+    
+    <!-- Top Executive Header -->
+    <header class="admin-topbar">
+      <div class="topbar-left">
+        <div class="admin-logo">
+          <span class="logo-mark">▲</span>
+          <div class="logo-titles">
+            <span class="logo-main">APEX <span class="accent-text">CONSOLE</span></span>
+            <span class="logo-sub">SYSTEM CONTROLLER & M-PESA CASHIER</span>
+          </div>
+        </div>
+        <div class="db-status-pill" id="db-status-badge">
+          <span class="status-dot"></span>
+          <span id="db-status-text">Checking Database...</span>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="system-clock">
+          <span class="clock-label">NAIROBI (EAT UTC+3):</span>
+          <span id="live-clock" class="clock-time">--:--:--</span>
+        </div>
+        <div class="admin-user-profile">
+          <div class="user-avatar">ADM</div>
+          <div class="user-info">
+            <span id="admin-user-name" class="user-name">Administrator</span>
+            <span class="user-role">SUPER ADMIN</span>
+          </div>
+          <button id="btn-logout" class="btn-icon" title="Sign Out">⎋</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="admin-main-wrap">
+      <!-- Left Sidebar Navigation -->
+      <aside class="admin-sidebar">
+        <nav class="sidebar-nav">
+          <button class="nav-item active" data-tab="overview">
+            <span class="nav-icon">📊</span>
+            <span>Platform Overview</span>
+          </button>
+          <button class="nav-item" data-tab="cashier">
+            <span class="nav-icon">💸</span>
+            <span>M-Pesa Cashier</span>
+            <span class="nav-badge hidden" id="pending-withdrawals-badge">0</span>
+          </button>
+          <button class="nav-item" data-tab="traders">
+            <span class="nav-icon">👥</span>
+            <span>Trader Accounts</span>
+          </button>
+          <button class="nav-item" data-tab="trades">
+            <span class="nav-icon">⚡</span>
+            <span>Live Trades Ticker</span>
+          </button>
+          <button class="nav-item" data-tab="risk">
+            <span class="nav-icon">⚙️</span>
+            <span>Risk & Payout Limits</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="environment-card">
+            <div class="env-row"><span class="label">Platform:</span> <span class="val">Apex Binary v1.0</span></div>
+            <div class="env-row"><span class="label">Storage:</span> <span class="val highlight">MongoDB Atlas</span></div>
+            <div class="env-row"><span class="label">Gateway:</span> <span class="val">Safaricom Daraja</span></div>
+          </div>
+          <a href="/" target="_blank" class="btn-view-trader-app">
+            <span>Open Trader Portal</span> ↗
+          </a>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="admin-content-area">
+
+        <!-- =====================================
+             TAB 1: PLATFORM OVERVIEW / KPIS
+             ===================================== -->
+        <section id="tab-overview" class="admin-tab-pane active">
+          <div class="pane-header">
+            <div>
+              <h1 class="pane-title">Executive Financial Overview</h1>
+              <p class="pane-desc">Real-time aggregate platform turnover, house net profit, and risk exposure.</p>
+            </div>
+            <button id="btn-refresh-metrics" class="btn-secondary">
+              <span class="refresh-icon">↻</span> Refresh Data
+            </button>
+          </div>
+
+          <!-- KPI Grid -->
+          <div class="kpi-grid">
+            <div class="kpi-card gold">
+              <div class="kpi-icon-wrap">💰</div>
+              <div class="kpi-content">
+                <span class="kpi-label">House Net Revenue (GGR)</span>
+                <span class="kpi-value" id="kpi-net-profit">KSh 0</span>
+                <span class="kpi-trend positive">● Live trading ledger margin</span>
+              </div>
+            </div>
+
+            <div class="kpi-card cyan">
+              <div class="kpi-icon-wrap">📥</div>
+              <div class="kpi-content">
+                <span class="kpi-label">Total Real Deposits</span>
+                <span class="kpi-value" id="kpi-total-deposits">KSh 0</span>
+                <span class="kpi-trend">● Via Safaricom M-Pesa</span>
+              </div>
+            </div>
+
+            <div class="kpi-card purple">
+              <div class="kpi-icon-wrap">📤</div>
+              <div class="kpi-content">
+                <span class="kpi-label">Disbursed Withdrawals</span>
+                <span class="kpi-value" id="kpi-total-withdrawals">KSh 0</span>
+                <span class="kpi-trend">● Settled M-Pesa payouts</span>
+              </div>
+            </div>
+
+            <div class="kpi-card amber">
+              <div class="kpi-icon-wrap">⏳</div>
+              <div class="kpi-content">
+                <span class="kpi-label">Pending Cashier Requests</span>
+                <span class="kpi-value" id="kpi-pending-withdrawals">0</span>
+                <span class="kpi-trend" id="kpi-pending-amount">KSh 0 waiting</span>
+              </div>
+            </div>
+
+            <div class="kpi-card blue">
+              <div class="kpi-icon-wrap">👥</div>
+              <div class="kpi-content">
+                <span class="kpi-label">Registered Traders</span>
+                <span class="kpi-value" id="kpi-total-users">0</span>
+                <span class="kpi-trend">● Verified accounts in DB</span>
+              </div>
+            </div>
+
+            <div class="kpi-card emerald">
+              <div class="kpi-icon-wrap">📊</div>
+              <div class="kpi-content">
+                <span class="kpi-label">Total Platform Turnover</span>
+                <span class="kpi-value" id="kpi-total-volume">KSh 0</span>
+                <span class="kpi-trend">● Cumulative trade volume</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions & Risk Overview -->
+          <div class="overview-split-grid">
+            <div class="card-glass">
+              <h3 class="card-title">Real-Time Risk Exposure</h3>
+              <div class="risk-meter-box">
+                <div class="risk-stat">
+                  <span class="stat-label">Active Open Trades:</span>
+                  <span class="stat-value" id="open-trades-count">0</span>
+                </div>
+                <div class="risk-stat">
+                  <span class="stat-label">Total Floating Exposure:</span>
+                  <span class="stat-value highlight" id="open-risk-exposure">KSh 0</span>
+                </div>
+              </div>
+              <p class="risk-note">All trades are monitored and resolved on the server by the automated trading engine every second.</p>
+            </div>
+
+            <div class="card-glass">
+              <h3 class="card-title">M-Pesa Gateway Health</h3>
+              <div class="gateway-status-list">
+                <div class="gateway-row">
+                  <span>Daraja STK Push</span>
+                  <span class="badge-status success">ONLINE</span>
+                </div>
+                <div class="gateway-row">
+                  <span>B2C Disbursement</span>
+                  <span class="badge-status success">STANDBY</span>
+                </div>
+                <div class="gateway-row">
+                  <span>Webhook IPN Callback</span>
+                  <span class="badge-status success">ACTIVE (/api/wallet/deposit/callback)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================
+             TAB 2: M-PESA CASHIER QUEUE
+             ===================================== -->
+        <section id="tab-cashier" class="admin-tab-pane">
+          <div class="pane-header">
+            <div>
+              <h1 class="pane-title">M-Pesa Cashier Queue</h1>
+              <p class="pane-desc">Review and authorize pending trader withdrawal requests.</p>
+            </div>
+            <button id="btn-refresh-withdrawals" class="btn-secondary">↻ Refresh Queue</button>
+          </div>
+
+          <div class="table-card glass">
+            <div class="table-responsive">
+              <table class="data-table" id="withdrawals-table">
+                <thead>
+                  <tr>
+                    <th>Date / Time</th>
+                    <th>Trader Phone</th>
+                    <th>Full Name</th>
+                    <th>Amount (KES)</th>
+                    <th>Current Balance</th>
+                    <th>Method</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="withdrawals-tbody">
+                  <tr><td colspan="7" class="empty-state">No pending withdrawals in the queue.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================
+             TAB 3: TRADER ACCOUNTS MANAGEMENT
+             ===================================== -->
+        <section id="tab-traders" class="admin-tab-pane">
+          <div class="pane-header">
+            <div>
+              <h1 class="pane-title">Trader Accounts Directory</h1>
+              <p class="pane-desc">Inspect trader profiles, balances, KYC status, and security locks.</p>
+            </div>
+            <div class="search-bar">
+              <input type="text" id="user-search-input" placeholder="Search by phone, email, or name...">
+              <button id="btn-search-users" class="btn-secondary">Search</button>
+            </div>
+          </div>
+
+          <div class="table-card glass">
+            <div class="table-responsive">
+              <table class="data-table" id="traders-table">
+                <thead>
+                  <tr>
+                    <th>User</th>
+                    <th>Phone</th>
+                    <th>Real Balance</th>
+                    <th>Demo Balance</th>
+                    <th>KYC Status</th>
+                    <th>Account Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="traders-tbody">
+                  <tr><td colspan="7" class="loading-state">Loading trader data from MongoDB...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================
+             TAB 4: LIVE TRADES TICKER
+             ===================================== -->
+        <section id="tab-trades" class="admin-tab-pane">
+          <div class="pane-header">
+            <div>
+              <h1 class="pane-title">Live Trading Audit Log</h1>
+              <p class="pane-desc">Chronological feed of trades executed across the platform.</p>
+            </div>
+            <button id="btn-refresh-trades" class="btn-secondary">↻ Refresh Feed</button>
+          </div>
+
+          <div class="table-card glass">
+            <div class="table-responsive">
+              <table class="data-table" id="trades-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Trader</th>
+                    <th>Asset</th>
+                    <th>Type</th>
+                    <th>Stake</th>
+                    <th>Entry Strike</th>
+                    <th>Close Price</th>
+                    <th>Outcome</th>
+                    <th>P / L</th>
+                  </tr>
+                </thead>
+                <tbody id="trades-tbody">
+                  <tr><td colspan="9" class="loading-state">Loading trading stream...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- =====================================
+             TAB 5: RISK & PAYOUT LIMITS
+             ===================================== -->
+        <section id="tab-risk" class="admin-tab-pane">
+          <div class="pane-header">
+            <div>
+              <h1 class="pane-title">House Risk & Payout Configuration</h1>
+              <p class="pane-desc">Fine-tune asset return percentages and deposit/withdrawal risk thresholds.</p>
+            </div>
+            <button id="btn-save-settings" class="btn-primary-glow">Save Changes</button>
+          </div>
+
+          <div class="settings-grid">
+            <div class="card-glass">
+              <h3 class="card-title">Asset Payout Percentages</h3>
+              <p class="card-subtitle">Adjust the profit multiplier returned to winning traders.</p>
+              
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>BTC/USD Payout</span>
+                  <span id="rate-btc-val" class="rate-val">90%</span>
+                </div>
+                <input type="range" id="rate-btc" min="70" max="98" value="90" class="styled-range">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>ETH/USD Payout</span>
+                  <span id="rate-eth-val" class="rate-val">88%</span>
+                </div>
+                <input type="range" id="rate-eth" min="70" max="98" value="88" class="styled-range">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>SOL/USD Payout</span>
+                  <span id="rate-sol-val" class="rate-val">85%</span>
+                </div>
+                <input type="range" id="rate-sol" min="70" max="98" value="85" class="styled-range">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>EUR/USD Payout</span>
+                  <span id="rate-eur-val" class="rate-val">85%</span>
+                </div>
+                <input type="range" id="rate-eur" min="70" max="98" value="85" class="styled-range">
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>USD/KES Payout</span>
+                  <span id="rate-kes-val" class="rate-val">82%</span>
+                </div>
+                <input type="range" id="rate-kes" min="70" max="98" value="82" class="styled-range">
+              </div>
+            </div>
+
+            <div class="card-glass">
+              <h3 class="card-title">Financial Safety Limits</h3>
+              <p class="card-subtitle">Limits enforced during cashier and trade execution.</p>
+
+              <div class="form-group">
+                <label for="setting-min-deposit">Minimum Deposit (KSh)</label>
+                <input type="number" id="setting-min-deposit" value="500">
+              </div>
+
+              <div class="form-group">
+                <label for="setting-min-withdraw">Minimum Withdrawal (KSh)</label>
+                <input type="number" id="setting-min-withdraw" value="500">
+              </div>
+
+              <div class="form-group">
+                <label for="setting-max-trade">Maximum Single Trade Limit (KSh)</label>
+                <input type="number" id="setting-max-trade" value="100000">
+              </div>
+
+              <div class="toggle-group">
+                <div>
+                  <span class="toggle-title">System Maintenance Mode</span>
+                  <p class="toggle-desc">Temporarily freeze new trades and deposits for maintenance.</p>
+                </div>
+                <input type="checkbox" id="setting-maintenance" class="styled-checkbox">
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: USER BALANCE ADJUSTMENT
+       ========================================== -->
+  <div id="balance-modal" class="modal-overlay hidden">
+    <div class="modal-glass">
+      <div class="modal-head">
+        <h3>Adjust Trader Balance</h3>
+        <button class="btn-close-modal" id="btn-close-balance-modal">✕</button>
+      </div>
+      <p id="balance-modal-user" class="modal-sub"></p>
+
+      <form id="balance-adjust-form">
+        <input type="hidden" id="adjust-user-id">
+        <div class="form-group">
+          <label>Account Type</label>
+          <select id="adjust-account-type">
+            <option value="real">Real Account (KES)</option>
+            <option value="demo">Demo Account (KES)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Adjustment Amount (KES)</label>
+          <input type="number" id="adjust-amount" placeholder="e.g. 5000 (positive to add, negative to deduct)" required>
+          <small class="form-help">Enter positive number to credit, negative to debit.</small>
+        </div>
+        <button type="submit" class="btn-primary-glow">Apply Balance Adjustment</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Center -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>
