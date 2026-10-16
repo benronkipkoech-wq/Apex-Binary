@@ -69,6 +69,18 @@ class ApiService {
     return this.request('/auth/me');
   }
 
+  async updateProfile({ fullName, email }) {
+    return this.request('/auth/profile', 'PUT', { fullName, email });
+  }
+
+  async syncUserData(data) {
+    return this.request('/auth/sync-data', 'POST', data);
+  }
+
+  async joinTournament(tournamentId) {
+    return this.request('/auth/tournaments/join', 'POST', { tournamentId });
+  }
+
   logout() {
     this.setToken(null);
   }

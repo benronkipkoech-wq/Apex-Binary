@@ -55,6 +55,33 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    xp: {
+      type: Number,
+      default: 0,
+    },
+    level: {
+      type: Number,
+      default: 1,
+    },
+    joinedTournaments: [
+      {
+        id: { type: String, required: true },
+        score: { type: Number, default: 0 },
+        joinedAt: { type: Date, default: Date.now },
+      },
+    ],
+    activeBots: [
+      {
+        id: { type: String },
+        stake: { type: Number },
+      },
+    ],
+    copySettings: [
+      {
+        traderId: { type: String },
+        stake: { type: Number },
+      },
+    ],
   },
   {
     timestamps: true,

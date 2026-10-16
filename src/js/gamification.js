@@ -1,13 +1,15 @@
 // Gamification, Quests, Trader Levels & Kenyan Tournaments Engine
 import { sound } from './audio.js';
 import { wallet } from './wallet.js';
+import { auth } from './auth.js';
+import { api } from './api.js';
 
 export class GamificationEngine {
   constructor() {
     this.xp = parseInt(localStorage.getItem('tycoon_user_xp') || '450');
     this.completedQuests = JSON.parse(localStorage.getItem('tycoon_completed_quests') || '[]');
-    this.joinedTournaments = JSON.parse(localStorage.getItem('tycoon_joined_tournaments') || '["tourn_1"]');
-    this.tournamentScores = JSON.parse(localStorage.getItem('tycoon_tournament_scores') || '{"tourn_1": 18450}');
+    this.joinedTournaments = JSON.parse(localStorage.getItem('tycoon_joined_tournaments') || '[]');
+    this.tournamentScores = JSON.parse(localStorage.getItem('tycoon_tournament_scores') || '{}');
     this.listeners = new Set();
 
     this.initQuests();
@@ -135,9 +137,17 @@ export class GamificationEngine {
       this.notify('level_up', { level: newLevel, info: this.getLevelInfo() });
     }
     this.notify('xp_gained', { xp: this.xp });
+
+    // Sync XP to MongoDB
+    if (auth.isLoggedIn()) {
+      api.syncUserData({ xp: this.xp, level: newLevel }).catch(() => {});
+    }
   }
 
   joinTournament(tournId) {
+    if (!auth.isLoggedIn()) {
+      return false;
+    }
     if (!this.joinedTournaments.includes(tournId)) {
       this.joinedTournaments.push(tournId);
       this.tournamentScores[tournId] = 0;
@@ -145,9 +155,31 @@ export class GamificationEngine {
       localStorage.setItem('tycoon_tournament_scores', JSON.stringify(this.tournamentScores));
       sound.playTradePlaced();
       this.notify('tournament_joined', { tournId });
+
+      // Persist tournament entry to MongoDB
+      api.joinTournament(tournId).catch(() => {});
       return true;
     }
     return false;
+  }
+
+  syncWithUser(userData) {
+    if (!userData) return;
+    if (typeof userData.xp === 'number') {
+      this.xp = userData.xp;
+      localStorage.setItem('tycoon_user_xp', this.xp.toString());
+    }
+    if (Array.isArray(userData.joinedTournaments)) {
+      this.joinedTournaments = userData.joinedTournaments.map(t => typeof t === 'string' ? t : t.id);
+      localStorage.setItem('tycoon_joined_tournaments', JSON.stringify(this.joinedTournaments));
+      userData.joinedTournaments.forEach(t => {
+        if (typeof t === 'object' && t.id) {
+          this.tournamentScores[t.id] = t.score || 0;
+        }
+      });
+      localStorage.setItem('tycoon_tournament_scores', JSON.stringify(this.tournamentScores));
+    }
+    this.notify('tournaments_updated', this.tournaments);
   }
 
   recordTradeResult(trade, isWin) {
@@ -224,6 +256,7 @@ export class GamificationEngine {
   }
 
   isTournamentJoined(id) {
+    if (!auth.isLoggedIn()) return false;
     return this.joinedTournaments.includes(id);
   }
 

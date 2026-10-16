@@ -99,10 +99,26 @@ class App {
         document.getElementById('modal-2fa').classList.add('hidden');
         this.updateSecurityPanelUI();
         this.toggleAuthState(true);
+
+        // Fetch latest user profile & balances from MongoDB
+        api.getMe().then(res => {
+          if (res.ok && res.data && res.data.success && res.data.user) {
+            gamification.syncWithUser(res.data.user);
+            this.updateLevelBadgeUI();
+          }
+        }).catch(() => {});
+
+        wallet.syncBalance();
+        this.renderTournaments();
+        this.renderCopyTraders();
+        this.renderBotsList();
       } else if (event === 'logged_out') {
         document.getElementById('auth-screen').classList.remove('hidden');
         document.getElementById('security-panel').classList.add('hidden');
         this.toggleAuthState(false);
+        this.renderTournaments();
+        this.renderCopyTraders();
+        this.renderBotsList();
         if (data && data.reason === 'session_expired') {
           this.showAuthMessage('Session expired. Please sign in again.', 'error');
         }
@@ -726,6 +742,12 @@ class App {
 
     container.querySelectorAll('.tourn-join-btn:not(.joined)').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        if (!auth.isLoggedIn()) {
+          this.showToast('Please log in or create an account to enter tournaments.', 'error');
+          this.openModal('auth-screen');
+          return;
+        }
+
         const id = e.currentTarget.dataset.tourn;
         if (gamification.joinTournament(id)) {
           this.showToast('You have entered the tournament! Trade to earn leaderboard points.', 'success');
@@ -846,6 +868,14 @@ class App {
     container.querySelectorAll('.btn-copy-toggle').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const id = e.currentTarget.dataset.trader;
+
+        // Require login for copy trading
+        if (!auth.isLoggedIn()) {
+          this.showToast('Please log in or create an account to copy trade experts.', 'error');
+          this.openModal('auth-screen');
+          return;
+        }
+
         const stakeInput = container.querySelector(`.copy-stake-input[data-trader="${id}"]`);
         const stake = parseFloat(stakeInput?.value) || 500;
         this.botsEngine.toggleCopyTrader(id, stake);
@@ -930,7 +960,14 @@ class App {
         const id = e.currentTarget.dataset.bot;
         const bot = this.botsEngine.bots.find(b => b.id === id);
         if (!bot) return;
-        
+
+        // Require login for bots
+        if (!auth.isLoggedIn()) {
+          this.showToast('Please log in or create an account to deploy autobots.', 'error');
+          this.openModal('auth-screen');
+          return;
+        }
+
         const isUnlocked = gamification.hasFeatureUnlock(bot.minLevel || 1);
         if (!isUnlocked) {
           this.showToast(`Unlock this bot at Level ${bot.minLevel}`, 'error');
@@ -1890,6 +1927,11 @@ class App {
   }
 
   executeTrade(direction) {
+    if (!auth.isLoggedIn()) {
+      this.showToast('Please log in or create an account to place trades.', 'error');
+      this.openModal('auth-screen');
+      return;
+    }
     const res = this.trading.placeTrade(direction, this.stakeAmount, this.selectedDuration);
     if (!res.success) {
       this.showToast(res.message, 'error');

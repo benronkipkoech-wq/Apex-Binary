@@ -1,4 +1,5 @@
 // Automated Strategy Bots & Kenyan Social Copy Trading Engine
+import { auth } from './auth.js';
 
 export const KENYAN_COPY_TRADERS = [
   {
@@ -179,6 +180,7 @@ export class TradingBotsEngine {
 
   // --- BOTS LOGIC ---
   startBot(botId, stakeAmount) {
+    if (!auth.isLoggedIn()) return;
     const bot = this.bots.find(b => b.id === botId);
     if (!bot) return;
     bot.status = 'running';
@@ -206,6 +208,7 @@ export class TradingBotsEngine {
   }
 
   evaluateBots() {
+    if (!auth.isLoggedIn()) return;
     const currentAsset = this.market.getCurrentAsset();
     if (!currentAsset) return;
 
@@ -330,6 +333,7 @@ export class TradingBotsEngine {
 
   // --- COPY TRADING LOGIC ---
   toggleCopyTrader(traderId, stake) {
+    if (!auth.isLoggedIn()) return;
     const trader = this.traders.find(t => t.id === traderId);
     if (!trader) return;
     trader.isCopying = !trader.isCopying;
@@ -343,6 +347,7 @@ export class TradingBotsEngine {
   }
 
   simulateCopyTrades() {
+    if (!auth.isLoggedIn()) return;
     const activeCopyTraders = this.traders.filter(t => t.isCopying);
     if (activeCopyTraders.length === 0) return;
 

@@ -2,6 +2,7 @@
 import { sound } from './audio.js';
 import { wallet } from './wallet.js';
 import { api } from './api.js';
+import { auth } from './auth.js';
 
 export class TradingEngine {
   constructor(marketInstance) {
@@ -16,6 +17,10 @@ export class TradingEngine {
   }
 
   placeTrade(direction, amount, durationSec) {
+    // Require login for trade placement
+    if (!auth.isLoggedIn()) {
+      return { success: false, message: 'Please log in or create an account to place trades.' };
+    }
     if (amount < 100) {
       return { success: false, message: 'Minimum trade amount is KSh 100' };
     }

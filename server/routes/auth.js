@@ -217,10 +217,97 @@ router.get('/me', authenticate, async (req, res) => {
         balances: req.user.balances,
         kyc: req.user.kyc,
         isVerified: req.user.isVerified,
+        xp: req.user.xp || 0,
+        level: req.user.level || 1,
+        joinedTournaments: req.user.joinedTournaments || [],
+        activeBots: req.user.activeBots || [],
+        copySettings: req.user.copySettings || [],
       },
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Update user profile
+router.put('/profile', authenticate, async (req, res) => {
+  try {
+    const { fullName, email } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    if (fullName) user.fullName = fullName.trim();
+    if (email) user.email = email.toLowerCase().trim();
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: 'Profile updated successfully in database.',
+      user: {
+        id: user._id,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        role: user.role,
+        balances: user.balances,
+        kyc: user.kyc,
+        isVerified: user.isVerified,
+        xp: user.xp || 0,
+        level: user.level || 1,
+        joinedTournaments: user.joinedTournaments || [],
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to update profile', error: error.message });
+  }
+});
+
+// Sync gamification, tournaments, and bots data to MongoDB
+router.post('/sync-data', authenticate, async (req, res) => {
+  try {
+    const { xp, level, joinedTournaments, activeBots, copySettings } = req.body;
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    if (typeof xp === 'number') user.xp = xp;
+    if (typeof level === 'number') user.level = level;
+    if (Array.isArray(joinedTournaments)) {
+      user.joinedTournaments = joinedTournaments.map(t => typeof t === 'string' ? { id: t, score: 0 } : t);
+    }
+    if (Array.isArray(activeBots)) user.activeBots = activeBots;
+    if (Array.isArray(copySettings)) user.copySettings = copySettings;
+
+    await user.save();
+    return res.json({ success: true, message: 'User data synced to MongoDB.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to sync data', error: error.message });
+  }
+});
+
+// Join tournament in MongoDB
+router.post('/tournaments/join', authenticate, async (req, res) => {
+  try {
+    const { tournamentId } = req.body;
+    if (!tournamentId) {
+      return res.status(400).json({ success: false, message: 'Tournament ID is required.' });
+    }
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    const alreadyJoined = user.joinedTournaments.some(t => t.id === tournamentId);
+    if (!alreadyJoined) {
+      user.joinedTournaments.push({ id: tournamentId, score: 0, joinedAt: new Date() });
+      await user.save();
+    }
+
+    return res.json({ success: true, message: 'Joined tournament successfully in database.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to join tournament', error: error.message });
   }
 });
 

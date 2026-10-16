@@ -3,7 +3,6 @@
 
 import { security } from './security.js';
 import { api } from './api.js';
-import { sendVerificationEmail } from '../server/services/emailService.js';
 
 const AUTH_STORAGE_KEY = 'tycoon_auth';
 const SESSION_KEY = 'tycoon_session';
@@ -381,16 +380,23 @@ class AuthEngine {
     return this.isAuthenticated;
   }
 
-  // Helper: check role using JWT token from ApiService
+  // Helper: check role using JWT token or active session
   hasRole(role) {
+    if (this.currentUser) {
+      if (this.currentUser.role === role) return true;
+      if (Array.isArray(this.currentUser.roles) && this.currentUser.roles.includes(role)) return true;
+      if (!this.currentUser.role && role === 'trader') return true;
+    }
     const token = api.getToken ? api.getToken() : null;
-    if (!token) return false;
+    if (!token) return !role || role === 'trader' ? this.isAuthenticated : false;
     try {
       const payload = token.split('.')[1];
       const data = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-      return Array.isArray(data.roles) && data.roles.includes(role);
-    } catch (e) {
+      if (data.role === role) return true;
+      if (Array.isArray(data.roles) && data.roles.includes(role)) return true;
       return false;
+    } catch (e) {
+      return this.isAuthenticated;
     }
   }
 }
