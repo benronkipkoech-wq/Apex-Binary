@@ -1353,9 +1353,19 @@ class App {
   attachEventListeners() {
     // 1. Order execution buttons
     document.getElementById('btn-trade-higher').addEventListener('click', () => {
+      if (!auth.isLoggedIn() || !auth.hasRole('trader')) {
+        this.openModal('auth-screen');
+        return;
+      }
+
       this.executeTrade('higher');
     });
     document.getElementById('btn-trade-lower').addEventListener('click', () => {
+      if (!auth.isLoggedIn() || !auth.hasRole('trader')) {
+        this.openModal('auth-screen');
+        return;
+      }
+
       this.executeTrade('lower');
     });
 
