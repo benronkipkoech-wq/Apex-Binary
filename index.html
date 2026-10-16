@@ -118,7 +118,7 @@
           </button>
 
           <div class="auth-footer-links">
-            <button type="button" class="auth-link" id="btn-forgot-pin">Forgot PIN?</button>
+            <button type="button" class="auth-link" id="btn-forgot-pin">Forgot PIN or Password?</button>
           </div>
         </form>
 
@@ -200,12 +200,12 @@
           </button>
         </form>
 
-        <!-- ── FORGOT PIN STEP 1: Enter email ───────────────────────── -->
+        <!-- ── FORGOT PASSWORD / PIN STEP 1: Enter email ───────────────────────── -->
         <div class="auth-form hidden" id="forgot-pin-step1">
           <div class="auth-section-header">
             <span class="auth-section-icon">🔑</span>
-            <h3 class="auth-section-title">Reset Your PIN</h3>
-            <p class="auth-section-sub">Enter your registered email address and we'll send you a 6-digit reset code.</p>
+            <h3 class="auth-section-title">Reset Password or PIN</h3>
+            <p class="auth-section-sub">Enter your registered email address and we'll send you a 6-digit authentication code.</p>
           </div>
           <div class="auth-input-group">
             <label class="auth-label" for="forgot-email">Registered Email Address</label>
@@ -216,18 +216,18 @@
           </div>
           <button type="button" class="auth-submit-btn" id="btn-send-reset-code">
             <span class="auth-btn-icon">📧</span>
-            <span>Send Reset Code</span>
+            <span>Send Authentication Code</span>
           </button>
           <div class="auth-footer-links">
             <button type="button" class="auth-link" id="btn-back-to-login-from-forgot">← Back to Sign In</button>
           </div>
         </div>
 
-        <!-- ── FORGOT PIN STEP 2: Enter reset code ─────────────────── -->
+        <!-- ── FORGOT PASSWORD / PIN STEP 2: Enter authentication code ─────────────────── -->
         <div class="auth-form hidden" id="forgot-pin-step2">
           <div class="auth-section-header">
             <span class="auth-section-icon">📬</span>
-            <h3 class="auth-section-title">Check Your Email</h3>
+            <h3 class="auth-section-title">Authenticate Email Code</h3>
             <p class="auth-section-sub" id="forgot-step2-hint">Enter the 6-digit code sent to your email.</p>
           </div>
           <div class="otp-input-group" id="reset-otp-input-group">
@@ -240,7 +240,7 @@
           </div>
           <button type="button" class="auth-submit-btn" id="btn-verify-reset-code">
             <span class="auth-btn-icon">✅</span>
-            <span>Verify Code</span>
+            <span>Authenticate Code</span>
           </button>
           <div class="auth-footer-links">
             <button type="button" class="auth-link" id="btn-resend-reset-code">Resend Code</button>
@@ -249,51 +249,80 @@
           </div>
         </div>
 
-        <!-- ── FORGOT PIN STEP 3: Set new PIN ─────────────────────── -->
+        <!-- ── FORGOT PASSWORD / PIN STEP 3: Set new Password or PIN ─────────────────────── -->
         <div class="auth-form hidden" id="forgot-pin-step3">
           <div class="auth-section-header">
             <span class="auth-section-icon">🔐</span>
-            <h3 class="auth-section-title">Set New PIN</h3>
-            <p class="auth-section-sub">Choose a new 4-digit PIN for your trading account.</p>
+            <h3 class="auth-section-title">Set New Password or PIN</h3>
+            <p class="auth-section-sub">Choose a new 4-digit PIN or custom password for your trading account.</p>
           </div>
-          <div class="auth-input-group">
-            <label class="auth-label">New 4-Digit PIN</label>
-            <div class="auth-pin-display" id="reset-new-pin-display">
-              <span class="pin-dot" id="reset-new-dot-0"></span>
-              <span class="pin-dot" id="reset-new-dot-1"></span>
-              <span class="pin-dot" id="reset-new-dot-2"></span>
-              <span class="pin-dot" id="reset-new-dot-3"></span>
+
+          <!-- Credential Mode Selector -->
+          <div class="auth-mode-switch" style="display:flex; justify-content:center; gap:8px; margin-bottom:14px;">
+            <button type="button" class="security-action-btn active" id="btn-mode-pin" style="font-size:12px; padding:6px 14px;">4-Digit PIN</button>
+            <button type="button" class="security-action-btn" id="btn-mode-pwd" style="font-size:12px; padding:6px 14px;">Password</button>
+          </div>
+
+          <!-- PIN Container -->
+          <div id="reset-pin-container">
+            <div class="auth-input-group">
+              <label class="auth-label">New 4-Digit PIN</label>
+              <div class="auth-pin-display" id="reset-new-pin-display">
+                <span class="pin-dot" id="reset-new-dot-0"></span>
+                <span class="pin-dot" id="reset-new-dot-1"></span>
+                <span class="pin-dot" id="reset-new-dot-2"></span>
+                <span class="pin-dot" id="reset-new-dot-3"></span>
+              </div>
+              <input type="hidden" id="reset-new-pin" maxlength="4">
             </div>
-            <input type="hidden" id="reset-new-pin" maxlength="4">
-          </div>
-          <div class="auth-input-group">
-            <label class="auth-label">Confirm New PIN</label>
-            <div class="auth-pin-display" id="reset-confirm-pin-display">
-              <span class="pin-dot" id="reset-confirm-dot-0"></span>
-              <span class="pin-dot" id="reset-confirm-dot-1"></span>
-              <span class="pin-dot" id="reset-confirm-dot-2"></span>
-              <span class="pin-dot" id="reset-confirm-dot-3"></span>
+            <div class="auth-input-group">
+              <label class="auth-label">Confirm New PIN</label>
+              <div class="auth-pin-display" id="reset-confirm-pin-display">
+                <span class="pin-dot" id="reset-confirm-dot-0"></span>
+                <span class="pin-dot" id="reset-confirm-dot-1"></span>
+                <span class="pin-dot" id="reset-confirm-dot-2"></span>
+                <span class="pin-dot" id="reset-confirm-dot-3"></span>
+              </div>
+              <input type="hidden" id="reset-confirm-pin" maxlength="4">
             </div>
-            <input type="hidden" id="reset-confirm-pin" maxlength="4">
+            <!-- Keypad for reset PIN -->
+            <div class="auth-keypad" id="reset-pin-keypad">
+              <button type="button" class="keypad-btn" data-key="1">1</button>
+              <button type="button" class="keypad-btn" data-key="2">2</button>
+              <button type="button" class="keypad-btn" data-key="3">3</button>
+              <button type="button" class="keypad-btn" data-key="4">4</button>
+              <button type="button" class="keypad-btn" data-key="5">5</button>
+              <button type="button" class="keypad-btn" data-key="6">6</button>
+              <button type="button" class="keypad-btn" data-key="7">7</button>
+              <button type="button" class="keypad-btn" data-key="8">8</button>
+              <button type="button" class="keypad-btn" data-key="9">9</button>
+              <button type="button" class="keypad-btn" data-key="0">0</button>
+              <button type="button" class="keypad-btn" data-key="0">0</button>
+              <button type="button" class="keypad-btn keypad-del" data-key="del">⌫</button>
+            </div>
           </div>
-          <!-- Keypad for reset PIN -->
-          <div class="auth-keypad" id="reset-pin-keypad">
-            <button type="button" class="keypad-btn" data-key="1">1</button>
-            <button type="button" class="keypad-btn" data-key="2">2</button>
-            <button type="button" class="keypad-btn" data-key="3">3</button>
-            <button type="button" class="keypad-btn" data-key="4">4</button>
-            <button type="button" class="keypad-btn" data-key="5">5</button>
-            <button type="button" class="keypad-btn" data-key="6">6</button>
-            <button type="button" class="keypad-btn" data-key="7">7</button>
-            <button type="button" class="keypad-btn" data-key="8">8</button>
-            <button type="button" class="keypad-btn" data-key="9">9</button>
-            <button type="button" class="keypad-btn" data-key="0">0</button>
-            <button type="button" class="keypad-btn" data-key="0">0</button>
-            <button type="button" class="keypad-btn keypad-del" data-key="del">⌫</button>
+
+          <!-- Password Container (hidden by default) -->
+          <div id="reset-pwd-container" class="hidden">
+            <div class="auth-input-group">
+              <label class="auth-label" for="reset-custom-password">New Password</label>
+              <div class="auth-input-wrapper">
+                <span class="auth-input-icon">🔒</span>
+                <input type="password" id="reset-custom-password" class="auth-input" placeholder="Minimum 4 characters">
+              </div>
+            </div>
+            <div class="auth-input-group">
+              <label class="auth-label" for="reset-confirm-custom-password">Confirm New Password</label>
+              <div class="auth-input-wrapper">
+                <span class="auth-input-icon">🔒</span>
+                <input type="password" id="reset-confirm-custom-password" class="auth-input" placeholder="Repeat new password">
+              </div>
+            </div>
           </div>
+
           <button type="button" class="auth-submit-btn" id="btn-submit-new-pin">
             <span class="auth-btn-icon">🚀</span>
-            <span>Save New PIN &amp; Sign In</span>
+            <span>Save Credentials &amp; Sign In</span>
           </button>
         </div>
 

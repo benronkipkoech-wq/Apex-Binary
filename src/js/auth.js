@@ -265,22 +265,23 @@ class AuthEngine {
     return { success: true, message: 'PIN changed successfully.' };
   }
 
-  // --- Reset PIN via Email Code (Forgot PIN flow) ---
+  // --- Reset PIN / Password via Email Code (Forgot flow) ---
   async resetPinWithCode({ userId, email, phone, resetCode, newPin, confirmNewPin }) {
-    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
-      return { success: false, message: 'New PIN must be exactly 4 digits.' };
+    const secret = (newPin || '').toString().trim();
+    if (!secret || secret.length < 4) {
+      return { success: false, message: 'New PIN/password must be at least 4 characters.' };
     }
-    if (newPin !== confirmNewPin) {
-      return { success: false, message: 'PINs do not match. Please try again.' };
+    if (secret !== (confirmNewPin || '').toString().trim()) {
+      return { success: false, message: 'PINs/passwords do not match. Please try again.' };
     }
 
     // Call server to validate reset code and set new hashed password
-    const res = await api.resetPin({ userId, email, phone, resetCode, newPin });
+    const res = await api.resetPin({ userId, email, phone, resetCode, newPin: secret });
     if (!res.ok) {
       return { success: false, message: res.data?.message || 'Reset failed. Try again.' };
     }
 
-    // Update local pinHash so offline PIN entry also works with the new PIN
+    // Update local pinHash so offline entry also works with the new secret
     const users = this.getAllUsers();
     const identifier = phone ? this.normalizePhone(phone) : null;
     const userLocal = identifier
@@ -288,7 +289,7 @@ class AuthEngine {
       : users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
 
     if (userLocal) {
-      userLocal.pinHash = this.hashPin(newPin);
+      userLocal.pinHash = this.hashPin(secret);
       this.saveUsers(users);
     }
 
@@ -303,7 +304,7 @@ class AuthEngine {
         avatar: this.generateAvatar(serverUser.fullName || 'Apex Trader'),
         twoFactorEnabled: false,
         securityLevel: 'standard',
-        pinHash: this.hashPin(newPin),
+        pinHash: this.hashPin(secret),
         loginAttempts: 0,
         lockedUntil: null,
         lastLogin: new Date().toISOString(),
@@ -313,8 +314,17 @@ class AuthEngine {
       this.addLoginHistory(sessionUser, 'pin_reset');
     }
 
-    return { success: true, message: 'PIN reset successfully! You are now logged in.' };
+    return { success: true, message: 'Credentials reset successfully! You are now logged in.' };
   }
+
+  async resetPasswordWithCode(params) {
+    return this.resetPinWithCode({
+      ...params,
+      newPin: params.newPassword || params.newPin,
+      confirmNewPin: params.confirmNewPassword || params.confirmNewPin,
+    });
+  }
+
 
 
   toggle2FA() {

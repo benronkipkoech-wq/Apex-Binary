@@ -685,6 +685,32 @@ class App {
       sound.playClick();
     });
 
+    // Step 3 — Mode switch (4-Digit PIN vs Password)
+    this._resetMode = 'pin';
+    const pinModeBtn = document.getElementById('btn-mode-pin');
+    const pwdModeBtn = document.getElementById('btn-mode-pwd');
+    const pinContainer = document.getElementById('reset-pin-container');
+    const pwdContainer = document.getElementById('reset-pwd-container');
+
+    pinModeBtn?.addEventListener('click', () => {
+      this._resetMode = 'pin';
+      pinModeBtn.classList.add('active');
+      pwdModeBtn?.classList.remove('active');
+      pinContainer?.classList.remove('hidden');
+      pwdContainer?.classList.add('hidden');
+      sound.playClick();
+    });
+
+    pwdModeBtn?.addEventListener('click', () => {
+      this._resetMode = 'pwd';
+      pwdModeBtn.classList.add('active');
+      pinModeBtn?.classList.remove('active');
+      pwdContainer?.classList.remove('hidden');
+      pinContainer?.classList.add('hidden');
+      document.getElementById('reset-custom-password')?.focus();
+      sound.playClick();
+    });
+
     // Step 3 — PIN keypad for new PIN
     if (!this.authPins._resetNew) this.authPins._resetNew = '';
     if (!this.authPins._resetConfirm) this.authPins._resetConfirm = '';
@@ -719,10 +745,35 @@ class App {
       });
     });
 
-    // Step 3 — Save new PIN & sign in
+    // Step 3 — Save new credentials & sign in
     document.getElementById('btn-submit-new-pin')?.addEventListener('click', async () => {
-      const newPin = this.authPins._resetNew;
-      const confirmPin = this.authPins._resetConfirm;
+      let newSecret = '';
+      let confirmSecret = '';
+
+      if (this._resetMode === 'pwd') {
+        newSecret = document.getElementById('reset-custom-password')?.value || '';
+        confirmSecret = document.getElementById('reset-confirm-custom-password')?.value || '';
+        if (newSecret.length < 4) {
+          this.showAuthMessage('Password must be at least 4 characters.', 'error');
+          return;
+        }
+        if (newSecret !== confirmSecret) {
+          this.showAuthMessage('Passwords do not match.', 'error');
+          return;
+        }
+      } else {
+        newSecret = this.authPins._resetNew;
+        confirmSecret = this.authPins._resetConfirm;
+        if (newSecret.length !== 4) {
+          this.showAuthMessage('Please enter a 4-digit PIN.', 'error');
+          return;
+        }
+        if (newSecret !== confirmSecret) {
+          this.showAuthMessage('PINs do not match.', 'error');
+          return;
+        }
+      }
+
       const { userId, email, phone, verifiedCode } = this._resetState;
 
       const btn = document.getElementById('btn-submit-new-pin');
@@ -732,25 +783,29 @@ class App {
       const res = await auth.resetPinWithCode({
         userId, email, phone,
         resetCode: verifiedCode,
-        newPin,
-        confirmNewPin: confirmPin,
+        newPin: newSecret,
+        confirmNewPin: confirmSecret,
       });
 
       btn.disabled = false;
-      btn.innerHTML = '<span class="auth-btn-icon">🚀</span><span>Save New PIN &amp; Sign In</span>';
+      btn.innerHTML = '<span class="auth-btn-icon">🚀</span><span>Save Credentials &amp; Sign In</span>';
 
       if (res.success) {
         this._resetState = { userId: null, email: null, phone: null, verifiedCode: null };
         this.authPins._resetNew = '';
         this.authPins._resetConfirm = '';
-        this.showToast('PIN reset successfully! Welcome back.', 'success');
+        if (document.getElementById('reset-custom-password')) document.getElementById('reset-custom-password').value = '';
+        if (document.getElementById('reset-confirm-custom-password')) document.getElementById('reset-confirm-custom-password').value = '';
+        this.closeAuthModal();
+        this.showToast('Credentials reset successfully! Welcome back.', 'success');
         sound.playTradeWon();
       } else {
         this.showAuthMessage(res.message, 'error');
-        // Shake error on confirm dots
-        for (let i = 0; i < 4; i++) {
-          const dot = document.getElementById(`reset-confirm-dot-${i}`);
-          if (dot) { dot.classList.remove('filled'); dot.classList.add('error'); }
+        if (this._resetMode === 'pin') {
+          for (let i = 0; i < 4; i++) {
+            const dot = document.getElementById(`reset-confirm-dot-${i}`);
+            if (dot) { dot.classList.remove('filled'); dot.classList.add('error'); }
+          }
         }
         // If code expired go back to step 1
         if (res.message.toLowerCase().includes('expired') || res.message.toLowerCase().includes('invalid')) {

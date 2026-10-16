@@ -113,13 +113,14 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
 }
 
 /**
- * Send a PIN reset email containing a 6-digit numeric code via Resend.
+ * Send a Password or PIN reset email containing a 6-digit numeric code via Resend.
  * @param {string} toEmail - Recipient email address.
  * @param {string} resetCode - 6-digit reset code.
+ * @param {string} [type='Password / PIN'] - Type of reset requested.
  */
-export async function sendPinResetEmail(toEmail, resetCode) {
-  const subject = `${resetCode} — Your Apex Binary PIN Reset Code`;
-  const textContent = `Your Apex Binary PIN reset code is: ${resetCode}\n\nThis code expires in 15 minutes.\nIf you did not request a PIN reset, please ignore this email and secure your account.`;
+export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / PIN') {
+  const subject = `${resetCode} — Your Apex Binary ${type} Reset Code`;
+  const textContent = `Your Apex Binary ${type} reset authentication code is: ${resetCode}\n\nThis code expires in 15 minutes.\nIf you did not request this reset, please ignore this email and ensure your account is secure.`;
   const htmlContent = `
     <!DOCTYPE html>
     <html>
@@ -140,13 +141,13 @@ export async function sendPinResetEmail(toEmail, resetCode) {
       <body>
         <div class="container">
           <div class="logo">▲ APEX BINARY</div>
-          <div class="sub">PIN Reset Request</div>
+          <div class="sub">${type} Reset Request</div>
           <div class="card">
-            <p class="desc">You requested to reset your trading PIN. Enter the code below to set a new PIN:</p>
+            <p class="desc">You requested to reset your trading ${type}. Enter the code below to complete authentication:</p>
             <div class="code-box">${resetCode}</div>
             <p class="desc" style="font-size: 12px; color: #8b949e;">This code will expire in <strong>15 minutes</strong>. Never share this code with anyone.</p>
           </div>
-          <p class="warning">⚠️ If you did not request this reset, your account may be at risk. Change your PIN immediately after login.</p>
+          <p class="warning">⚠️ If you did not request this reset, your account may be at risk. Change your security credentials immediately after login.</p>
           <p class="footer">Apex Binary Trading Platform · Kenya</p>
         </div>
       </body>
@@ -164,10 +165,10 @@ export async function sendPinResetEmail(toEmail, resetCode) {
         text: textContent,
       });
       if (response.error) throw new Error(response.error.message || 'Resend error');
-      console.log(`[Resend] PIN reset code sent to ${toEmail}. ID: ${response.data?.id}`);
+      console.log(`[Resend] Reset code sent to ${toEmail}. ID: ${response.data?.id}`);
       return { success: true, provider: 'resend', id: response.data?.id };
     } catch (resendError) {
-      console.error('[Resend PIN Reset Failed]:', resendError.message);
+      console.error('[Resend Reset Failed]:', resendError.message);
       if (!transporter) throw resendError;
     }
   }
@@ -175,16 +176,20 @@ export async function sendPinResetEmail(toEmail, resetCode) {
   // 2. Secondary: SMTP fallback
   if (transporter) {
     const info = await transporter.sendMail({ from: fromAddress, to: toEmail, subject, text: textContent, html: htmlContent });
-    console.log(`[SMTP] PIN reset email sent to ${toEmail}: ${info.messageId}`);
+    console.log(`[SMTP] Reset email sent to ${toEmail}: ${info.messageId}`);
     return { success: true, provider: 'smtp', id: info.messageId };
   }
 
   // 3. Dev mode fallback
-  console.log(`[Email Dev Mode] PIN reset code for ${toEmail}: ${resetCode}`);
+  console.log(`[Email Dev Mode] Reset code for ${toEmail}: ${resetCode}`);
   return { success: true, provider: 'dev-console', code: resetCode };
 }
+
+export const sendPasswordResetEmail = (toEmail, resetCode) => sendPinResetEmail(toEmail, resetCode, 'Password');
 
 export default {
   sendVerificationEmail,
   sendPinResetEmail,
+  sendPasswordResetEmail,
 };
+

@@ -1,7 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import { generateToken, authenticate } from '../middleware/auth.js';
-import { sendVerificationEmail, sendPinResetEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendPinResetEmail, sendPasswordResetEmail } from '../services/emailService.js';
 import { isDbConnected } from '../config/db.js';
 
 const router = express.Router();
@@ -347,10 +347,9 @@ router.post('/tournaments/join', authenticate, async (req, res) => {
   }
 });
 
-// ─── PIN / Password Reset Flow ────────────────────────────────────────────
+// ─── PIN & Password Reset Flow (Email Authentication Code) ──────────────────
 
-// Step 1 — Request reset code: POST /api/auth/forgot-pin
-router.post('/forgot-pin', async (req, res) => {
+const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / PIN') => {
   try {
     const { email, phone } = req.body;
     if (!email && !phone) {
@@ -368,7 +367,7 @@ router.post('/forgot-pin', async (req, res) => {
       user = await User.findOne({ phone: cleanPhone(phone) });
     }
 
-    // Always respond with success to prevent user enumeration
+    // Always respond with generic success to prevent user enumeration
     if (!user || !user.email || user.email.endsWith('@apexbinary.ke')) {
       return res.json({
         success: true,
@@ -381,28 +380,30 @@ router.post('/forgot-pin', async (req, res) => {
     user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await user.save();
 
-    await sendPinResetEmail(user.email, resetCode);
+    await sendPinResetEmail(user.email, resetCode, credentialType);
 
     return res.json({
       success: true,
-      message: 'A 6-digit reset code has been dispatched to your email via Resend.',
+      message: `A 6-digit ${credentialType} reset code has been dispatched to your email via Resend.`,
       userId: user._id,
     });
   } catch (error) {
-    console.error('[forgot-pin]', error);
+    console.error(`[forgot-${credentialType}]`, error);
     return res.status(500).json({ success: false, message: 'Failed to send reset code.', error: error.message });
   }
-});
+};
 
-// Step 2 — Verify code + set new PIN: POST /api/auth/reset-pin
-router.post('/reset-pin', async (req, res) => {
+const handleResetPasswordOrPin = async (req, res, credentialType = 'PIN') => {
   try {
-    const { userId, email, phone, resetCode, newPin } = req.body;
-    if (!resetCode || !newPin) {
-      return res.status(400).json({ success: false, message: 'Reset code and new PIN are required.' });
+    const { userId, email, phone, resetCode, newPin, newPassword } = req.body;
+    const secret = (newPassword || newPin || '').toString().trim();
+
+    if (!resetCode || !secret) {
+      return res.status(400).json({ success: false, message: 'Reset code and new password/PIN are required.' });
     }
-    if (!/^\d{4,8}$/.test(newPin)) {
-      return res.status(400).json({ success: false, message: 'PIN must be 4–8 digits.' });
+
+    if (secret.length < 4) {
+      return res.status(400).json({ success: false, message: 'Password/PIN must be at least 4 characters.' });
     }
 
     if (!isDbConnected()) {
@@ -421,7 +422,7 @@ router.post('/reset-pin', async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User account not found.' });
     }
-    if (!user.resetCode || user.resetCode !== resetCode) {
+    if (!user.resetCode || user.resetCode !== resetCode.toString().trim()) {
       return res.status(400).json({ success: false, message: 'Invalid reset code. Please request a new one.' });
     }
     if (!user.resetCodeExpiry || new Date(user.resetCodeExpiry) < new Date()) {
@@ -431,8 +432,8 @@ router.post('/reset-pin', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Reset code has expired. Please request a new one.' });
     }
 
-    // Set new PIN/password (pre-save hook will hash it)
-    user.password = newPin;
+    // Set new password / PIN (Mongoose pre-save hook will hash it with bcrypt)
+    user.password = secret;
     user.resetCode = undefined;
     user.resetCodeExpiry = undefined;
     await user.save();
@@ -440,7 +441,7 @@ router.post('/reset-pin', async (req, res) => {
     const token = generateToken(user);
     return res.json({
       success: true,
-      message: 'PIN reset successfully! You are now logged in.',
+      message: `${credentialType} reset successfully! You are now logged in.`,
       token,
       user: {
         id: user._id,
@@ -453,10 +454,17 @@ router.post('/reset-pin', async (req, res) => {
       },
     });
   } catch (error) {
-    console.error('[reset-pin]', error);
-    return res.status(500).json({ success: false, message: 'Failed to reset PIN.', error: error.message });
+    console.error(`[reset-${credentialType}]`, error);
+    return res.status(500).json({ success: false, message: `Failed to reset ${credentialType}.`, error: error.message });
   }
-});
+};
+
+// Endpoints for PIN & Password reset
+router.post('/forgot-pin', (req, res) => handleForgotPasswordOrPin(req, res, 'PIN'));
+router.post('/forgot-password', (req, res) => handleForgotPasswordOrPin(req, res, 'Password'));
+router.post('/reset-pin', (req, res) => handleResetPasswordOrPin(req, res, 'PIN'));
+router.post('/reset-password', (req, res) => handleResetPasswordOrPin(req, res, 'Password'));
+
 
 // Seed default administrator if none exists
 router.post('/seed-admin', async (req, res) => {

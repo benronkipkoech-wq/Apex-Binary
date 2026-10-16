@@ -77,8 +77,27 @@ class ApiService {
     return this.request('/auth/forgot-pin', 'POST', { email, phone });
   }
 
+  async forgotPassword({ email, phone }) {
+    return this.request('/auth/forgot-password', 'POST', { email, phone });
+  }
+
   async resetPin({ userId, email, phone, resetCode, newPin }) {
     const res = await this.request('/auth/reset-pin', 'POST', { userId, email, phone, resetCode, newPin });
+    if (res.ok && res.data.token) {
+      this.setToken(res.data.token);
+    }
+    return res;
+  }
+
+  async resetPassword({ userId, email, phone, resetCode, newPassword, newPin }) {
+    const res = await this.request('/auth/reset-password', 'POST', {
+      userId,
+      email,
+      phone,
+      resetCode,
+      newPassword: newPassword || newPin,
+      newPin: newPin || newPassword,
+    });
     if (res.ok && res.data.token) {
       this.setToken(res.data.token);
     }
