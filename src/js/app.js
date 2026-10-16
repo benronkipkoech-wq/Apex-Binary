@@ -145,12 +145,44 @@ class App {
     const user = auth.getUser();
     if (!user) return;
     
+    const initials = user.avatar?.initials || (user.fullName ? user.fullName.slice(0, 2).toUpperCase() : 'AB');
+    const color = user.avatar?.color || '#00f59b';
+    const shortName = user.fullName ? user.fullName.split(' ')[0] : 'Trader';
+    const phoneDisplay = user.phone ? `+254 ${user.phone.slice(-9)}` : 'N/A';
+
+    // Top Navigation Avatar & Name
     const initialsEl = document.getElementById('nav-avatar-initials');
+    const navNameEl = document.getElementById('nav-user-name');
+    if (initialsEl) initialsEl.textContent = initials;
+    if (navNameEl) navNameEl.textContent = shortName;
+
+    // Dropdown Profile Header
+    const dropdownAvatar = document.getElementById('dropdown-avatar');
+    const dropdownName = document.getElementById('dropdown-user-name');
+    const dropdownPhone = document.getElementById('dropdown-user-phone');
+    if (dropdownAvatar) {
+      dropdownAvatar.textContent = initials;
+      dropdownAvatar.style.background = color;
+    }
+    if (dropdownName) dropdownName.textContent = user.fullName || 'Apex Trader';
+    if (dropdownPhone) dropdownPhone.textContent = phoneDisplay;
+
+    // Drawer Profile Header
+    const drawerAvatar = document.getElementById('drawer-avatar');
+    const drawerName = document.getElementById('drawer-user-name');
+    const drawerPhone = document.getElementById('drawer-user-phone');
+    if (drawerAvatar) {
+      drawerAvatar.textContent = initials;
+      drawerAvatar.style.background = color;
+    }
+    if (drawerName) drawerName.textContent = user.fullName || 'Apex Trader';
+    if (drawerPhone) drawerPhone.textContent = phoneDisplay;
+
+    // Security Center Panel
     const panelAvatarEl = document.getElementById('security-avatar');
-    if (initialsEl) initialsEl.textContent = user.avatar.initials;
     if (panelAvatarEl) {
-      panelAvatarEl.textContent = user.avatar.initials;
-      panelAvatarEl.style.background = user.avatar.color;
+      panelAvatarEl.textContent = initials;
+      panelAvatarEl.style.background = color;
     }
     
     const nameEl = document.getElementById('security-profile-name');
@@ -158,13 +190,15 @@ class App {
     const sinceEl = document.getElementById('security-profile-since');
     if (nameEl) nameEl.textContent = user.fullName;
     if (phoneEl) {
-      const p = user.phone;
-      phoneEl.textContent = `${p.slice(0, 4)} *** ${p.slice(-3)}`;
+      const p = user.phone || '';
+      phoneEl.textContent = p.length >= 7 ? `${p.slice(0, 4)} *** ${p.slice(-3)}` : p;
     }
-    if (sinceEl) sinceEl.textContent = `Member since ${new Date(user.createdAt).toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+    if (sinceEl && user.createdAt) {
+      sinceEl.textContent = `Member since ${new Date(user.createdAt).toLocaleString('default', { month: 'short', year: 'numeric' })}`;
+    }
 
     const check2fa = document.getElementById('check-2fa');
-    if (check2fa) check2fa.checked = user.twoFactorEnabled;
+    if (check2fa) check2fa.checked = !!user.twoFactorEnabled;
 
     // Security Level UI
     const levelFill = document.getElementById('security-level-fill');
@@ -430,20 +464,65 @@ class App {
     const avatarBtn = document.getElementById('btn-user-avatar');
     const secPanel = document.getElementById('security-panel');
     const closeSecPanel = document.getElementById('btn-close-security');
+    const userDropdown = document.getElementById('user-profile-dropdown');
     
-    if (avatarBtn) avatarBtn.addEventListener('click', () => {
-      secPanel.classList.remove('hidden');
+    if (avatarBtn) {
+      avatarBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        userDropdown?.classList.toggle('hidden');
+        sound.playClick();
+      });
+    }
+
+    // Close user dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+      if (userDropdown && !userDropdown.contains(e.target) && avatarBtn && !avatarBtn.contains(e.target)) {
+        userDropdown.classList.add('hidden');
+      }
+    });
+
+    // Dropdown Security link
+    document.getElementById('btn-dropdown-security')?.addEventListener('click', () => {
+      userDropdown?.classList.add('hidden');
+      secPanel?.classList.remove('hidden');
       sound.playClick();
+    });
+
+    // Dropdown History link
+    document.getElementById('btn-dropdown-history')?.addEventListener('click', () => {
+      userDropdown?.classList.add('hidden');
+      document.getElementById('dock-btn-history')?.click();
+    });
+
+    // Centralized Logout Handler
+    const handleLogout = () => {
+      userDropdown?.classList.add('hidden');
+      secPanel?.classList.add('hidden');
+      auth.logout();
+      this.showToast('You have been signed out safely.', 'info');
+    };
+
+    document.getElementById('btn-header-logout')?.addEventListener('click', handleLogout);
+    document.getElementById('btn-dropdown-logout')?.addEventListener('click', handleLogout);
+    document.getElementById('btn-drawer-logout')?.addEventListener('click', handleLogout);
+    document.getElementById('btn-security-logout')?.addEventListener('click', handleLogout);
+
+    // Drawer Profile actions
+    document.getElementById('btn-drawer-open-security')?.addEventListener('click', () => {
+      secPanel?.classList.remove('hidden');
+      sound.playClick();
+    });
+    document.getElementById('btn-drawer-deposit')?.addEventListener('click', () => {
+      this.openModal('modal-mpesa-deposit');
+    });
+    document.getElementById('btn-drawer-withdraw')?.addEventListener('click', () => {
+      this.openModal('modal-mpesa-withdraw');
     });
     
     if (closeSecPanel) closeSecPanel.addEventListener('click', () => {
       secPanel.classList.add('hidden');
       document.getElementById('change-pin-section').classList.add('hidden');
       sound.playClick();
-    });
-
-    document.getElementById('btn-security-logout')?.addEventListener('click', () => {
-      auth.logout();
     });
 
     const check2fa = document.getElementById('check-2fa');
