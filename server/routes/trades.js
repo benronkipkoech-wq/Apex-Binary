@@ -10,6 +10,10 @@ const router = express.Router();
 
 // Place new trade
 router.post('/place', authenticate, async (req, res) => {
+  // Ensure only traders can place trades
+  if (req.user.role !== 'trader') {
+    return res.status(403).json({ success: false, message: 'Only trader accounts can place trades.' });
+  }
   try {
     const { asset, direction, amount, duration, accountType } = req.body;
 
