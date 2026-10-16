@@ -265,6 +265,58 @@ class AuthEngine {
     return { success: true, message: 'PIN changed successfully.' };
   }
 
+  // --- Reset PIN via Email Code (Forgot PIN flow) ---
+  async resetPinWithCode({ userId, email, phone, resetCode, newPin, confirmNewPin }) {
+    if (!newPin || newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      return { success: false, message: 'New PIN must be exactly 4 digits.' };
+    }
+    if (newPin !== confirmNewPin) {
+      return { success: false, message: 'PINs do not match. Please try again.' };
+    }
+
+    // Call server to validate reset code and set new hashed password
+    const res = await api.resetPin({ userId, email, phone, resetCode, newPin });
+    if (!res.ok) {
+      return { success: false, message: res.data?.message || 'Reset failed. Try again.' };
+    }
+
+    // Update local pinHash so offline PIN entry also works with the new PIN
+    const users = this.getAllUsers();
+    const identifier = phone ? this.normalizePhone(phone) : null;
+    const userLocal = identifier
+      ? users.find(u => u.phone === identifier)
+      : users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
+
+    if (userLocal) {
+      userLocal.pinHash = this.hashPin(newPin);
+      this.saveUsers(users);
+    }
+
+    // Auto-login the user with the data returned by server
+    if (res.data?.user) {
+      const serverUser = res.data.user;
+      const sessionUser = userLocal || {
+        id: serverUser.id || serverUser._id,
+        fullName: serverUser.fullName,
+        phone: serverUser.phone,
+        email: serverUser.email,
+        avatar: this.generateAvatar(serverUser.fullName || 'Apex Trader'),
+        twoFactorEnabled: false,
+        securityLevel: 'standard',
+        pinHash: this.hashPin(newPin),
+        loginAttempts: 0,
+        lockedUntil: null,
+        lastLogin: new Date().toISOString(),
+        verified: true,
+      };
+      this.createSession(sessionUser);
+      this.addLoginHistory(sessionUser, 'pin_reset');
+    }
+
+    return { success: true, message: 'PIN reset successfully! You are now logged in.' };
+  }
+
+
   toggle2FA() {
     if (!this.currentUser) return { success: false };
 

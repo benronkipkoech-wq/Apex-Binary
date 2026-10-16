@@ -199,7 +199,106 @@
             <span>Create Secure Account</span>
           </button>
         </form>
+
+        <!-- ── FORGOT PIN STEP 1: Enter email ───────────────────────── -->
+        <div class="auth-form hidden" id="forgot-pin-step1">
+          <div class="auth-section-header">
+            <span class="auth-section-icon">🔑</span>
+            <h3 class="auth-section-title">Reset Your PIN</h3>
+            <p class="auth-section-sub">Enter your registered email address and we'll send you a 6-digit reset code.</p>
+          </div>
+          <div class="auth-input-group">
+            <label class="auth-label" for="forgot-email">Registered Email Address</label>
+            <div class="auth-input-wrapper">
+              <span class="auth-input-icon">✉️</span>
+              <input type="email" id="forgot-email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+            </div>
+          </div>
+          <button type="button" class="auth-submit-btn" id="btn-send-reset-code">
+            <span class="auth-btn-icon">📧</span>
+            <span>Send Reset Code</span>
+          </button>
+          <div class="auth-footer-links">
+            <button type="button" class="auth-link" id="btn-back-to-login-from-forgot">← Back to Sign In</button>
+          </div>
+        </div>
+
+        <!-- ── FORGOT PIN STEP 2: Enter reset code ─────────────────── -->
+        <div class="auth-form hidden" id="forgot-pin-step2">
+          <div class="auth-section-header">
+            <span class="auth-section-icon">📬</span>
+            <h3 class="auth-section-title">Check Your Email</h3>
+            <p class="auth-section-sub" id="forgot-step2-hint">Enter the 6-digit code sent to your email.</p>
+          </div>
+          <div class="otp-input-group" id="reset-otp-input-group">
+            <input type="tel" class="otp-digit" id="reset-otp-0" maxlength="1">
+            <input type="tel" class="otp-digit" id="reset-otp-1" maxlength="1">
+            <input type="tel" class="otp-digit" id="reset-otp-2" maxlength="1">
+            <input type="tel" class="otp-digit" id="reset-otp-3" maxlength="1">
+            <input type="tel" class="otp-digit" id="reset-otp-4" maxlength="1">
+            <input type="tel" class="otp-digit" id="reset-otp-5" maxlength="1">
+          </div>
+          <button type="button" class="auth-submit-btn" id="btn-verify-reset-code">
+            <span class="auth-btn-icon">✅</span>
+            <span>Verify Code</span>
+          </button>
+          <div class="auth-footer-links">
+            <button type="button" class="auth-link" id="btn-resend-reset-code">Resend Code</button>
+            <span class="auth-footer-sep">·</span>
+            <button type="button" class="auth-link" id="btn-back-to-forgot-step1">Change Email</button>
+          </div>
+        </div>
+
+        <!-- ── FORGOT PIN STEP 3: Set new PIN ─────────────────────── -->
+        <div class="auth-form hidden" id="forgot-pin-step3">
+          <div class="auth-section-header">
+            <span class="auth-section-icon">🔐</span>
+            <h3 class="auth-section-title">Set New PIN</h3>
+            <p class="auth-section-sub">Choose a new 4-digit PIN for your trading account.</p>
+          </div>
+          <div class="auth-input-group">
+            <label class="auth-label">New 4-Digit PIN</label>
+            <div class="auth-pin-display" id="reset-new-pin-display">
+              <span class="pin-dot" id="reset-new-dot-0"></span>
+              <span class="pin-dot" id="reset-new-dot-1"></span>
+              <span class="pin-dot" id="reset-new-dot-2"></span>
+              <span class="pin-dot" id="reset-new-dot-3"></span>
+            </div>
+            <input type="hidden" id="reset-new-pin" maxlength="4">
+          </div>
+          <div class="auth-input-group">
+            <label class="auth-label">Confirm New PIN</label>
+            <div class="auth-pin-display" id="reset-confirm-pin-display">
+              <span class="pin-dot" id="reset-confirm-dot-0"></span>
+              <span class="pin-dot" id="reset-confirm-dot-1"></span>
+              <span class="pin-dot" id="reset-confirm-dot-2"></span>
+              <span class="pin-dot" id="reset-confirm-dot-3"></span>
+            </div>
+            <input type="hidden" id="reset-confirm-pin" maxlength="4">
+          </div>
+          <!-- Keypad for reset PIN -->
+          <div class="auth-keypad" id="reset-pin-keypad">
+            <button type="button" class="keypad-btn" data-key="1">1</button>
+            <button type="button" class="keypad-btn" data-key="2">2</button>
+            <button type="button" class="keypad-btn" data-key="3">3</button>
+            <button type="button" class="keypad-btn" data-key="4">4</button>
+            <button type="button" class="keypad-btn" data-key="5">5</button>
+            <button type="button" class="keypad-btn" data-key="6">6</button>
+            <button type="button" class="keypad-btn" data-key="7">7</button>
+            <button type="button" class="keypad-btn" data-key="8">8</button>
+            <button type="button" class="keypad-btn" data-key="9">9</button>
+            <button type="button" class="keypad-btn" data-key="0">0</button>
+            <button type="button" class="keypad-btn" data-key="0">0</button>
+            <button type="button" class="keypad-btn keypad-del" data-key="del">⌫</button>
+          </div>
+          <button type="button" class="auth-submit-btn" id="btn-submit-new-pin">
+            <span class="auth-btn-icon">🚀</span>
+            <span>Save New PIN &amp; Sign In</span>
+          </button>
+        </div>
+
       </div>
+
 
       <!-- Security Footer -->
       <div class="auth-security-footer">

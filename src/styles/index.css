@@ -3648,8 +3648,45 @@ input:checked + .slider:before {
 .auth-footer-links {
   display: flex;
   justify-content: center;
+  align-items: center;
+  gap: 4px;
   margin-top: 12px;
 }
+
+.auth-footer-sep {
+  color: var(--text-muted);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* --- Forgot-PIN Step Header --- */
+.auth-section-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.auth-section-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.auth-section-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 6px;
+}
+
+.auth-section-sub {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+  line-height: 1.5;
+}
+
 
 .auth-link {
   border: none;

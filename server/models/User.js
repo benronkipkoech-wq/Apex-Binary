@@ -32,6 +32,8 @@ const userSchema = new mongoose.Schema(
     },
     verificationCode: { type: String },
     isVerified: { type: Boolean, default: false },
+    resetCode: { type: String },
+    resetCodeExpiry: { type: Date },
     balances: {
       demo: {
         type: Number,

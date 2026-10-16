@@ -240,6 +240,7 @@ class App {
       'logout': 'Signed Out',
       'lockout': 'Account Locked',
       'pin_changed': 'PIN Changed',
+      'pin_reset': 'PIN Reset via Email',
       '2fa_enabled': '2FA Enabled',
       '2fa_disabled': '2FA Disabled'
     };
@@ -563,6 +564,198 @@ class App {
         document.getElementById('btn-cancel-change-pin').click();
       } else {
         this.showToast(res.message, 'error');
+      }
+    });
+
+    // ─── Forgot PIN Flow ──────────────────────────────────────────────────
+    // Track reset session state
+    this._resetState = { userId: null, email: null, phone: null, verifiedCode: null };
+
+    // Helper: show only one auth panel at a time
+    const showAuthPanel = (id) => {
+      ['auth-login-form', 'auth-register-form',
+       'forgot-pin-step1', 'forgot-pin-step2', 'forgot-pin-step3']
+        .forEach(pid => document.getElementById(pid)?.classList.add('hidden'));
+      document.getElementById(id)?.classList.remove('hidden');
+    };
+
+    // Step 0 — "Forgot PIN?" link opens step 1
+    document.getElementById('btn-forgot-pin')?.addEventListener('click', () => {
+      showAuthPanel('forgot-pin-step1');
+      document.getElementById('forgot-email').value = '';
+      this.showAuthMessage('', 'info');
+      sound.playClick();
+    });
+
+    // Step 1 ← back to login
+    document.getElementById('btn-back-to-login-from-forgot')?.addEventListener('click', () => {
+      showAuthPanel('auth-login-form');
+      sound.playClick();
+    });
+
+    // Step 1 — Send reset code
+    document.getElementById('btn-send-reset-code')?.addEventListener('click', async () => {
+      const email = document.getElementById('forgot-email').value.trim();
+      if (!email || !email.includes('@')) {
+        this.showAuthMessage('Please enter a valid email address.', 'error');
+        return;
+      }
+      const btn = document.getElementById('btn-send-reset-code');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+
+      const res = await api.forgotPin({ email });
+      btn.disabled = false;
+      btn.innerHTML = '<span class="auth-btn-icon">📧</span><span>Send Reset Code</span>';
+
+      if (res.ok || res.data?.success) {
+        this._resetState.email = email;
+        this._resetState.userId = res.data?.userId || null;
+        // Mask email for display
+        const parts = email.split('@');
+        const masked = parts[0].slice(0, 2) + '***@' + parts[1];
+        document.getElementById('forgot-step2-hint').textContent =
+          `Enter the 6-digit code sent to ${masked}`;
+        // Clear OTP fields
+        document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach(i => i.value = '');
+        showAuthPanel('forgot-pin-step2');
+        document.getElementById('reset-otp-0')?.focus();
+        this.showAuthMessage(res.data?.message || 'Reset code sent!', 'success');
+        sound.playTradeWon();
+      } else {
+        this.showAuthMessage(res.data?.message || 'Failed to send reset code.', 'error');
+      }
+    });
+
+    // Step 2 — OTP auto-advance
+    const resetOtpInputs = document.querySelectorAll('#reset-otp-input-group .otp-digit');
+    resetOtpInputs.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        e.target.value = e.target.value.replace(/\D/g, '').slice(0, 1);
+        if (e.target.value && index < resetOtpInputs.length - 1) {
+          resetOtpInputs[index + 1].focus();
+        }
+        if (Array.from(resetOtpInputs).every(i => i.value)) {
+          document.getElementById('btn-verify-reset-code')?.click();
+        }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+          resetOtpInputs[index - 1].focus();
+        }
+      });
+    });
+
+    // Step 2 ← back to step 1
+    document.getElementById('btn-back-to-forgot-step1')?.addEventListener('click', () => {
+      showAuthPanel('forgot-pin-step1');
+      sound.playClick();
+    });
+
+    // Step 2 — Resend code
+    document.getElementById('btn-resend-reset-code')?.addEventListener('click', async () => {
+      const email = this._resetState.email;
+      if (!email) { showAuthPanel('forgot-pin-step1'); return; }
+      const res = await api.forgotPin({ email });
+      if (res.ok || res.data?.success) {
+        this.showAuthMessage('A fresh code has been sent to your email.', 'success');
+        resetOtpInputs.forEach(i => i.value = '');
+        resetOtpInputs[0]?.focus();
+      } else {
+        this.showAuthMessage(res.data?.message || 'Resend failed.', 'error');
+      }
+    });
+
+    // Step 2 — Verify code → advance to step 3
+    document.getElementById('btn-verify-reset-code')?.addEventListener('click', () => {
+      const code = Array.from(resetOtpInputs).map(i => i.value).join('');
+      if (code.length !== 6) {
+        this.showAuthMessage('Please enter all 6 digits of the reset code.', 'error');
+        return;
+      }
+      // Store verified code; actual server validation happens at step 3 submission
+      this._resetState.verifiedCode = code;
+      // Clear new PIN fields
+      this.authPins._resetNew = '';
+      this.authPins._resetConfirm = '';
+      ['reset-new-dot-', 'reset-confirm-dot-'].forEach(pfx => {
+        for (let i = 0; i < 4; i++) document.getElementById(pfx + i)?.classList.remove('filled', 'error');
+      });
+      showAuthPanel('forgot-pin-step3');
+      sound.playClick();
+    });
+
+    // Step 3 — PIN keypad for new PIN
+    if (!this.authPins._resetNew) this.authPins._resetNew = '';
+    if (!this.authPins._resetConfirm) this.authPins._resetConfirm = '';
+
+    const updateResetDots = (type, val) => {
+      const prefix = type === '_resetNew' ? 'reset-new-dot-' : 'reset-confirm-dot-';
+      for (let i = 0; i < 4; i++) {
+        const dot = document.getElementById(prefix + i);
+        if (dot) {
+          dot.classList.toggle('filled', i < val.length);
+          dot.classList.remove('error');
+        }
+      }
+    };
+
+    document.querySelectorAll('#reset-pin-keypad .keypad-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const key = e.currentTarget.dataset.key;
+        const isNewFull = this.authPins._resetNew.length === 4;
+        const activeType = isNewFull ? '_resetConfirm' : '_resetNew';
+        if (key === 'del') {
+          this.authPins[activeType] = this.authPins[activeType].slice(0, -1);
+        } else if (this.authPins[activeType].length < 4) {
+          this.authPins[activeType] += key;
+          sound.playTick();
+        }
+        updateResetDots(activeType, this.authPins[activeType]);
+        // Auto-submit when confirm PIN is full
+        if (this.authPins._resetConfirm.length === 4) {
+          document.getElementById('btn-submit-new-pin')?.click();
+        }
+      });
+    });
+
+    // Step 3 — Save new PIN & sign in
+    document.getElementById('btn-submit-new-pin')?.addEventListener('click', async () => {
+      const newPin = this.authPins._resetNew;
+      const confirmPin = this.authPins._resetConfirm;
+      const { userId, email, phone, verifiedCode } = this._resetState;
+
+      const btn = document.getElementById('btn-submit-new-pin');
+      btn.disabled = true;
+      btn.textContent = 'Saving…';
+
+      const res = await auth.resetPinWithCode({
+        userId, email, phone,
+        resetCode: verifiedCode,
+        newPin,
+        confirmNewPin: confirmPin,
+      });
+
+      btn.disabled = false;
+      btn.innerHTML = '<span class="auth-btn-icon">🚀</span><span>Save New PIN &amp; Sign In</span>';
+
+      if (res.success) {
+        this._resetState = { userId: null, email: null, phone: null, verifiedCode: null };
+        this.authPins._resetNew = '';
+        this.authPins._resetConfirm = '';
+        this.showToast('PIN reset successfully! Welcome back.', 'success');
+        sound.playTradeWon();
+      } else {
+        this.showAuthMessage(res.message, 'error');
+        // Shake error on confirm dots
+        for (let i = 0; i < 4; i++) {
+          const dot = document.getElementById(`reset-confirm-dot-${i}`);
+          if (dot) { dot.classList.remove('filled'); dot.classList.add('error'); }
+        }
+        // If code expired go back to step 1
+        if (res.message.toLowerCase().includes('expired') || res.message.toLowerCase().includes('invalid')) {
+          setTimeout(() => showAuthPanel('forgot-pin-step1'), 2000);
+        }
       }
     });
   }

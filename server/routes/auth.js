@@ -1,7 +1,7 @@
 import express from 'express';
 import User from '../models/User.js';
 import { generateToken, authenticate } from '../middleware/auth.js';
-import { sendVerificationEmail } from '../services/emailService.js';
+import { sendVerificationEmail, sendPinResetEmail } from '../services/emailService.js';
 import { isDbConnected } from '../config/db.js';
 
 const router = express.Router();
@@ -344,6 +344,117 @@ router.post('/tournaments/join', authenticate, async (req, res) => {
     return res.json({ success: true, message: 'Joined tournament successfully in database.' });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to join tournament', error: error.message });
+  }
+});
+
+// ─── PIN / Password Reset Flow ────────────────────────────────────────────
+
+// Step 1 — Request reset code: POST /api/auth/forgot-pin
+router.post('/forgot-pin', async (req, res) => {
+  try {
+    const { email, phone } = req.body;
+    if (!email && !phone) {
+      return res.status(400).json({ success: false, message: 'Email or phone number is required.' });
+    }
+
+    if (!isDbConnected()) {
+      return res.status(503).json({ success: false, message: 'Database offline. Cannot process reset in demo mode.' });
+    }
+
+    let user = null;
+    if (email) {
+      user = await User.findOne({ email: email.toLowerCase().trim() });
+    } else if (phone) {
+      user = await User.findOne({ phone: cleanPhone(phone) });
+    }
+
+    // Always respond with success to prevent user enumeration
+    if (!user || !user.email || user.email.endsWith('@apexbinary.ke')) {
+      return res.json({
+        success: true,
+        message: 'If a verified account exists for that address, a reset code has been sent.',
+      });
+    }
+
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetCode = resetCode;
+    user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
+    await user.save();
+
+    await sendPinResetEmail(user.email, resetCode);
+
+    return res.json({
+      success: true,
+      message: 'A 6-digit reset code has been dispatched to your email via Resend.',
+      userId: user._id,
+    });
+  } catch (error) {
+    console.error('[forgot-pin]', error);
+    return res.status(500).json({ success: false, message: 'Failed to send reset code.', error: error.message });
+  }
+});
+
+// Step 2 — Verify code + set new PIN: POST /api/auth/reset-pin
+router.post('/reset-pin', async (req, res) => {
+  try {
+    const { userId, email, phone, resetCode, newPin } = req.body;
+    if (!resetCode || !newPin) {
+      return res.status(400).json({ success: false, message: 'Reset code and new PIN are required.' });
+    }
+    if (!/^\d{4,8}$/.test(newPin)) {
+      return res.status(400).json({ success: false, message: 'PIN must be 4–8 digits.' });
+    }
+
+    if (!isDbConnected()) {
+      return res.status(503).json({ success: false, message: 'Database offline. Cannot process reset in demo mode.' });
+    }
+
+    let user = null;
+    if (userId) {
+      user = await User.findById(userId);
+    } else if (email) {
+      user = await User.findOne({ email: email.toLowerCase().trim() });
+    } else if (phone) {
+      user = await User.findOne({ phone: cleanPhone(phone) });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+    if (!user.resetCode || user.resetCode !== resetCode) {
+      return res.status(400).json({ success: false, message: 'Invalid reset code. Please request a new one.' });
+    }
+    if (!user.resetCodeExpiry || new Date(user.resetCodeExpiry) < new Date()) {
+      user.resetCode = undefined;
+      user.resetCodeExpiry = undefined;
+      await user.save();
+      return res.status(400).json({ success: false, message: 'Reset code has expired. Please request a new one.' });
+    }
+
+    // Set new PIN/password (pre-save hook will hash it)
+    user.password = newPin;
+    user.resetCode = undefined;
+    user.resetCodeExpiry = undefined;
+    await user.save();
+
+    const token = generateToken(user);
+    return res.json({
+      success: true,
+      message: 'PIN reset successfully! You are now logged in.',
+      token,
+      user: {
+        id: user._id,
+        email: user.email,
+        phone: user.phone,
+        fullName: user.fullName,
+        role: user.role,
+        balances: user.balances,
+        kyc: user.kyc,
+      },
+    });
+  } catch (error) {
+    console.error('[reset-pin]', error);
+    return res.status(500).json({ success: false, message: 'Failed to reset PIN.', error: error.message });
   }
 });
 

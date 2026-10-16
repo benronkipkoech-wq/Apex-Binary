@@ -73,6 +73,18 @@ class ApiService {
     return this.request('/auth/resend-verification', 'POST', { userId, email, phone });
   }
 
+  async forgotPin({ email, phone }) {
+    return this.request('/auth/forgot-pin', 'POST', { email, phone });
+  }
+
+  async resetPin({ userId, email, phone, resetCode, newPin }) {
+    const res = await this.request('/auth/reset-pin', 'POST', { userId, email, phone, resetCode, newPin });
+    if (res.ok && res.data.token) {
+      this.setToken(res.data.token);
+    }
+    return res;
+  }
+
   async getMe() {
     return this.request('/auth/me');
   }
