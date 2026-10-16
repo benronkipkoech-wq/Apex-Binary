@@ -50,6 +50,7 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ success: false, message: 'An account with this phone number or email already exists.' });
     }
 
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
     const user = new User({
       email: userEmail,
       phone: userPhone,
@@ -60,26 +61,19 @@ router.post('/register', async (req, res) => {
         demo: 1000000,
         real: 0,
       },
+      verificationCode,
+      isVerified: false,
     });
 
     await user.save();
-    // Generate verification code and email to client
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // Send verification email
     await sendVerificationEmail(user.email, verificationCode);
-    const token = generateToken(user);
 
+    // Do not issue JWT yet; client must verify email first
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully! Welcome to Apex Binary.',
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        phone: user.phone,
-        fullName: user.fullName,
-        role: user.role,
-        balances: user.balances,
-      },
+      message: 'Account created successfully! Please check your email for the verification code.',
+      userId: user._id,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
@@ -159,6 +153,9 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid credentials. Incorrect PIN or password.' });
     }
 
+    if (!user.isVerified) {
+      return res.status(403).json({ success: false, message: 'Account not verified. Please check your email for the verification code.' });
+    }
     const token = generateToken(user);
 
     return res.json({
@@ -180,6 +177,32 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Email verification endpoint
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { userId, code } = req.body;
+    if (!userId || !code) {
+      return res.status(400).json({ success: false, message: 'userId and code are required.' });
+    }
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+    if (user.isVerified) {
+      return res.json({ success: true, message: 'Account already verified.' });
+    }
+    if (user.verificationCode !== code) {
+      return res.status(400).json({ success: false, message: 'Invalid verification code.' });
+    }
+    user.isVerified = true;
+    user.verificationCode = undefined;
+    await user.save();
+    return res.json({ success: true, message: 'Email verified successfully. You can now log in.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Verification failed', error: error.message });
+  }
+});
+
 // Get current user profile
 router.get('/me', authenticate, async (req, res) => {
   try {
@@ -193,6 +216,7 @@ router.get('/me', authenticate, async (req, res) => {
         role: req.user.role,
         balances: req.user.balances,
         kyc: req.user.kyc,
+        isVerified: req.user.isVerified,
       },
     });
   } catch (error) {

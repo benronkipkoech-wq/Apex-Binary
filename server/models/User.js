@@ -30,6 +30,8 @@ const userSchema = new mongoose.Schema(
       enum: ['trader', 'admin', 'risk_manager'],
       default: 'trader',
     },
+    verificationCode: { type: String },
+    isVerified: { type: Boolean, default: false },
     balances: {
       demo: {
         type: Number,

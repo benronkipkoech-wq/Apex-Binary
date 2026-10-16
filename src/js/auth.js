@@ -3,6 +3,7 @@
 
 import { security } from './security.js';
 import { api } from './api.js';
+import { sendVerificationEmail } from '../server/services/emailService.js';
 
 const AUTH_STORAGE_KEY = 'tycoon_auth';
 const SESSION_KEY = 'tycoon_session';
@@ -55,6 +56,7 @@ class AuthEngine {
       return { success: false, message: 'This phone number is already registered.' };
     }
 
+    const verificationCode = this.generateOTP();
     const user = {
       id: 'usr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       fullName: cleanName,
@@ -68,15 +70,16 @@ class AuthEngine {
       loginAttempts: 0,
       lockedUntil: null,
       lastLogin: null,
-      securityLevel: 'standard' // 'standard' | 'enhanced' | 'maximum'
+      securityLevel: 'standard', // 'standard' | 'enhanced' | 'maximum'
+      verified: false,
+      verificationCode,
     };
 
     existingUsers.push(user);
     security.setItem(AUTH_STORAGE_KEY, existingUsers);
 
-    // Auto-login after registration
-    this.createSession(user);
-    this.addLoginHistory(user, 'registration');
+    // Auto-login removed; email verification required
+    // No session created here
 
     // Sync trader registration & obtain JWT token from backend API
     api.register({
@@ -86,7 +89,7 @@ class AuthEngine {
       email: cleanEmail
     }).catch(() => {});
 
-    return { success: true, user: this.sanitizeUser(user) };
+    return { success: true, userId: user.id, message: 'Registration successful! Please check your email for the verification code.' };
   }
 
   // --- Login ---
