@@ -420,6 +420,30 @@
       </div>
 
       <div class="nav-right">
+        <!-- COMMON NAV TOOLS -->
+        <div class="nav-tools-group" id="nav-tools-group">
+          <!-- Sound Toggle Button -->
+          <button class="icon-tool-btn" id="btn-toggle-sound" title="Toggle Sound FX">
+            <span class="icon-sound" id="sound-icon">🔊</span>
+          </button>
+
+          <!-- Install PWA App Button -->
+          <button class="pwa-install-btn" id="btn-install-pwa" title="Install Apex Binary to Home Screen">
+            <span class="pwa-icon">📲</span>
+            <span class="pwa-label">App</span>
+          </button>
+
+          <!-- Fullscreen Button -->
+          <button class="icon-tool-btn" id="btn-toggle-fullscreen" title="Toggle Fullscreen">
+            <span class="icon-screen">⛶</span>
+          </button>
+
+          <!-- Admin Console Link -->
+          <a href="/admin" target="_blank" class="icon-tool-btn" id="btn-open-admin-nav" title="Admin Operations & M-Pesa Cashier Console" style="text-decoration:none; display:flex; align-items:center; justify-content:center; color:#00f0ff;">
+            <span style="font-size:0.95rem;">⚡</span>
+          </a>
+        </div>
+
         <!-- AUTHENTICATED USER NAV -->
         <div class="nav-auth-group" id="nav-auth-group">
           <!-- Trader Level & XP Pill -->
@@ -536,28 +560,6 @@
           <button class="guest-login-btn" id="btn-nav-login">Sign In</button>
           <button class="guest-register-btn" id="btn-nav-register">Create Account</button>
         </div>
-
-        <!-- COMMON NAV TOOLS -->
-        <!-- Sound Toggle Button -->
-        <button class="icon-tool-btn" id="btn-toggle-sound" title="Toggle Sound FX">
-          <span class="icon-sound" id="sound-icon">🔊</span>
-        </button>
-
-        <!-- Install PWA App Button -->
-        <button class="pwa-install-btn" id="btn-install-pwa" title="Install Apex Binary to Home Screen">
-          <span class="pwa-icon">📲</span>
-          <span class="pwa-label">App</span>
-        </button>
-
-        <!-- Fullscreen Button -->
-        <button class="icon-tool-btn" id="btn-toggle-fullscreen" title="Toggle Fullscreen">
-          <span class="icon-screen">⛶</span>
-        </button>
-
-        <!-- Admin Console Link -->
-        <a href="/admin" target="_blank" class="icon-tool-btn" id="btn-open-admin-nav" title="Admin Operations & M-Pesa Cashier Console" style="text-decoration:none; display:flex; align-items:center; justify-content:center; color:#00f0ff;">
-          <span style="font-size:0.95rem;">⚡</span>
-        </a>
       </div>
     </header>
 
@@ -1282,6 +1284,10 @@
       <button class="mob-nav-btn" id="mob-nav-deposit">
         <span class="mob-nav-icon">🇰🇪</span>
         <span class="mob-nav-label">M-Pesa</span>
+      </button>
+      <button class="mob-nav-btn" data-tab="profile" id="mob-nav-profile">
+        <span class="mob-nav-icon">👤</span>
+        <span class="mob-nav-label">Profile</span>
       </button>
     </nav>
   </div>

@@ -161,13 +161,38 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 0 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100vw;
   z-index: 50;
+  overflow: visible;
 }
 
-.nav-left, .nav-right {
+.nav-left {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding-right: 0;
+}
+
+.nav-tools-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  padding-right: 10px;
+  margin-right: 2px;
 }
 
 .brand-badge {
@@ -228,6 +253,11 @@ body {
   align-items: center;
   gap: 6px;
   overflow-x: auto;
+  max-width: 360px;
+  scrollbar-width: none;
+}
+.quick-assets::-webkit-scrollbar {
+  display: none;
 }
 
 .asset-tab-pill {
@@ -4307,26 +4337,96 @@ input:checked + .slider:before {
 
 /* --- Header Direct Logout Button --- */
 .header-logout-btn {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 51, 102, 0.1);
-  border: 1px solid rgba(255, 51, 102, 0.3);
-  color: var(--red-main);
+  background: rgba(255, 51, 102, 0.12);
+  border: 1px solid rgba(255, 51, 102, 0.35);
+  color: #ff4d6d;
   border-radius: var(--radius-sm);
-  padding: 6px 12px;
+  padding: 6px 14px;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.25s ease;
+  margin-right: 0;
+  z-index: 10;
 }
 
 .header-logout-btn:hover {
-  background: rgba(255, 51, 102, 0.22);
+  background: rgba(255, 51, 102, 0.25);
   border-color: var(--red-main);
   color: #fff;
-  box-shadow: 0 0 12px rgba(255, 51, 102, 0.3);
+  box-shadow: 0 0 14px rgba(255, 51, 102, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Responsive Nav Rules to protect Logout & Profile visibility across all viewports */
+@media (max-width: 1450px) {
+  .one-click-toggle-wrapper {
+    display: none !important;
+  }
+  .user-level-badge .level-xp {
+    display: none;
+  }
+  .quick-assets {
+    max-width: 260px;
+  }
+}
+
+@media (max-width: 1280px) {
+  .nav-tools-group {
+    display: none !important;
+  }
+  .quick-assets {
+    max-width: 200px;
+  }
+  .user-level-badge {
+    display: none !important;
+  }
+  .nav-auth-group {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 990px) {
+  .quick-assets {
+    display: none !important;
+  }
+  .mpesa-withdraw-btn {
+    display: none !important;
+  }
+  .user-profile-nav-name {
+    display: none;
+  }
+  .header-logout-btn {
+    padding: 6px 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .top-nav {
+    padding: 0 8px;
+  }
+  .brand-sub {
+    display: none;
+  }
+  .header-logout-btn .logout-text {
+    display: none;
+  }
+  .header-logout-btn {
+    padding: 6px 8px;
+    font-size: 14px;
+  }
+  .wallet-type-label {
+    display: none;
+  }
+  .user-profile-pill-btn {
+    padding: 2px 6px 2px 2px;
+  }
 }
 
 /* --- Profile Tab in Drawer --- */
@@ -4486,7 +4586,7 @@ input:checked + .slider:before {
 .nav-auth-group {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
 }
 
 .nav-auth-group.hidden {
