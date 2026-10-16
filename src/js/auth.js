@@ -372,6 +372,23 @@ class AuthEngine {
   getUser() {
     return this.currentUser ? this.sanitizeUser(this.currentUser) : null;
   }
-}
 
+  // Helper: login status
+  isLoggedIn() {
+    return this.isAuthenticated;
+  }
+
+  // Helper: check role using JWT token from ApiService
+  hasRole(role) {
+    const token = api.getToken ? api.getToken() : null;
+    if (!token) return false;
+    try {
+      const payload = token.split('.')[1];
+      const data = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+      return Array.isArray(data.roles) && data.roles.includes(role);
+    } catch (e) {
+      return false;
+    }
+  }
+}
 export const auth = new AuthEngine();
