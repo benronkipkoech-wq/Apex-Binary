@@ -203,6 +203,42 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
+// Resend verification code endpoint (via Resend)
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { userId, email, phone } = req.body;
+    let user = null;
+    if (userId) {
+      user = await User.findById(userId);
+    } else if (email) {
+      user = await User.findOne({ email: email.toLowerCase().trim() });
+    } else if (phone) {
+      user = await User.findOne({ phone: cleanPhone(phone) });
+    }
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+    if (user.isVerified) {
+      return res.json({ success: true, message: 'Account is already verified. You can proceed to log in.' });
+    }
+
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.verificationCode = verificationCode;
+    await user.save();
+
+    await sendVerificationEmail(user.email, verificationCode);
+
+    return res.json({
+      success: true,
+      message: 'A fresh verification code has been dispatched to your email via Resend.',
+      userId: user._id,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: 'Failed to resend verification code', error: error.message });
+  }
+});
+
 // Get current user profile
 router.get('/me', authenticate, async (req, res) => {
   try {

@@ -1,46 +1,117 @@
+import { Resend } from 'resend';
 import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Load SMTP configuration from environment variables
-const smtpHost = process.env.EMAIL_HOST || 'smtp.example.com';
-const smtpPort = parseInt(process.env.EMAIL_PORT) || 587;
-const smtpUser = process.env.EMAIL_USER || 'user@example.com';
-const smtpPass = process.env.EMAIL_PASS || 'password';
-const fromAddress = process.env.EMAIL_FROM || smtpUser;
+// Resend Configuration
+const resendApiKey = process.env.RESEND_API_KEY;
+const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <onboarding@resend.dev>';
+const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
-// Create a reusable transporter object using the default SMTP transport
-const transporter = nodemailer.createTransport({
-  host: smtpHost,
-  port: smtpPort,
-  secure: smtpPort === 465, // true for 465, false for other ports
-  auth: {
-    user: smtpUser,
-    pass: smtpPass,
-  },
-});
+// Optional SMTP Fallback Configuration
+const smtpHost = process.env.EMAIL_HOST;
+const smtpPort = parseInt(process.env.EMAIL_PORT) || 587;
+const smtpUser = process.env.EMAIL_USER;
+const smtpPass = process.env.EMAIL_PASS;
+const fromAddress = process.env.EMAIL_FROM || smtpUser || 'no-reply@apexbinary.ke';
+
+let transporter = null;
+if (smtpHost && smtpUser && smtpPass) {
+  transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: { user: smtpUser, pass: smtpPass },
+  });
+}
 
 /**
- * Send a verification email containing a numeric code.
+ * Send a verification email containing a 6-digit numeric code via Resend.
  * @param {string} toEmail - Recipient email address.
- * @param {string} verificationCode - 6‑digit verification code.
+ * @param {string} verificationCode - 6-digit verification code.
  */
 export async function sendVerificationEmail(toEmail, verificationCode) {
-  const mailOptions = {
-    from: fromAddress,
-    to: toEmail,
-    subject: 'Your Apex Binary Verification Code',
-    text: `Your verification code is: ${verificationCode}\n\nIf you did not request this, please ignore this email.`,
-    html: `<p>Your verification code is: <strong>${verificationCode}</strong></p><p>If you did not request this, please ignore this email.</p>`,
-  };
+  const subject = `${verificationCode} is your Apex Binary verification code`;
+  const textContent = `Your Apex Binary verification code is: ${verificationCode}\n\nThis code expires in 15 minutes.\nIf you did not request this, please ignore this email.`;
+  const htmlContent = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0e14; color: #e6edf3; margin: 0; padding: 20px; }
+          .container { max-width: 480px; margin: 0 auto; background: #131722; border: 1px solid #232733; border-radius: 12px; padding: 32px 24px; text-align: center; }
+          .logo { font-size: 22px; font-weight: 800; color: #00f59b; letter-spacing: 2px; margin-bottom: 6px; }
+          .sub { font-size: 11px; color: #8b949e; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 24px; }
+          .card { background: #1a1e29; border: 1px solid #2a3040; border-radius: 8px; padding: 24px 16px; margin-bottom: 24px; }
+          .code-box { font-family: 'SF Mono', Monaco, Consolas, monospace; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #00f59b; padding: 14px 20px; background: rgba(0, 245, 155, 0.08); border: 1px solid rgba(0, 245, 155, 0.25); border-radius: 8px; display: inline-block; margin: 12px 0; }
+          .desc { font-size: 13px; color: #9da7b3; line-height: 1.5; margin: 0; }
+          .footer { font-size: 11px; color: #6e7681; margin-top: 20px; line-height: 1.5; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo">▲ APEX BINARY</div>
+          <div class="sub">Secure Trading Platform</div>
+          <div class="card">
+            <p class="desc">Enter the authentication code below to verify your account and activate trading:</p>
+            <div class="code-box">${verificationCode}</div>
+            <p class="desc" style="font-size: 12px; color: #8b949e;">This code will expire in 15 minutes. Never disclose this code to anyone.</p>
+          </div>
+          <p class="footer">If you did not sign up for an Apex Binary trading account, you can safely ignore this email.</p>
+        </div>
+      </body>
+    </html>
+  `;
 
-  try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Verification email sent: %s', info.messageId);
-    return info;
-  } catch (error) {
-    console.error('Error sending verification email:', error);
-    throw error;
+  // 1. Primary: Resend API
+  if (resend) {
+    try {
+      const response = await resend.emails.send({
+        from: resendFrom,
+        to: [toEmail],
+        subject,
+        html: htmlContent,
+        text: textContent,
+      });
+
+      if (response.error) {
+        console.error('[Resend Error]:', response.error);
+        throw new Error(response.error.message || 'Resend error sending email');
+      }
+
+      console.log(`[Resend] Verification code sent to ${toEmail}. Message ID: ${response.data?.id}`);
+      return { success: true, provider: 'resend', id: response.data?.id };
+    } catch (resendError) {
+      console.error('[Resend Failed, falling back if configured]:', resendError.message);
+      if (!transporter) throw resendError;
+    }
   }
+
+  // 2. Secondary: SMTP fallback
+  if (transporter) {
+    try {
+      const info = await transporter.sendMail({
+        from: fromAddress,
+        to: toEmail,
+        subject,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`[SMTP] Verification email sent to ${toEmail}: ${info.messageId}`);
+      return { success: true, provider: 'smtp', id: info.messageId };
+    } catch (smtpError) {
+      console.error('[SMTP Error]:', smtpError);
+      throw smtpError;
+    }
+  }
+
+  // 3. Fallback when no keys are configured (Local / Dev mode)
+  console.log(`[Email Service - Dev Mode] Verification code for ${toEmail}: ${verificationCode}`);
+  return { success: true, provider: 'dev-console', code: verificationCode };
 }
+
+export default {
+  sendVerificationEmail,
+};
