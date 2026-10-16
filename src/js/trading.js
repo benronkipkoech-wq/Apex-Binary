@@ -26,6 +26,9 @@ export class TradingEngine {
       return { success: false, message: `Insufficient funds in ${type} account. Please deposit or switch wallets.` };
     }
 
+    const isCallDir = direction === 'higher' || direction === 'CALL';
+    const normalizedDirection = isCallDir ? 'higher' : 'lower';
+
     const asset = this.market.currentAsset;
     const strikePrice = this.market.getCurrentPrice();
     const now = Date.now();
@@ -37,7 +40,7 @@ export class TradingEngine {
       assetName: asset.name,
       assetIcon: asset.icon,
       decimals: asset.decimals,
-      direction, // 'higher' | 'lower'
+      direction: normalizedDirection, // 'higher' | 'lower'
       amount,
       payoutRate: asset.payout,
       strikePrice,
@@ -50,15 +53,26 @@ export class TradingEngine {
 
     this.activeTrades.push(trade);
     sound.playTradePlaced();
-    this.notify();
+    this.notify('trade_placed', { trade });
 
     // Async sync trade to backend database
     api.placeTrade({
       asset: asset.name,
-      direction: direction === 'higher' ? 'CALL' : 'PUT',
+      direction: isCallDir ? 'CALL' : 'PUT',
       amount,
       duration: durationSec,
       accountType: wallet.getType()
+    }).then(res => {
+      if (res.ok && res.data.success && res.data.updatedBalance !== undefined) {
+        if (wallet.getType() === 'real') {
+          wallet.realBalance = res.data.updatedBalance;
+          localStorage.setItem('tycoon_real_balance', wallet.realBalance.toString());
+        } else {
+          wallet.demoBalance = res.data.updatedBalance;
+          localStorage.setItem('tycoon_demo_balance', wallet.demoBalance.toString());
+        }
+        wallet.notify();
+      }
     }).catch(() => {});
 
     return { success: true, trade };
@@ -156,7 +170,7 @@ export class TradingEngine {
       this.closedTrades.pop();
     }
     localStorage.setItem('tycoon_trade_history', JSON.stringify(this.closedTrades));
-    this.notify();
+    this.notify('trade_settled', { trade: closedRecord });
   }
 
   triggerSettlementUI(trade, result, payout, exitPrice) {
@@ -243,13 +257,15 @@ export class TradingEngine {
     return () => this.listeners.delete(listener);
   }
 
-  notify() {
+  notify(event = null, data = null) {
     for (const listener of this.listeners) {
       try {
         listener({
           active: this.activeTrades,
-          closed: this.closedTrades
-        });
+          closed: this.closedTrades,
+          event,
+          data
+        }, event, data);
       } catch (e) {
         console.error(e);
       }

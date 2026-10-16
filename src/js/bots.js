@@ -283,22 +283,25 @@ export class TradingBotsEngine {
       stake = this.currentMartingaleStake || bot.baseStake;
     }
 
-    const trade = this.trading.placeTrade(direction, stake, bot.durationSec || 15);
-    if (!trade) return;
-    
+    const result = this.trading.placeTrade(direction, stake, bot.durationSec || 15);
+    if (!result || !result.success) return;
+
+    const trade = result.trade;
     trade.isBotTrade = true;
 
     bot.stats.trades++;
     this.notify('bot_trade_placed', { bot, trade, reason });
 
-    // Listen for this trade settlement
-    const unsub = this.trading.subscribe((event, data) => {
-      if (event === 'trade_settled' && data.trade.id === trade.id) {
+    // Listen for this trade settlement and cleanup immediately
+    const unsub = this.trading.subscribe((firstArg, event, data) => {
+      const ev = event || firstArg?.event;
+      const d = data || firstArg?.data;
+      if (ev === 'trade_settled' && d?.trade?.id === trade.id) {
         unsub();
-        const won = data.trade.status === 'won';
+        const won = d.trade.status === 'won';
         if (won) {
           bot.stats.wins++;
-          bot.stats.profitKES += data.trade.payout - data.trade.amount;
+          bot.stats.profitKES += d.trade.payout - d.trade.amount;
           if (bot.id === 'bot_martingale') {
             this.martingaleStep = 0;
             this.currentMartingaleStake = bot.baseStake;
@@ -306,7 +309,7 @@ export class TradingBotsEngine {
           }
         } else {
           bot.stats.losses++;
-          bot.stats.profitKES -= data.trade.amount;
+          bot.stats.profitKES -= d.trade.amount;
           if (bot.id === 'bot_martingale') {
             this.martingaleStep++;
             if (this.martingaleStep >= (bot.maxSteps || 4)) {
@@ -381,15 +384,15 @@ export class TradingBotsEngine {
     }
 
     // Place mirrored trade
-    const trade = this.trading.placeTrade(direction, stake, 15);
-    if (trade) {
-      trade.isBotTrade = true;
+    const res = this.trading.placeTrade(direction, stake, 15);
+    if (res && res.success) {
+      res.trade.isBotTrade = true;
       this.notify('copy_trade_mirrored', {
         trader,
         direction,
         stake,
-        asset: this.market.currentAssetId,
-        trade,
+        asset: this.market.currentAsset?.id || 'usd_kes_otc',
+        trade: res.trade,
         reason
       });
     }

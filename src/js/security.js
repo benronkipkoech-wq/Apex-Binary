@@ -71,30 +71,37 @@ class SecurityEngine {
     localStorage.removeItem(key);
   }
 
-  // Simple XOR cipher for obfuscation (NOT cryptographically secure, just a barrier)
+  // Simple XOR cipher for obfuscation (UTF-8 safe)
   obfuscate(str) {
-    let result = '';
-    for (let i = 0; i < str.length; i++) {
-      const c = str.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length);
-      result += String.fromCharCode(c);
+    try {
+      const utf8 = encodeURIComponent(str);
+      let result = '';
+      for (let i = 0; i < utf8.length; i++) {
+        const c = utf8.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length);
+        result += String.fromCharCode(c);
+      }
+      return btoa(unescape(encodeURIComponent(result)));
+    } catch (e) {
+      return btoa(unescape(encodeURIComponent(str)));
     }
-    return btoa(result); // Encode to Base64 to safely store
   }
 
   deobfuscate(str) {
-    let decoded = '';
     try {
-      decoded = atob(str);
+      const decoded = decodeURIComponent(escape(atob(str)));
+      let result = '';
+      for (let i = 0; i < decoded.length; i++) {
+        const c = decoded.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length);
+        result += String.fromCharCode(c);
+      }
+      return decodeURIComponent(result);
     } catch (e) {
-      return str; // Might not be base64 encoded
+      try {
+        return decodeURIComponent(escape(atob(str)));
+      } catch (e2) {
+        return str;
+      }
     }
-    
-    let result = '';
-    for (let i = 0; i < decoded.length; i++) {
-      const c = decoded.charCodeAt(i) ^ this.encryptionKey.charCodeAt(i % this.encryptionKey.length);
-      result += String.fromCharCode(c);
-    }
-    return result;
   }
 }
 

@@ -2,6 +2,7 @@
 // Client-side auth with PIN, session management, 2FA, and login history
 
 import { security } from './security.js';
+import { api } from './api.js';
 
 const AUTH_STORAGE_KEY = 'tycoon_auth';
 const SESSION_KEY = 'tycoon_session';
@@ -77,6 +78,14 @@ class AuthEngine {
     this.createSession(user);
     this.addLoginHistory(user, 'registration');
 
+    // Sync trader registration & obtain JWT token from backend API
+    api.register({
+      fullName: cleanName,
+      phone: normalizedPhone,
+      pin,
+      email: cleanEmail
+    }).catch(() => {});
+
     return { success: true, user: this.sanitizeUser(user) };
   }
 
@@ -117,6 +126,9 @@ class AuthEngine {
     user.lockedUntil = null;
     user.lastLogin = new Date().toISOString();
     this.saveUsers(users);
+
+    // Sync trader session with backend API to acquire JWT
+    api.login(normalizedPhone, pin).catch(() => {});
 
     if (user.twoFactorEnabled) {
       // Generate OTP and require verification
@@ -218,6 +230,7 @@ class AuthEngine {
     this.currentUser = null;
     this.isAuthenticated = false;
     security.removeItem(SESSION_KEY);
+    api.logout();
     this.notify('logged_out', { reason });
   }
 

@@ -44,16 +44,21 @@ class ApiService {
   }
 
   // Auth endpoints
-  async register({ email, phone, password, fullName }) {
-    const res = await this.request('/auth/register', 'POST', { email, phone, password, fullName });
+  async register({ email, phone, password, pin, fullName }) {
+    const res = await this.request('/auth/register', 'POST', { email, phone, password, pin, fullName });
     if (res.ok && res.data.token) {
       this.setToken(res.data.token);
     }
     return res;
   }
 
-  async login(email, password) {
-    const res = await this.request('/auth/login', 'POST', { email, password });
+  async login(identifier, secret) {
+    const isEmail = identifier && identifier.includes('@');
+    const payload = isEmail
+      ? { email: identifier, password: secret }
+      : { phone: identifier, pin: secret };
+
+    const res = await this.request('/auth/login', 'POST', payload);
     if (res.ok && res.data.token) {
       this.setToken(res.data.token);
     }

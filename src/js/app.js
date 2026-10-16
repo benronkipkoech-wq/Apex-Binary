@@ -86,6 +86,7 @@ class App {
       this.showToast(`Welcome back, ${auth.getUser().fullName}!`, 'success');
       this.updateSecurityPanelUI();
       this.toggleAuthState(true);
+      wallet.syncBalance();
     } else {
       // Allow guest view instead of blocking immediately
       document.getElementById('auth-screen').classList.add('hidden');
@@ -340,6 +341,7 @@ class App {
             document.getElementById('otp-0').focus();
           } else {
             sound.playTradeWon(); // Success sound
+            wallet.syncBalance();
           }
         } else {
           this.showAuthMessage(res.message, 'error');
@@ -370,6 +372,7 @@ class App {
 
         if (res.success) {
           sound.playTradeWon();
+          wallet.syncBalance();
         } else {
           this.showAuthMessage(res.message, 'error');
         }
@@ -399,6 +402,7 @@ class App {
       const res = auth.verify2FA(code);
       if (res.success) {
         sound.playTradeWon();
+        wallet.syncBalance();
       } else {
         this.showToast(res.message, 'error');
         otpInputs.forEach(i => i.value = '');
@@ -1533,7 +1537,7 @@ class App {
       });
     });
 
-    document.getElementById('btn-submit-stk-push').addEventListener('click', () => {
+    document.getElementById('btn-submit-stk-push').addEventListener('click', async () => {
       const phone = document.getElementById('mpesa-phone-input').value.trim();
       const amount = parseFloat(customAmtInput.value) || 0;
 
@@ -1547,13 +1551,35 @@ class App {
       }
 
       sound.playClick();
-      wallet.clearPin();
-      this.updatePinDots();
+      const btn = document.getElementById('btn-submit-stk-push');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span>Processing...</span>';
+      btn.disabled = true;
 
-      document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
-      document.getElementById('mpesa-deposit-step-2').classList.remove('hidden');
-      document.getElementById('stk-prompt-amount').textContent = amount.toLocaleString();
-      document.getElementById('stk-prompt-phone').textContent = `+254${phone}`;
+      const res = await api.depositMpesa(amount, phone);
+      
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+
+      if (res.ok && res.data.success) {
+        const data = res.data;
+        if (data.isLive) {
+          document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
+          document.getElementById('mpesa-deposit-step-3').classList.remove('hidden');
+          document.getElementById('mpesa-receipt-code').textContent = data.message;
+          document.getElementById('mpesa-deposit-step-3').querySelector('h3').textContent = 'Check Your Phone!';
+        } else {
+          // Sandbox Simulator - show fake PIN screen
+          wallet.clearPin();
+          this.updatePinDots();
+          document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
+          document.getElementById('mpesa-deposit-step-2').classList.remove('hidden');
+          document.getElementById('stk-prompt-amount').textContent = amount.toLocaleString();
+          document.getElementById('stk-prompt-phone').textContent = `+254${phone}`;
+        }
+      } else {
+        this.showToast(res.data?.message || 'Deposit failed', 'error');
+      }
     });
 
     document.querySelectorAll('#stk-keypad .keypad-btn[data-key]').forEach(btn => {
@@ -1580,14 +1606,15 @@ class App {
       document.getElementById('mpesa-deposit-step-1').classList.remove('hidden');
     });
 
-    document.getElementById('btn-stk-confirm').addEventListener('click', () => {
+    document.getElementById('btn-stk-confirm').addEventListener('click', async () => {
       const phone = document.getElementById('mpesa-phone-input').value.trim();
       const amount = parseFloat(customAmtInput.value) || 0;
 
-      const receipt = wallet.completeMpesaDeposit(amount, phone);
+      const receipt = await wallet.completeMpesaDeposit(amount, phone);
 
       document.getElementById('mpesa-deposit-step-2').classList.add('hidden');
       document.getElementById('mpesa-deposit-step-3').classList.remove('hidden');
+      document.getElementById('mpesa-deposit-step-3').querySelector('h3').textContent = 'Deposit Successful!';
       document.getElementById('mpesa-receipt-code').textContent = receipt.message;
       this.showToast(`KSh ${amount.toLocaleString()} deposited to Real Account!`, 'success');
     });
@@ -1615,7 +1642,7 @@ class App {
       document.getElementById('withdraw-fee-net').textContent = wallet.formatCurrency(amt);
     });
 
-    document.getElementById('btn-submit-withdrawal').addEventListener('click', () => {
+    document.getElementById('btn-submit-withdrawal').addEventListener('click', async () => {
       const phone = document.getElementById('withdraw-phone-input').value.trim();
       const amt = parseFloat(withdrawInput.value) || 0;
 
@@ -1628,7 +1655,16 @@ class App {
         return;
       }
 
-      const res = wallet.withdrawMpesa(amt, phone);
+      const btn = document.getElementById('btn-submit-withdrawal');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span>Processing...</span>';
+      btn.disabled = true;
+
+      const res = await wallet.withdrawMpesa(amt, phone);
+      
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+
       if (res.success) {
         this.showToast(res.message, 'success');
         this.closeModal('modal-mpesa-withdraw');

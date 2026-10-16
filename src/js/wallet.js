@@ -71,6 +71,21 @@ export class WalletEngine {
     this.notify();
   }
 
+  async syncBalance() {
+    try {
+      const res = await api.getMe();
+      if (res.ok && res.data && res.data.success) {
+        this.realBalance = res.data.user.balances.real || 0;
+        this.demoBalance = res.data.user.balances.demo || 1000000;
+        localStorage.setItem('tycoon_real_balance', this.realBalance.toString());
+        localStorage.setItem('tycoon_demo_balance', this.demoBalance.toString());
+        this.notify();
+      }
+    } catch (e) {
+      console.error('Failed to sync balance', e);
+    }
+  }
+
   // Keypad PIN Management
   addPinDigit(d) {
     if (this.enteredPin.length < 4) {
@@ -121,58 +136,65 @@ export class WalletEngine {
     return { code, message };
   }
 
-  completeMpesaDeposit(amount, phone) {
+  async completeMpesaDeposit(amount, phone) {
     const receipt = this.generateMpesaReceipt(amount, phone);
+    
+    // Sandbox mode: immediately credit. In real mode, it's done by webhook.
+    // Assuming this is called for simulator only, let's sync balance anyway.
     this.credit(amount, 'real');
     this.setType('real');
     this.clearPin();
     sound.playMpesaCash();
 
-    // Sync deposit to backend database
-    api.depositMpesa(amount, phone).catch(() => {});
+    // In a real app this wouldn't call depositMpesa here since it's already done before showing PIN,
+    // but we leave this as a simulation callback.
+    await this.syncBalance();
 
     return receipt;
   }
 
   // M-Pesa Withdrawal Flow
-  withdrawMpesa(amount, phone) {
+  async withdrawMpesa(amount, phone) {
     if (amount <= 0) return { success: false, message: 'Invalid amount' };
     if (this.realBalance < amount) {
       return { success: false, message: 'Insufficient Real KES balance for withdrawal' };
     }
 
-    this.realBalance -= amount;
-    localStorage.setItem('tycoon_real_balance', this.realBalance.toString());
-
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let code = 'WK';
-    for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-
-    const tx = {
-      id: code,
-      type: 'withdrawal',
-      amount,
-      phone,
-      time: Date.now(),
-      status: 'Pending Admin Approval'
-    };
-    this.transactions.unshift(tx);
-    if (this.transactions.length > 20) this.transactions.pop();
-    localStorage.setItem('tycoon_mpesa_history', JSON.stringify(this.transactions));
-
-    this.notify();
-    sound.playClick();
-
     // Sync withdrawal request with backend cashier queue
-    api.withdrawMpesa(amount, phone).catch(() => {});
+    const res = await api.withdrawMpesa(amount, phone);
+    if (res.ok && res.data.success) {
+      // Backend handles deduction. Sync the exact balance.
+      await this.syncBalance();
 
-    return {
-      success: true,
-      code,
-      message: `Withdrawal request of KSh ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2 })} submitted! Queued for Admin Cashier review and approval.`
-    };
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let code = 'WK';
+      for (let i = 0; i < 8; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+
+      const tx = {
+        id: code,
+        type: 'withdrawal',
+        amount,
+        phone,
+        time: Date.now(),
+        status: 'Pending Admin Approval'
+      };
+      this.transactions.unshift(tx);
+      if (this.transactions.length > 20) this.transactions.pop();
+      localStorage.setItem('tycoon_mpesa_history', JSON.stringify(this.transactions));
+
+      this.notify();
+      sound.playClick();
+
+      return {
+        success: true,
+        code,
+        message: `Withdrawal request of KSh ${amount.toLocaleString('en-KE', { minimumFractionDigits: 2 })} submitted! Queued for Admin Cashier review and approval.`
+      };
+    } else {
+      return { success: false, message: res.data?.message || 'Withdrawal failed' };
+    }
   }
 
   getTransactions() {

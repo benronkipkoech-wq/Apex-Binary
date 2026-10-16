@@ -65,7 +65,7 @@ export class PatternDetector {
       }
 
       // 4. Bullish Engulfing
-      if (prev && !prev.isGreen && isGreen) {
+      if (prev && prev.close < prev.open && isGreen) {
         const prevBody = Math.abs(prev.close - prev.open);
         if (c.open <= prev.close && c.close >= prev.open && body > prevBody * 1.1) {
           patterns.push({

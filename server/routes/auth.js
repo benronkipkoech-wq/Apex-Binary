@@ -1,36 +1,60 @@
 import express from 'express';
 import User from '../models/User.js';
 import { generateToken, authenticate } from '../middleware/auth.js';
+import { sendVerificationEmail } from '../services/emailService.js';
 import { isDbConnected } from '../config/db.js';
 
 const router = express.Router();
 
-// Register new trader
+// Helper to normalize phone
+function cleanPhone(p) {
+  if (!p) return '';
+  return p.toString().replace(/\D/g, '');
+}
+
+// Register new trader (Supports Phone + PIN or Email + Password)
 router.post('/register', async (req, res) => {
   try {
-    const { email, phone, password, fullName } = req.body;
+    const { email, phone, password, pin, fullName } = req.body;
+    const authSecret = pin || password;
+    const userPhone = cleanPhone(phone);
 
-    if (!email || !phone || !password) {
-      return res.status(400).json({ success: false, message: 'Email, phone, and password are required.' });
+    if (!userPhone || !authSecret) {
+      return res.status(400).json({ success: false, message: 'Phone number and PIN/password are required.' });
     }
 
+    const userEmail = email ? email.toLowerCase().trim() : `${userPhone}@apexbinary.ke`;
+    const traderName = fullName || 'Apex Trader';
+
     if (!isDbConnected()) {
-      return res.status(503).json({
-        success: false,
-        message: 'Database is currently offline. Please configure MONGODB_URI in your environment settings.',
+      // Local/offline demo mode token for instant trader experience
+      const mockTrader = {
+        _id: 'trader_' + userPhone,
+        email: userEmail,
+        phone: userPhone,
+        fullName: traderName,
+        role: 'trader',
+        balances: { demo: 1000000, real: 0 },
+      };
+      const token = generateToken(mockTrader);
+      return res.status(201).json({
+        success: true,
+        message: 'Account created successfully (Offline Demo Mode).',
+        token,
+        user: mockTrader,
       });
     }
 
-    const existingUser = await User.findOne({ $or: [{ email: email.toLowerCase() }, { phone }] });
+    const existingUser = await User.findOne({ $or: [{ email: userEmail }, { phone: userPhone }] });
     if (existingUser) {
-      return res.status(409).json({ success: false, message: 'An account with this email or phone number already exists.' });
+      return res.status(409).json({ success: false, message: 'An account with this phone number or email already exists.' });
     }
 
     const user = new User({
-      email: email.toLowerCase(),
-      phone,
-      fullName: fullName || 'Apex Trader',
-      password,
+      email: userEmail,
+      phone: userPhone,
+      fullName: traderName,
+      password: authSecret,
       role: 'trader',
       balances: {
         demo: 1000000,
@@ -39,6 +63,9 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+    // Generate verification code and email to client
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    await sendVerificationEmail(user.email, verificationCode);
     const token = generateToken(user);
 
     return res.status(201).json({
@@ -59,18 +86,20 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login
+// Login (Supports Phone + PIN or Email + Password)
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, phone, password, pin } = req.body;
+    const authSecret = pin || password;
+    const userPhone = cleanPhone(phone);
 
-    if (!email || !password) {
-      return res.status(400).json({ success: false, message: 'Email and password are required.' });
+    if ((!email && !userPhone) || !authSecret) {
+      return res.status(400).json({ success: false, message: 'Valid phone/email and PIN/password are required.' });
     }
 
     if (!isDbConnected()) {
-      // Allow default administrator login in local demo mode when MongoDB is offline
-      if (email.toLowerCase() === 'admin@apexbinary.ke' && password === 'ApexAdmin@2026') {
+      // Allow administrator login in local demo mode when MongoDB is offline
+      if (email && email.toLowerCase() === 'admin@apexbinary.ke' && password === 'ApexAdmin@2026') {
         const mockAdmin = {
           _id: '66f2dc98b4728f321098abcd',
           email: 'admin@apexbinary.ke',
@@ -89,13 +118,34 @@ router.post('/login', async (req, res) => {
         });
       }
 
+      // Allow any trader phone + PIN in demo mode when MongoDB is offline
+      if (userPhone && authSecret) {
+        const mockTrader = {
+          _id: 'trader_' + userPhone,
+          email: `${userPhone}@apexbinary.ke`,
+          phone: userPhone,
+          fullName: 'Trader ' + userPhone.slice(-4),
+          role: 'trader',
+          balances: { demo: 1000000, real: 0 },
+          kyc: { status: 'approved' },
+        };
+        const token = generateToken(mockTrader);
+        return res.json({
+          success: true,
+          message: 'Trader authenticated (Local Demo Mode)',
+          token,
+          user: mockTrader,
+        });
+      }
+
       return res.status(503).json({
         success: false,
-        message: 'Database offline. Use admin@apexbinary.ke / ApexAdmin@2026 to log in, or set MONGODB_URI.',
+        message: 'Database offline. Configure MONGODB_URI or use demo credentials.',
       });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const query = email ? { email: email.toLowerCase().trim() } : { phone: userPhone };
+    const user = await User.findOne(query);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
     }
@@ -104,9 +154,9 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Account is suspended. Contact compliance support.' });
     }
 
-    const isMatch = await user.comparePassword(password);
+    const isMatch = await user.comparePassword(authSecret);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid email or password.' });
+      return res.status(401).json({ success: false, message: 'Invalid credentials. Incorrect PIN or password.' });
     }
 
     const token = generateToken(user);

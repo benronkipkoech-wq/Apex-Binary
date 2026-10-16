@@ -503,6 +503,9 @@ router.get('/analytics/win-rate', async (req, res) => {
 // Get Platform Settings (Payouts, Limits)
 router.get('/settings', async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      return res.json({ success: true, settings: { payoutRates: {}, minDeposit: 50, minWithdrawal: 200, maxTradeLimit: 50000, maintenanceMode: false } });
+    }
     let setting = await Setting.findOne({ key: 'platform_settings' });
     if (!setting) {
       setting = new Setting({ key: 'platform_settings' });
@@ -517,6 +520,9 @@ router.get('/settings', async (req, res) => {
 // Update Platform Settings
 router.put('/settings', async (req, res) => {
   try {
+    if (!isDbConnected()) {
+      return res.status(503).json({ success: false, message: 'Database offline. Cannot update settings.' });
+    }
     const { payoutRates, minDeposit, minWithdrawal, maxTradeLimit, maintenanceMode } = req.body;
     let setting = await Setting.findOne({ key: 'platform_settings' });
     if (!setting) setting = new Setting({ key: 'platform_settings' });

@@ -4,7 +4,7 @@ import User from '../models/User.js';
 import Setting from '../models/Setting.js';
 import { authenticate } from '../middleware/auth.js';
 import { isDbConnected } from '../config/db.js';
-import { getMarketPrice, updateMarketPrice } from '../services/tradingEngine.js';
+import { getMarketPrice, updateMarketPrice, normalizeSymbol } from '../services/tradingEngine.js';
 
 const router = express.Router();
 
@@ -17,7 +17,8 @@ router.post('/place', authenticate, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Asset, direction, amount, and duration are required.' });
     }
 
-    if (!['CALL', 'PUT'].includes(direction)) {
+    const normDir = direction.toUpperCase();
+    if (!['CALL', 'PUT'].includes(normDir)) {
       return res.status(400).json({ success: false, message: 'Direction must be CALL or PUT.' });
     }
 
@@ -27,6 +28,7 @@ router.post('/place', authenticate, async (req, res) => {
     }
 
     const acc = accountType === 'real' ? 'real' : 'demo';
+    const normAsset = normalizeSymbol(asset);
 
     if (!isDbConnected()) {
       return res.status(503).json({ success: false, message: 'Database offline. Configure MONGODB_URI to place live trades.' });
@@ -49,15 +51,15 @@ router.post('/place', authenticate, async (req, res) => {
     let payoutRate = 0.90;
     try {
       const setting = await Setting.findOne({ key: 'platform_settings' });
-      if (setting && setting.payoutRates && setting.payoutRates.get(asset)) {
-        payoutRate = setting.payoutRates.get(asset);
+      if (setting && setting.payoutRates && setting.payoutRates.get(normAsset)) {
+        payoutRate = setting.payoutRates.get(normAsset);
       }
     } catch (e) {
       // fallback
     }
 
     // Fetch official server market price for entry
-    const entryPrice = getMarketPrice(asset);
+    const entryPrice = getMarketPrice(normAsset);
 
     // Deduct balance immediately
     user.balances[acc] -= tradeAmount;
@@ -69,8 +71,8 @@ router.post('/place', authenticate, async (req, res) => {
     const trade = new Trade({
       userId: user._id,
       accountType: acc,
-      asset,
-      direction,
+      asset: normAsset,
+      direction: normDir,
       amount: tradeAmount,
       payoutRate,
       entryPrice,
@@ -84,7 +86,7 @@ router.post('/place', authenticate, async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: `${direction} trade placed successfully on ${asset}!`,
+      message: `${normDir} trade placed successfully on ${normAsset}!`,
       trade,
       updatedBalance: user.balances[acc],
     });
@@ -128,12 +130,19 @@ router.get('/history', authenticate, async (req, res) => {
   }
 });
 
-// Update market price (can be called by frontend WebSocket listener or external feeder)
+// Update market price (Protected feed endpoint for authenticated feeder or admin)
 router.post('/price-tick', (req, res) => {
+  const feedSecret = req.headers['x-feed-secret'];
+  const expectedSecret = process.env.PRICE_FEED_SECRET || 'apex_binary_price_feed_default_2026';
+
+  if (feedSecret !== expectedSecret) {
+    return res.status(403).json({ success: false, message: 'Unauthorized: Valid feed secret required in x-feed-secret header.' });
+  }
+
   const { symbol, price } = req.body;
-  if (symbol && price) {
+  if (symbol && price && !isNaN(parseFloat(price))) {
     updateMarketPrice(symbol, parseFloat(price));
-    return res.json({ success: true });
+    return res.json({ success: true, symbol: normalizeSymbol(symbol), price: getMarketPrice(symbol) });
   }
   return res.status(400).json({ success: false, message: 'Invalid symbol or price' });
 });
