@@ -6,8 +6,8 @@ dotenv.config();
 
 // Resend Configuration
 const resendApiKey = process.env.RESEND_API_KEY;
-// Use your verified domain. onboarding@resend.dev only works for sending TO your own Resend account email.
-const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <noreply@apexbinary.ke>';
+// Must match your verified domain in Resend (myapexbinary.site)
+const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <noreply@myapexbinary.site>';
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 // ── Startup diagnostic (visible in Render logs) ──────────────────────────────
