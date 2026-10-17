@@ -415,9 +415,12 @@ class App {
     }
 
     if (regForm) {
-      regForm.addEventListener('submit', (e) => {
+      regForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const res = auth.register({
+        const submitBtn = regForm.querySelector('button[type="submit"]') || regForm.querySelector('.auth-submit-btn');
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating account...'; }
+
+        const res = await auth.register({
           fullName: document.getElementById('reg-name').value,
           phone: document.getElementById('reg-phone').value,
           email: document.getElementById('reg-email').value,
@@ -425,43 +428,135 @@ class App {
           confirmPin: this.authPins.regConfirm
         });
 
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
+
         if (res.success) {
-          sound.playTradeWon();
-          wallet.syncBalance();
+          sound.playClick();
+          this._pendingVerifyUserId = res.userId;
+          this._pendingVerifyEmail = document.getElementById('reg-email').value.trim();
+          this._pendingVerifyPhone = document.getElementById('reg-phone').value.trim();
+          // Show email verification modal
+          const emailVerifyModal = document.getElementById('modal-email-verify');
+          const descEl = document.getElementById('email-verify-desc');
+          if (descEl && this._pendingVerifyEmail) {
+            descEl.textContent = `Enter the 6-digit code sent to ${this._pendingVerifyEmail} to activate your account.`;
+          }
+          if (emailVerifyModal) emailVerifyModal.classList.remove('hidden');
+          document.getElementById('email-otp-0')?.focus();
+          this.showToast('Verification code sent! Check your email.', 'success');
         } else {
           this.showAuthMessage(res.message, 'error');
         }
       });
     }
 
-    // 2FA Logic
-    const otpInputs = document.querySelectorAll('.otp-digit');
-    otpInputs.forEach((input, index) => {
+    // 2FA OTP Logic (login flow)
+    const twoFaOtpInputs = document.querySelectorAll('#otp-input-group .otp-digit');
+    twoFaOtpInputs.forEach((input, index) => {
       input.addEventListener('input', (e) => {
-        if (e.target.value && index < otpInputs.length - 1) {
-          otpInputs[index + 1].focus();
+        if (e.target.value && index < twoFaOtpInputs.length - 1) {
+          twoFaOtpInputs[index + 1].focus();
         }
-        if (Array.from(otpInputs).every(i => i.value)) {
+        if (Array.from(twoFaOtpInputs).every(i => i.value)) {
           document.getElementById('btn-verify-otp').click();
         }
       });
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Backspace' && !e.target.value && index > 0) {
-          otpInputs[index - 1].focus();
+          twoFaOtpInputs[index - 1].focus();
         }
       });
     });
 
     document.getElementById('btn-verify-otp')?.addEventListener('click', () => {
-      const code = Array.from(otpInputs).map(i => i.value).join('');
+      const code = Array.from(twoFaOtpInputs).map(i => i.value).join('');
       const res = auth.verify2FA(code);
       if (res.success) {
         sound.playTradeWon();
         wallet.syncBalance();
       } else {
         this.showToast(res.message, 'error');
-        otpInputs.forEach(i => i.value = '');
-        otpInputs[0].focus();
+        twoFaOtpInputs.forEach(i => i.value = '');
+        twoFaOtpInputs[0].focus();
+      }
+    });
+
+    // Email OTP Verification Logic (post-registration)
+    const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
+    const emailVerifyMsg = document.getElementById('email-verify-msg');
+    const showEmailOtpMsg = (msg, color = '#ff4d6d') => {
+      if (emailVerifyMsg) { emailVerifyMsg.textContent = msg; emailVerifyMsg.style.color = color; }
+    };
+    const clearEmailOtp = () => { emailOtpInputs.forEach(i => i.value = ''); emailOtpInputs[0]?.focus(); };
+
+    emailOtpInputs.forEach((input, index) => {
+      input.addEventListener('input', (e) => {
+        // Only allow digits
+        e.target.value = e.target.value.replace(/\D/g, '');
+        if (e.target.value && index < emailOtpInputs.length - 1) {
+          emailOtpInputs[index + 1].focus();
+        }
+        if (Array.from(emailOtpInputs).every(i => i.value)) {
+          document.getElementById('btn-verify-email-otp')?.click();
+        }
+      });
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Backspace' && !e.target.value && index > 0) {
+          emailOtpInputs[index - 1].focus();
+        }
+      });
+    });
+
+    document.getElementById('btn-verify-email-otp')?.addEventListener('click', async () => {
+      const code = Array.from(emailOtpInputs).map(i => i.value).join('');
+      if (code.length !== 6) {
+        showEmailOtpMsg('Please enter the complete 6-digit code.');
+        return;
+      }
+      const btn = document.getElementById('btn-verify-email-otp');
+      if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
+      showEmailOtpMsg('');
+      try {
+        const res = await api.verifyEmail(this._pendingVerifyUserId, code);
+        if (res && res.ok && res.data?.success) {
+          document.getElementById('modal-email-verify')?.classList.add('hidden');
+          sound.playTradeWon();
+          this.showToast('Email verified! You can now log in.', 'success');
+          // Switch to login tab
+          document.getElementById('auth-tab-login')?.click();
+          clearEmailOtp();
+        } else {
+          showEmailOtpMsg(res?.data?.message || 'Invalid code. Please try again.');
+          clearEmailOtp();
+        }
+      } catch (err) {
+        showEmailOtpMsg('Verification failed. Please try again.');
+        clearEmailOtp();
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Verify & Activate Account'; }
+      }
+    });
+
+    document.getElementById('btn-resend-email-otp')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btn-resend-email-otp');
+      if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+      showEmailOtpMsg('');
+      try {
+        const res = await api.resendVerification({
+          userId: this._pendingVerifyUserId,
+          email: this._pendingVerifyEmail,
+          phone: this._pendingVerifyPhone,
+        });
+        if (res && res.ok && res.data?.success) {
+          showEmailOtpMsg('A new code has been sent to your email.', '#00f59b');
+          if (res.data.userId) this._pendingVerifyUserId = res.data.userId;
+        } else {
+          showEmailOtpMsg(res?.data?.message || 'Failed to resend. Try again shortly.');
+        }
+      } catch (err) {
+        showEmailOtpMsg('Failed to resend code. Please try again.');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Resend Code'; }
       }
     });
 

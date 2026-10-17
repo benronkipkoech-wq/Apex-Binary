@@ -66,13 +66,21 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
-    // Send verification email
-    await sendVerificationEmail(user.email, verificationCode);
+
+    // Attempt to send verification email — non-fatal if it fails
+    let emailWarning = null;
+    try {
+      await sendVerificationEmail(user.email, verificationCode);
+    } catch (emailErr) {
+      console.error('[Registration Email Error]:', emailErr.message);
+      emailWarning = 'Account created, but we could not send the verification email. Please use "Resend Code" in the verification screen.';
+    }
 
     // Do not issue JWT yet; client must verify email first
     return res.status(201).json({
       success: true,
-      message: 'Account created successfully! Please check your email for the verification code.',
+      message: emailWarning || 'Account created successfully! Please check your email for the verification code.',
+      emailSent: !emailWarning,
       userId: user._id,
     });
   } catch (error) {

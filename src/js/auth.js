@@ -31,7 +31,7 @@ class AuthEngine {
   }
 
   // --- Registration ---
-  register({ fullName, phone, email, pin, confirmPin }) {
+  async register({ fullName, phone, email, pin, confirmPin }) {
     if (!fullName || fullName.trim().length < 2) {
       return { success: false, message: 'Please enter your full name.' };
     }
@@ -80,15 +80,23 @@ class AuthEngine {
     // Auto-login removed; email verification required
     // No session created here
 
-    // Sync trader registration & obtain JWT token from backend API
-    api.register({
-      fullName: cleanName,
-      phone: normalizedPhone,
-      pin,
-      email: cleanEmail
-    }).catch(() => {});
+    // Sync trader registration to backend and capture server-assigned userId for email OTP
+    let serverUserId = user.id;
+    try {
+      const apiRes = await api.register({
+        fullName: cleanName,
+        phone: normalizedPhone,
+        pin,
+        email: cleanEmail
+      });
+      if (apiRes && apiRes.data && apiRes.data.userId) {
+        serverUserId = apiRes.data.userId;
+      }
+    } catch (e) {
+      console.warn('API registration warning:', e);
+    }
 
-    return { success: true, userId: user.id, message: 'Registration successful! Please check your email for the verification code.' };
+    return { success: true, userId: serverUserId, message: 'Registration successful! Please check your email for the verification code.' };
   }
 
   // --- Login ---

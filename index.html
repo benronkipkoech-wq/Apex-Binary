@@ -373,6 +373,32 @@
   </div>
 
   <!-- ============================================================
+       EMAIL VERIFICATION MODAL (Post-Registration OTP)
+       ============================================================ -->
+  <div class="modal-overlay hidden" id="modal-email-verify">
+    <div class="modal-card modal-2fa-card">
+      <div class="modal-2fa-header">
+        <span class="modal-2fa-icon">📧</span>
+        <h3>Verify Your Email</h3>
+        <p id="email-verify-desc">Enter the 6-digit code sent to your email address to activate your account.</p>
+      </div>
+      <div class="otp-input-group" id="email-otp-input-group">
+        <input type="tel" class="otp-digit" id="email-otp-0" maxlength="1">
+        <input type="tel" class="otp-digit" id="email-otp-1" maxlength="1">
+        <input type="tel" class="otp-digit" id="email-otp-2" maxlength="1">
+        <input type="tel" class="otp-digit" id="email-otp-3" maxlength="1">
+        <input type="tel" class="otp-digit" id="email-otp-4" maxlength="1">
+        <input type="tel" class="otp-digit" id="email-otp-5" maxlength="1">
+      </div>
+      <div id="email-verify-msg" style="min-height:20px;text-align:center;font-size:13px;color:#ff4d6d;margin:4px 0 8px;"></div>
+      <div class="otp-actions">
+        <button class="auth-submit-btn" id="btn-verify-email-otp">Verify &amp; Activate Account</button>
+        <button class="auth-link" id="btn-resend-email-otp">Resend Code</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================================
        SECURITY SETTINGS PANEL (Slide-out)
        ============================================================ -->
   <div class="security-panel hidden" id="security-panel">
