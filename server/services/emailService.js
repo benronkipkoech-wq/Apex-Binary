@@ -10,6 +10,11 @@ const resendApiKey = process.env.RESEND_API_KEY;
 const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <noreply@apexbinary.ke>';
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
+// ── Startup diagnostic (visible in Render logs) ──────────────────────────────
+console.log('[EmailService] RESEND_API_KEY set:', !!resendApiKey, '| Key prefix:', resendApiKey ? resendApiKey.slice(0, 8) + '...' : 'MISSING');
+console.log('[EmailService] From address:', resendFrom);
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Optional SMTP Fallback Configuration
 const smtpHost = process.env.EMAIL_HOST;
 const smtpPort = parseInt(process.env.EMAIL_PORT) || 587;
@@ -78,7 +83,7 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
       });
 
       if (response && response.error) {
-        console.error('[Resend Error]:', response.error);
+        console.error('[Resend API Error] Full response:', JSON.stringify(response.error));
         throw new Error(response.error.message || 'Resend error sending email');
       }
 
@@ -86,7 +91,9 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
       return { success: true, provider: 'resend', id: response?.data?.id };
     } catch (resendError) {
       console.error('[Resend Failed] from:', resendFrom, '| to:', toEmail);
-      console.error('[Resend Error Detail]:', resendError.message);
+      console.error('[Resend Error]:', resendError?.message || resendError);
+      // Log full error object for debugging
+      try { console.error('[Resend Error JSON]:', JSON.stringify(resendError)); } catch (_) {}
       if (transporter) {
         try {
           const info = await transporter.sendMail({
