@@ -23,23 +23,34 @@ class ApiService {
     return this.token;
   }
 
-  async request(endpoint, method = 'GET', body = null) {
+  async request(endpoint, method = 'GET', body = null, timeoutMs = 8000) {
     const headers = { 'Content-Type': 'application/json' };
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
+
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
 
     try {
       const res = await fetch(`${API_ROOT}${endpoint}`, {
         method,
         headers,
         body: body ? JSON.stringify(body) : null,
+        signal: controller ? controller.signal : undefined,
       });
 
+      if (timer) clearTimeout(timer);
       const data = await res.json().catch(() => ({}));
       return { ok: res.ok, status: res.status, data };
     } catch (err) {
-      return { ok: false, status: 0, data: { message: err.message } };
+      if (timer) clearTimeout(timer);
+      const isTimeout = err.name === 'AbortError';
+      return {
+        ok: false,
+        status: isTimeout ? 408 : 0,
+        data: { message: isTimeout ? 'Request timed out. Please try again.' : err.message },
+      };
     }
   }
 

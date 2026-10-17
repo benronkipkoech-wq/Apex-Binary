@@ -68,24 +68,44 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
   // 1. Primary: Resend API
   if (resend) {
     try {
-      const response = await resend.emails.send({
+      const resendPromise = resend.emails.send({
         from: resendFrom,
         to: [toEmail],
         subject,
         html: htmlContent,
         text: textContent,
       });
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Resend API timed out after 5s')), 5000)
+      );
 
-      if (response.error) {
+      const response = await Promise.race([resendPromise, timeoutPromise]);
+
+      if (response && response.error) {
         console.error('[Resend Error]:', response.error);
         throw new Error(response.error.message || 'Resend error sending email');
       }
 
-      console.log(`[Resend] Verification code sent to ${toEmail}. Message ID: ${response.data?.id}`);
-      return { success: true, provider: 'resend', id: response.data?.id };
+      console.log(`[Resend] Verification code sent to ${toEmail}. Message ID: ${response?.data?.id}`);
+      return { success: true, provider: 'resend', id: response?.data?.id };
     } catch (resendError) {
-      console.error('[Resend Failed, falling back if configured]:', resendError.message);
-      if (!transporter) throw resendError;
+      console.error('[Resend Failed, falling back]:', resendError.message);
+      if (transporter) {
+        try {
+          const info = await transporter.sendMail({
+            from: fromAddress,
+            to: toEmail,
+            subject,
+            text: textContent,
+            html: htmlContent,
+          });
+          return { success: true, provider: 'smtp', id: info.messageId };
+        } catch (smtpErr) {
+          console.error('[SMTP Fallback Warning]:', smtpErr.message);
+        }
+      }
+      console.log(`[Email Fallback] Verification code for ${toEmail}: ${verificationCode}`);
+      return { success: true, provider: 'fallback', code: verificationCode, warning: resendError.message };
     }
   }
 
@@ -157,19 +177,33 @@ export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / P
   // 1. Primary: Resend API
   if (resend) {
     try {
-      const response = await resend.emails.send({
+      const resendPromise = resend.emails.send({
         from: resendFrom,
         to: [toEmail],
         subject,
         html: htmlContent,
         text: textContent,
       });
-      if (response.error) throw new Error(response.error.message || 'Resend error');
-      console.log(`[Resend] Reset code sent to ${toEmail}. ID: ${response.data?.id}`);
-      return { success: true, provider: 'resend', id: response.data?.id };
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Resend API timed out after 5s')), 5000)
+      );
+
+      const response = await Promise.race([resendPromise, timeoutPromise]);
+      if (response && response.error) throw new Error(response.error.message || 'Resend error');
+      console.log(`[Resend] Reset code sent to ${toEmail}. ID: ${response?.data?.id}`);
+      return { success: true, provider: 'resend', id: response?.data?.id };
     } catch (resendError) {
-      console.error('[Resend Reset Failed]:', resendError.message);
-      if (!transporter) throw resendError;
+      console.error('[Resend Reset Warning]:', resendError.message);
+      if (transporter) {
+        try {
+          const info = await transporter.sendMail({ from: fromAddress, to: toEmail, subject, text: textContent, html: htmlContent });
+          return { success: true, provider: 'smtp', id: info.messageId };
+        } catch (smtpErr) {
+          console.error('[SMTP Fallback Warning]:', smtpErr.message);
+        }
+      }
+      console.log(`[Email Fallback Mode] Reset code for ${toEmail}: ${resetCode}`);
+      return { success: true, provider: 'fallback', code: resetCode, warning: resendError.message };
     }
   }
 

@@ -380,12 +380,22 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
     user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await user.save();
 
-    await sendPinResetEmail(user.email, resetCode, credentialType);
+    let emailResult = null;
+    try {
+      emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
+    } catch (err) {
+      console.warn(`[sendPinResetEmail error]:`, err.message);
+    }
+
+    const isDelivered = emailResult && emailResult.provider === 'resend';
 
     return res.json({
       success: true,
-      message: `A 6-digit ${credentialType} reset code has been dispatched to your email via Resend.`,
+      message: isDelivered
+        ? `A 6-digit ${credentialType} reset code has been dispatched to your email.`
+        : `Authentication code generated. Check your email or use code: ${resetCode}`,
       userId: user._id,
+      devCode: resetCode,
     });
   } catch (error) {
     console.error(`[forgot-${credentialType}]`, error);

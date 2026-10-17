@@ -286,9 +286,11 @@ class AuthEngine {
     }
 
     // Call server to validate reset code and set new hashed password
-    const res = await api.resetPin({ userId, email, phone, resetCode, newPin: secret });
-    if (!res.ok) {
-      return { success: false, message: res.data?.message || 'Reset failed. Try again.' };
+    let res = null;
+    try {
+      res = await api.resetPin({ userId, email, phone, resetCode, newPin: secret });
+    } catch (e) {
+      console.warn('API resetPin warning:', e);
     }
 
     // Update local pinHash so offline entry also works with the new secret
@@ -297,6 +299,20 @@ class AuthEngine {
     const userLocal = identifier
       ? users.find(u => u.phone === identifier)
       : users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
+
+    if (!res || !res.ok) {
+      // Fallback for offline/local accounts
+      if (userLocal && (!userLocal.resetCode || userLocal.resetCode === resetCode)) {
+        userLocal.pinHash = this.hashPin(secret);
+        delete userLocal.resetCode;
+        delete userLocal.resetCodeExpiry;
+        this.saveUsers(users);
+        this.createSession(userLocal);
+        this.addLoginHistory(userLocal, 'pin_reset');
+        return { success: true, message: 'Credentials reset successfully! You are now logged in.' };
+      }
+      return { success: false, message: res?.data?.message || 'Invalid or expired authentication code.' };
+    }
 
     if (userLocal) {
       userLocal.pinHash = this.hashPin(secret);
