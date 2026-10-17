@@ -225,14 +225,24 @@ class AuthEngine {
   }
 
   logout(reason = 'manual') {
-    if (this.sessionTimer) clearInterval(this.sessionTimer);
-    if (this.currentUser) {
-      this.addLoginHistory(this.currentUser, 'logout');
+    try {
+      if (this.sessionTimer) clearInterval(this.sessionTimer);
+      if (this.currentUser) {
+        this.addLoginHistory(this.currentUser, 'logout');
+      }
+    } catch (e) {
+      console.warn('Logout cleanup warning:', e);
     }
     this.currentUser = null;
     this.isAuthenticated = false;
-    security.removeItem(SESSION_KEY);
-    api.logout();
+    try {
+      security.removeItem(SESSION_KEY);
+      localStorage.removeItem('apex_user_token');
+      localStorage.removeItem('tycoon_session');
+      api.logout();
+    } catch (e) {
+      console.warn('Logout storage error:', e);
+    }
     this.notify('logged_out', { reason });
   }
 
@@ -355,19 +365,24 @@ class AuthEngine {
 
   // --- Login History ---
   addLoginHistory(user, action) {
-    const history = this.getLoginHistory();
-    history.unshift({
-      userId: user.id,
-      action,
-      timestamp: new Date().toISOString(),
-      userAgent: navigator.userAgent,
-      ip: '41.89.' + Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255),
-      location: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'][Math.floor(Math.random() * 5)] + ', Kenya'
-    });
+    if (!user) return;
+    try {
+      const history = this.getLoginHistory();
+      history.unshift({
+        userId: user.id || user.phone || 'trader',
+        action,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent,
+        ip: '41.89.' + Math.floor(Math.random() * 255) + '.' + Math.floor(Math.random() * 255),
+        location: ['Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret'][Math.floor(Math.random() * 5)] + ', Kenya'
+      });
 
-    // Keep last 50 entries
-    if (history.length > 50) history.length = 50;
-    security.setItem(LOGIN_HISTORY_KEY, history);
+      // Keep last 50 entries
+      if (history.length > 50) history.length = 50;
+      security.setItem(LOGIN_HISTORY_KEY, history);
+    } catch (e) {
+      console.warn('Failed to add login history:', e);
+    }
   }
 
   getLoginHistory() {

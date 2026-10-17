@@ -113,14 +113,18 @@ class App {
         this.renderCopyTraders();
         this.renderBotsList();
       } else if (event === 'logged_out') {
-        document.getElementById('auth-screen').classList.remove('hidden');
-        document.getElementById('security-panel').classList.add('hidden');
+        document.getElementById('security-panel')?.classList.add('hidden');
+        document.getElementById('user-profile-dropdown')?.classList.add('hidden');
+        document.getElementById('drawer-panel')?.classList.add('collapsed');
         this.toggleAuthState(false);
         this.renderTournaments();
         this.renderCopyTraders();
         this.renderBotsList();
         if (data && data.reason === 'session_expired') {
+          document.getElementById('auth-screen')?.classList.remove('hidden');
           this.showAuthMessage('Session expired. Please sign in again.', 'error');
+        } else {
+          document.getElementById('auth-screen')?.classList.add('hidden');
         }
       }
     });
@@ -496,11 +500,19 @@ class App {
     });
 
     // Centralized Logout Handler
-    const handleLogout = () => {
+    const handleLogout = (e) => {
+      if (e) {
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+      }
       userDropdown?.classList.add('hidden');
       secPanel?.classList.add('hidden');
-      auth.logout();
+      document.getElementById('drawer-panel')?.classList.add('collapsed');
+      auth.logout('manual');
       this.showToast('You have been signed out safely.', 'info');
+      try {
+        sound?.playClick?.();
+      } catch (err) {}
     };
 
     document.getElementById('btn-header-logout')?.addEventListener('click', handleLogout);
