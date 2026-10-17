@@ -808,7 +808,7 @@ class App {
             document.getElementById('forgot-step2-hint').textContent =
               `Enter the 6-digit code sent to ${dest}`;
             this.showAuthMessage(res.data?.message || 'Authentication code sent! Check your inbox.', 'success');
-            sound.playTradeWon();
+            try { sound?.playTradeWon?.(); } catch (_) {}
           }
           return;
         }

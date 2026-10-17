@@ -153,6 +153,10 @@ class SoundEngine {
     }
   }
 
+  playTradeWon() {
+    return this.playWin();
+  }
+
   playWin() {
     this.vibrate([40, 60, 40, 60, 80]);
     if (this.muted) return;
