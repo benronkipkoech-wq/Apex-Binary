@@ -722,20 +722,34 @@ class App {
           console.warn('api.forgotPin request error:', e);
         }
 
-        // 1. Backend response succeeded (Resend email sent)
+        // 1. Backend response succeeded
         if (res && (res.ok || res.data?.success)) {
           this._resetState.email = email;
           this._resetState.userId = res.data?.userId || null;
           const parts = email.split('@');
           const masked = parts[0].slice(0, 2) + '***@' + parts[1];
-          document.getElementById('forgot-step2-hint').textContent =
-            `Enter the 6-digit code sent to ${masked}`;
 
           document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach(i => i.value = '');
           showAuthPanel('forgot-pin-step2');
           document.getElementById('reset-otp-0')?.focus();
-          this.showAuthMessage(res.data?.message || 'Authentication code sent to your email! Please check your inbox.', 'success');
-          sound.playTradeWon();
+
+          // Dev mode: no email provider — show code directly and auto-fill OTP
+          if (res.data?.devMode && res.data?.devCode) {
+            const devCode = res.data.devCode;
+            document.getElementById('forgot-step2-hint').textContent =
+              `⚠️ Dev Mode: No email configured. Your code is: ${devCode}`;
+            // Auto-fill the OTP digits
+            const digits = devCode.split('');
+            document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach((inp, i) => {
+              inp.value = digits[i] || '';
+            });
+            this.showAuthMessage(`Dev Mode — Code: ${devCode}. Add RESEND_API_KEY in .env for real emails.`, 'info');
+          } else {
+            document.getElementById('forgot-step2-hint').textContent =
+              `Enter the 6-digit code sent to ${masked}`;
+            this.showAuthMessage(res.data?.message || 'Authentication code sent! Check your inbox.', 'success');
+            sound.playTradeWon();
+          }
           return;
         }
 

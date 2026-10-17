@@ -6,7 +6,8 @@ dotenv.config();
 
 // Resend Configuration
 const resendApiKey = process.env.RESEND_API_KEY;
-const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <onboarding@resend.dev>';
+// Use your verified domain. onboarding@resend.dev only works for sending TO your own Resend account email.
+const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <noreply@apexbinary.ke>';
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 // Optional SMTP Fallback Configuration
@@ -84,7 +85,8 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
       console.log(`[Resend] Verification code sent to ${toEmail}. Message ID: ${response?.data?.id}`);
       return { success: true, provider: 'resend', id: response?.data?.id };
     } catch (resendError) {
-      console.error('[Resend Failed]:', resendError.message);
+      console.error('[Resend Failed] from:', resendFrom, '| to:', toEmail);
+      console.error('[Resend Error Detail]:', resendError.message);
       if (transporter) {
         try {
           const info = await transporter.sendMail({
@@ -207,8 +209,9 @@ export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / P
     return { success: true, provider: 'smtp', id: info.messageId };
   }
 
-  // 3. If neither Resend nor SMTP is configured
-  throw new Error('Email service unconfigured: RESEND_API_KEY environment variable is missing.');
+  // 3. If neither Resend nor SMTP is configured — dev/offline mode
+  console.log(`[Email Service - Dev Mode] PIN/Password reset code for ${toEmail}: ${resetCode}`);
+  return { success: true, provider: 'dev-console', code: resetCode };
 }
 
 export const sendPasswordResetEmail = (toEmail, resetCode) => sendPinResetEmail(toEmail, resetCode, 'Password');

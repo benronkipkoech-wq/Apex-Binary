@@ -389,18 +389,23 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
     await user.save();
 
     try {
-      await sendPinResetEmail(user.email, resetCode, credentialType);
-      console.log(`[Resend] Successfully dispatched ${credentialType} reset code to ${user.email}`);
+      const emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
+      const isDevMode = emailResult.provider === 'dev-console';
+      console.log(`[${isDevMode ? 'Dev Mode' : 'Email'}] ${credentialType} reset code dispatched to ${user.email}`);
       return res.json({
         success: true,
-        message: `A 6-digit ${credentialType} reset code has been sent to your email address.`,
+        message: isDevMode
+          ? `[Dev Mode] No email provider configured. Your reset code is shown below.`
+          : `A 6-digit ${credentialType} reset code has been sent to your email address.`,
         userId: user._id,
+        // Only expose code in dev mode — never when a real email provider is active
+        ...(isDevMode && { devCode: resetCode, devMode: true }),
       });
     } catch (emailErr) {
-      console.error(`[Resend delivery error]:`, emailErr.message);
+      console.error(`[Email delivery error]:`, emailErr.message);
       return res.status(502).json({
         success: false,
-        message: `Failed to deliver email: ${emailErr.message}. Please verify your email settings.`,
+        message: `Failed to deliver email: ${emailErr.message}. Please configure RESEND_API_KEY in your .env file.`,
       });
     }
   } catch (error) {
