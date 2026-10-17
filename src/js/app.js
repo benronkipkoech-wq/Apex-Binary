@@ -627,50 +627,19 @@ class App {
           console.warn('api.forgotPin request error:', e);
         }
 
-        // 1. Backend response succeeded (Resend email sent or server fallback code)
+        // 1. Backend response succeeded (Resend email sent)
         if (res && (res.ok || res.data?.success)) {
           this._resetState.email = email;
           this._resetState.userId = res.data?.userId || null;
-          if (res.data?.devCode) {
-            this._resetState.localCode = res.data.devCode;
-          }
           const parts = email.split('@');
           const masked = parts[0].slice(0, 2) + '***@' + parts[1];
           document.getElementById('forgot-step2-hint').textContent =
-            res.data?.devCode
-              ? `Authentication Code: ${res.data.devCode}`
-              : `Enter the 6-digit code sent to ${masked}`;
+            `Enter the 6-digit code sent to ${masked}`;
 
           document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach(i => i.value = '');
           showAuthPanel('forgot-pin-step2');
           document.getElementById('reset-otp-0')?.focus();
-          this.showAuthMessage(res.data?.message || 'Authentication code dispatched!', 'success');
-          sound.playTradeWon();
-          return;
-        }
-
-        // 2. Client-side fallback for local accounts in browser storage
-        const localUsers = auth.getAllUsers();
-        const localUser = localUsers.find(u => u.email && u.email.toLowerCase() === email.toLowerCase());
-
-        if (localUser || localUsers.length > 0) {
-          const targetUser = localUser || localUsers[0];
-          const localCode = Math.floor(100000 + Math.random() * 900000).toString();
-          targetUser.resetCode = localCode;
-          targetUser.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-          auth.saveUsers(localUsers);
-
-          this._resetState.email = targetUser.email || email;
-          this._resetState.userId = targetUser.id;
-          this._resetState.localCode = localCode;
-
-          document.getElementById('forgot-step2-hint').textContent =
-            `Authentication Code: ${localCode}`;
-
-          document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach(i => i.value = '');
-          showAuthPanel('forgot-pin-step2');
-          document.getElementById('reset-otp-0')?.focus();
-          this.showAuthMessage(`Reset code generated: ${localCode}`, 'success');
+          this.showAuthMessage(res.data?.message || 'Authentication code sent to your email! Please check your inbox.', 'success');
           sound.playTradeWon();
           return;
         }
@@ -724,25 +693,13 @@ class App {
         } catch (e) {}
 
         if (res && (res.ok || res.data?.success)) {
-          if (res.data?.devCode) {
-            this._resetState.localCode = res.data.devCode;
-            document.getElementById('forgot-step2-hint').textContent =
-              `Authentication Code: ${res.data.devCode}`;
-          }
-          this.showAuthMessage(res.data?.message || 'A fresh code has been sent to your email.', 'success');
+          this.showAuthMessage('A fresh authentication code has been sent to your email.', 'success');
           resetOtpInputs.forEach(i => i.value = '');
           resetOtpInputs[0]?.focus();
           return;
         }
 
-        // Local fallback
-        const localCode = Math.floor(100000 + Math.random() * 900000).toString();
-        this._resetState.localCode = localCode;
-        document.getElementById('forgot-step2-hint').textContent =
-          `Authentication Code: ${localCode}`;
-        this.showAuthMessage(`Fresh code generated: ${localCode}`, 'success');
-        resetOtpInputs.forEach(i => i.value = '');
-        resetOtpInputs[0]?.focus();
+        this.showAuthMessage(res?.data?.message || 'Failed to resend authentication code.', 'error');
       } finally {
         if (resendBtn) resendBtn.textContent = 'Resend Code';
       }

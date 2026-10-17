@@ -68,18 +68,13 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
   // 1. Primary: Resend API
   if (resend) {
     try {
-      const resendPromise = resend.emails.send({
+      const response = await resend.emails.send({
         from: resendFrom,
         to: [toEmail],
         subject,
         html: htmlContent,
         text: textContent,
       });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Resend API timed out after 5s')), 5000)
-      );
-
-      const response = await Promise.race([resendPromise, timeoutPromise]);
 
       if (response && response.error) {
         console.error('[Resend Error]:', response.error);
@@ -89,7 +84,7 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
       console.log(`[Resend] Verification code sent to ${toEmail}. Message ID: ${response?.data?.id}`);
       return { success: true, provider: 'resend', id: response?.data?.id };
     } catch (resendError) {
-      console.error('[Resend Failed, falling back]:', resendError.message);
+      console.error('[Resend Failed]:', resendError.message);
       if (transporter) {
         try {
           const info = await transporter.sendMail({
@@ -104,8 +99,7 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
           console.error('[SMTP Fallback Warning]:', smtpErr.message);
         }
       }
-      console.log(`[Email Fallback] Verification code for ${toEmail}: ${verificationCode}`);
-      return { success: true, provider: 'fallback', code: verificationCode, warning: resendError.message };
+      throw resendError;
     }
   }
 
@@ -177,23 +171,23 @@ export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / P
   // 1. Primary: Resend API
   if (resend) {
     try {
-      const resendPromise = resend.emails.send({
+      const response = await resend.emails.send({
         from: resendFrom,
         to: [toEmail],
         subject,
         html: htmlContent,
         text: textContent,
       });
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Resend API timed out after 5s')), 5000)
-      );
 
-      const response = await Promise.race([resendPromise, timeoutPromise]);
-      if (response && response.error) throw new Error(response.error.message || 'Resend error');
-      console.log(`[Resend] Reset code sent to ${toEmail}. ID: ${response?.data?.id}`);
+      if (response && response.error) {
+        console.error('[Resend Error]:', response.error);
+        throw new Error(response.error.message || 'Resend error sending email');
+      }
+
+      console.log(`[Resend] Reset code sent to ${toEmail}. Message ID: ${response?.data?.id}`);
       return { success: true, provider: 'resend', id: response?.data?.id };
     } catch (resendError) {
-      console.error('[Resend Reset Warning]:', resendError.message);
+      console.error('[Resend Reset Failed]:', resendError.message);
       if (transporter) {
         try {
           const info = await transporter.sendMail({ from: fromAddress, to: toEmail, subject, text: textContent, html: htmlContent });
@@ -202,8 +196,7 @@ export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / P
           console.error('[SMTP Fallback Warning]:', smtpErr.message);
         }
       }
-      console.log(`[Email Fallback Mode] Reset code for ${toEmail}: ${resetCode}`);
-      return { success: true, provider: 'fallback', code: resetCode, warning: resendError.message };
+      throw resendError;
     }
   }
 
@@ -214,9 +207,8 @@ export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / P
     return { success: true, provider: 'smtp', id: info.messageId };
   }
 
-  // 3. Dev mode fallback
-  console.log(`[Email Dev Mode] Reset code for ${toEmail}: ${resetCode}`);
-  return { success: true, provider: 'dev-console', code: resetCode };
+  // 3. If neither Resend nor SMTP is configured
+  throw new Error('Email service unconfigured: RESEND_API_KEY environment variable is missing.');
 }
 
 export const sendPasswordResetEmail = (toEmail, resetCode) => sendPinResetEmail(toEmail, resetCode, 'Password');

@@ -380,26 +380,24 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
     user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await user.save();
 
-    let emailResult = null;
     try {
-      emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
-    } catch (err) {
-      console.warn(`[sendPinResetEmail error]:`, err.message);
+      await sendPinResetEmail(user.email, resetCode, credentialType);
+      console.log(`[Resend] Successfully dispatched ${credentialType} reset code to ${user.email}`);
+      return res.json({
+        success: true,
+        message: `A 6-digit ${credentialType} reset code has been sent to your email address.`,
+        userId: user._id,
+      });
+    } catch (emailErr) {
+      console.error(`[Resend delivery error]:`, emailErr.message);
+      return res.status(502).json({
+        success: false,
+        message: `Failed to deliver email: ${emailErr.message}. Please verify your email settings.`,
+      });
     }
-
-    const isDelivered = emailResult && emailResult.provider === 'resend';
-
-    return res.json({
-      success: true,
-      message: isDelivered
-        ? `A 6-digit ${credentialType} reset code has been dispatched to your email.`
-        : `Authentication code generated. Check your email or use code: ${resetCode}`,
-      userId: user._id,
-      devCode: resetCode,
-    });
   } catch (error) {
     console.error(`[forgot-${credentialType}]`, error);
-    return res.status(500).json({ success: false, message: 'Failed to send reset code.', error: error.message });
+    return res.status(500).json({ success: false, message: 'Failed to process reset request.', error: error.message });
   }
 };
 
