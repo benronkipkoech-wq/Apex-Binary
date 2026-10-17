@@ -8,6 +8,7 @@ import { gamification } from './gamification.js';
 import { wsFeed } from './websocket.js';
 import { TradingBotsEngine } from './bots.js';
 import { auth } from './auth.js';
+import { api } from './api.js';
 
 class App {
   constructor() {

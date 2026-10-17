@@ -152,6 +152,10 @@ export class MarketEngine {
     this.startSimulation();
   }
 
+  getCurrentAsset() {
+    return this.currentAsset;
+  }
+
   setAsset(assetId) {
     const asset = ASSETS.find(a => a.id === assetId);
     if (!asset || asset.id === this.currentAsset.id) return;
