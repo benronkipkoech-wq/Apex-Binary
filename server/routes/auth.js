@@ -1,4 +1,5 @@
 import express from 'express';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import { generateToken, authenticate } from '../middleware/auth.js';
 import { sendVerificationEmail, sendPinResetEmail, sendPasswordResetEmail } from '../services/emailService.js';
@@ -23,24 +24,29 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Phone number and PIN/password are required.' });
     }
 
-    const userEmail = email ? email.toLowerCase().trim() : `${userPhone}@apexbinary.ke`;
+    const hasRealEmail = email && email.includes('@') && !email.toLowerCase().endsWith('@apexbinary.ke');
+    const userEmail = hasRealEmail ? email.toLowerCase().trim() : `${userPhone}@apexbinary.ke`;
     const traderName = fullName || 'Apex Trader';
 
     if (!isDbConnected()) {
       // Local/offline demo mode token for instant trader experience
       const mockTrader = {
         _id: 'trader_' + userPhone,
+        userId: 'trader_' + userPhone,
         email: userEmail,
         phone: userPhone,
         fullName: traderName,
         role: 'trader',
         balances: { demo: 1000000, real: 0 },
+        isVerified: true,
       };
       const token = generateToken(mockTrader);
       return res.status(201).json({
         success: true,
+        offlineMode: true,
         message: 'Account created successfully (Offline Demo Mode).',
         token,
+        userId: mockTrader._id,
         user: mockTrader,
       });
     }
@@ -67,21 +73,33 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Attempt to send verification email — non-fatal if it fails
+    // Attempt to send verification email
+    let emailSent = false;
     let emailWarning = null;
-    try {
-      await sendVerificationEmail(user.email, verificationCode);
-    } catch (emailErr) {
-      console.error('[Registration Email Error]:', emailErr.message);
-      emailWarning = 'Account created, but we could not send the verification email. Please use "Resend Code" in the verification screen.';
+
+    if (hasRealEmail) {
+      try {
+        const emailResult = await sendVerificationEmail(user.email, verificationCode);
+        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
+      } catch (emailErr) {
+        console.error('[Registration Email Error]:', emailErr.message);
+        emailWarning = emailErr.message;
+      }
     }
 
     // Do not issue JWT yet; client must verify email first
     return res.status(201).json({
       success: true,
-      message: emailWarning || 'Account created successfully! Please check your email for the verification code.',
-      emailSent: !emailWarning,
       userId: user._id,
+      emailSent,
+      hasRealEmail,
+      message: emailSent
+        ? `Account created successfully! A 6-digit authentication code has been sent to ${user.email}.`
+        : (hasRealEmail
+            ? `Account created. Email delivery issue (${emailWarning || 'delivery pending'}). Your authentication code is provided below.`
+            : `Account created! Your authentication code is provided below.`),
+      // If email didn't send (dev mode, delivery issue, or phone-only sign up), provide code so user is never blocked
+      ...(!emailSent && { devCode: verificationCode, devMode: true }),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
@@ -188,18 +206,33 @@ router.post('/login', async (req, res) => {
 // Email verification endpoint
 router.post('/verify-email', async (req, res) => {
   try {
-    const { userId, code } = req.body;
-    if (!userId || !code) {
-      return res.status(400).json({ success: false, message: 'userId and code are required.' });
+    const { userId, email, phone, code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Verification code is required.' });
     }
-    const user = await User.findById(userId);
+
+    if (!isDbConnected()) {
+      return res.json({ success: true, message: 'Email verified successfully (Demo Mode). You can now log in.' });
+    }
+
+    let user = null;
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
+      user = await User.findById(userId);
+    }
+    if (!user && email) {
+      user = await User.findOne({ email: email.toLowerCase().trim() });
+    }
+    if (!user && phone) {
+      user = await User.findOne({ phone: cleanPhone(phone) });
+    }
+
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
     if (user.isVerified) {
       return res.json({ success: true, message: 'Account already verified.' });
     }
-    if (user.verificationCode !== code) {
+    if (user.verificationCode !== code.toString().trim()) {
       return res.status(400).json({ success: false, message: 'Invalid verification code.' });
     }
     user.isVerified = true;
@@ -211,16 +244,29 @@ router.post('/verify-email', async (req, res) => {
   }
 });
 
-// Resend verification code endpoint (via Resend)
+// Resend verification code endpoint
 router.post('/resend-verification', async (req, res) => {
   try {
     const { userId, email, phone } = req.body;
+
+    if (!isDbConnected()) {
+      const demoCode = '123456';
+      return res.json({
+        success: true,
+        message: 'A fresh verification code is provided below (Demo Mode).',
+        devCode: demoCode,
+        devMode: true,
+      });
+    }
+
     let user = null;
-    if (userId) {
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
       user = await User.findById(userId);
-    } else if (email) {
+    }
+    if (!user && email) {
       user = await User.findOne({ email: email.toLowerCase().trim() });
-    } else if (phone) {
+    }
+    if (!user && phone) {
       user = await User.findOne({ phone: cleanPhone(phone) });
     }
 
@@ -235,12 +281,31 @@ router.post('/resend-verification', async (req, res) => {
     user.verificationCode = verificationCode;
     await user.save();
 
-    await sendVerificationEmail(user.email, verificationCode);
+    const hasRealEmail = user.email && user.email.includes('@') && !user.email.endsWith('@apexbinary.ke');
+    let emailSent = false;
+    let emailWarning = null;
+
+    if (hasRealEmail) {
+      try {
+        const emailResult = await sendVerificationEmail(user.email, verificationCode);
+        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
+      } catch (err) {
+        console.error('[Resend Verification Error]:', err.message);
+        emailWarning = err.message;
+      }
+    }
 
     return res.json({
       success: true,
-      message: 'A fresh verification code has been dispatched to your email via Resend.',
       userId: user._id,
+      emailSent,
+      hasRealEmail,
+      message: emailSent
+        ? `A fresh verification code has been dispatched to ${user.email}.`
+        : (hasRealEmail
+            ? `Email delivery issue (${emailWarning || 'unavailable'}). Your fresh code is provided below.`
+            : `Your fresh verification code is provided below.`),
+      ...(!emailSent && { devCode: verificationCode, devMode: true }),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to resend verification code', error: error.message });
@@ -360,26 +425,39 @@ router.post('/tournaments/join', authenticate, async (req, res) => {
 const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / PIN') => {
   try {
     const { email, phone } = req.body;
-    if (!email && !phone) {
+    const cleanE = email ? email.toString().trim() : '';
+    const cleanP = cleanPhone(phone || (!cleanE.includes('@') ? cleanE : ''));
+    const finalEmail = cleanE.includes('@') ? cleanE.toLowerCase() : '';
+
+    if (!finalEmail && !cleanP) {
       return res.status(400).json({ success: false, message: 'Email or phone number is required.' });
     }
 
     if (!isDbConnected()) {
-      return res.status(503).json({ success: false, message: 'Database offline. Cannot process reset in demo mode.' });
+      const demoResetCode = '123456';
+      return res.json({
+        success: true,
+        userId: 'trader_' + (cleanP || 'demo'),
+        emailSent: false,
+        message: 'Demo Mode: Use authentication code 123456 to reset credentials.',
+        devCode: demoResetCode,
+        devMode: true,
+      });
     }
 
     let user = null;
-    if (email) {
-      user = await User.findOne({ email: email.toLowerCase().trim() });
-    } else if (phone) {
-      user = await User.findOne({ phone: cleanPhone(phone) });
+    if (finalEmail) {
+      user = await User.findOne({ email: finalEmail });
+    }
+    if (!user && cleanP) {
+      user = await User.findOne({ phone: cleanP });
     }
 
-    // Always respond with generic success to prevent user enumeration
-    if (!user || !user.email || user.email.endsWith('@apexbinary.ke')) {
+    // Always respond with generic success to prevent user enumeration if account not found
+    if (!user) {
       return res.json({
         success: true,
-        message: 'If a verified account exists for that address, a reset code has been sent.',
+        message: 'If an account exists for that address or phone number, an authentication code has been sent.',
       });
     }
 
@@ -388,26 +466,34 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
     user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await user.save();
 
+    const hasRealEmail = user.email && user.email.includes('@') && !user.email.endsWith('@apexbinary.ke');
     let emailSent = false;
     let emailProvider = 'none';
-    try {
-      const emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
-      emailSent = emailResult.provider !== 'dev-console';
-      emailProvider = emailResult.provider;
-      console.log(`[${emailProvider}] ${credentialType} reset code dispatched to ${user.email}`);
-    } catch (emailErr) {
-      console.error(`[Email delivery error] ${emailErr.message}`);
-      // Email failed — code is still valid in DB; return it so user can still proceed
+    let emailWarning = null;
+
+    if (hasRealEmail) {
+      try {
+        const emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
+        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
+        emailProvider = emailResult.provider;
+        console.log(`[${emailProvider}] ${credentialType} reset code dispatched to ${user.email}`);
+      } catch (emailErr) {
+        console.error(`[Email delivery error] ${emailErr.message}`);
+        emailWarning = emailErr.message;
+      }
     }
 
     return res.json({
       success: true,
       userId: user._id,
       emailSent,
+      hasRealEmail,
       message: emailSent
-        ? `A 6-digit ${credentialType} reset code has been sent to your email address.`
-        : `Email delivery failed. Your reset code is shown below — use it to proceed.`,
-      // Always surface the code when email did not deliver
+        ? `A 6-digit ${credentialType} reset code has been sent to your email address (${user.email}).`
+        : (hasRealEmail
+            ? `Email delivery issue (${emailWarning || 'unavailable'}). Your reset code is provided below.`
+            : `Account registered via phone. Your reset authentication code is provided below.`),
+      // Always surface code when real email was not delivered so user is never locked out
       ...(!emailSent && { devCode: resetCode, devMode: true }),
     });
   } catch (error) {
@@ -430,16 +516,33 @@ const handleResetPasswordOrPin = async (req, res, credentialType = 'PIN') => {
     }
 
     if (!isDbConnected()) {
-      return res.status(503).json({ success: false, message: 'Database offline. Cannot process reset in demo mode.' });
+      const demoTrader = {
+        _id: 'trader_' + (phone ? cleanPhone(phone) : 'demo'),
+        email: email || 'trader@apexbinary.ke',
+        phone: phone ? cleanPhone(phone) : '254700000000',
+        fullName: 'Apex Trader',
+        role: 'trader',
+        balances: { demo: 1000000, real: 0 },
+      };
+      const token = generateToken(demoTrader);
+      return res.json({
+        success: true,
+        message: `${credentialType} reset successfully (Demo Mode)! You are now logged in.`,
+        token,
+        user: demoTrader,
+      });
     }
 
     let user = null;
-    if (userId) {
+    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
       user = await User.findById(userId);
-    } else if (email) {
+    }
+    if (!user && email && email.includes('@')) {
       user = await User.findOne({ email: email.toLowerCase().trim() });
-    } else if (phone) {
-      user = await User.findOne({ phone: cleanPhone(phone) });
+    }
+    if (!user && (phone || (email && !email.includes('@')))) {
+      const p = cleanPhone(phone || email);
+      if (p) user = await User.findOne({ phone: p });
     }
 
     if (!user) {

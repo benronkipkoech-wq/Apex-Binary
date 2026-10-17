@@ -82,6 +82,11 @@ class AuthEngine {
 
     // Sync trader registration to backend and capture server-assigned userId for email OTP
     let serverUserId = user.id;
+    let devCode = null;
+    let emailSent = false;
+    let hasRealEmail = !!cleanEmail && cleanEmail.includes('@');
+    let offlineMode = false;
+
     try {
       const apiRes = await api.register({
         fullName: cleanName,
@@ -89,14 +94,50 @@ class AuthEngine {
         pin,
         email: cleanEmail
       });
-      if (apiRes && apiRes.data && apiRes.data.userId) {
-        serverUserId = apiRes.data.userId;
+
+      if (apiRes && apiRes.ok && apiRes.data) {
+        if (apiRes.data.userId) serverUserId = apiRes.data.userId;
+        if (apiRes.data.devCode) devCode = apiRes.data.devCode;
+        if (apiRes.data.emailSent !== undefined) emailSent = apiRes.data.emailSent;
+        if (apiRes.data.hasRealEmail !== undefined) hasRealEmail = apiRes.data.hasRealEmail;
+        if (apiRes.data.offlineMode) offlineMode = true;
+
+        if (offlineMode && apiRes.data.token) {
+          user.verified = true;
+          existingUsers.push(user);
+          security.setItem(AUTH_STORAGE_KEY, existingUsers);
+          this.createSession(user);
+          return {
+            success: true,
+            offlineMode: true,
+            userId: serverUserId,
+            message: apiRes.data.message || 'Account created successfully (Offline Demo Mode).'
+          };
+        }
+      } else if (apiRes && !apiRes.ok) {
+        // Explicit server rejection (e.g. phone or email already in use)
+        return {
+          success: false,
+          message: apiRes.data?.message || 'Registration failed. Please check your details and try again.'
+        };
       }
     } catch (e) {
       console.warn('API registration warning:', e);
     }
 
-    return { success: true, userId: serverUserId, message: 'Registration successful! Please check your email for the verification code.' };
+    existingUsers.push(user);
+    security.setItem(AUTH_STORAGE_KEY, existingUsers);
+
+    return {
+      success: true,
+      userId: serverUserId,
+      emailSent,
+      devCode: devCode || (!emailSent ? verificationCode : null),
+      hasRealEmail,
+      message: emailSent
+        ? 'Account created! Verification code sent to your email.'
+        : 'Account created! Please enter your authentication code.'
+    };
   }
 
   // --- Login ---

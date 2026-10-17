@@ -141,7 +141,7 @@
           </div>
 
           <div class="auth-input-group">
-            <label class="auth-label" for="reg-email">Email (Optional)</label>
+            <label class="auth-label" for="reg-email">Email Address <span style="font-size:11px;color:#8b949e;font-weight:normal;">(For verification &amp; reset code)</span></label>
             <div class="auth-input-wrapper">
               <span class="auth-input-icon">✉️</span>
               <input type="email" id="reg-email" class="auth-input" placeholder="you@example.com" autocomplete="email">
@@ -205,13 +205,13 @@
           <div class="auth-section-header">
             <span class="auth-section-icon">🔑</span>
             <h3 class="auth-section-title">Reset Password or PIN</h3>
-            <p class="auth-section-sub">Enter your registered email address and we'll send you a 6-digit authentication code.</p>
+            <p class="auth-section-sub">Enter your registered email address or Safaricom phone number to receive an authentication code.</p>
           </div>
           <div class="auth-input-group">
-            <label class="auth-label" for="forgot-email">Registered Email Address</label>
+            <label class="auth-label" for="forgot-email">Registered Email or Safaricom Phone</label>
             <div class="auth-input-wrapper">
               <span class="auth-input-icon">✉️</span>
-              <input type="email" id="forgot-email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+              <input type="text" id="forgot-email" class="auth-input" placeholder="you@example.com or 0712 345 678" autocomplete="username">
             </div>
           </div>
           <button type="button" class="auth-submit-btn" id="btn-send-reset-code">

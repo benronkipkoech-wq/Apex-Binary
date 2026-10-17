@@ -432,18 +432,51 @@ class App {
 
         if (res.success) {
           sound.playClick();
+
+          // Instant demo login in offline mode
+          if (res.offlineMode) {
+            this.closeAuthModal();
+            this.showToast('Welcome to Apex Binary (Demo Mode)!', 'success');
+            return;
+          }
+
           this._pendingVerifyUserId = res.userId;
-          this._pendingVerifyEmail = document.getElementById('reg-email').value.trim();
-          this._pendingVerifyPhone = document.getElementById('reg-phone').value.trim();
-          // Show email verification modal
+          this._pendingVerifyEmail = (document.getElementById('reg-email')?.value || '').trim();
+          this._pendingVerifyPhone = (document.getElementById('reg-phone')?.value || '').trim();
+
           const emailVerifyModal = document.getElementById('modal-email-verify');
           const descEl = document.getElementById('email-verify-desc');
-          if (descEl && this._pendingVerifyEmail) {
-            descEl.textContent = `Enter the 6-digit code sent to ${this._pendingVerifyEmail} to activate your account.`;
+          const emailVerifyMsg = document.getElementById('email-verify-msg');
+          if (emailVerifyMsg) emailVerifyMsg.textContent = '';
+
+          const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
+          emailOtpInputs.forEach(i => i.value = '');
+
+          if (res.emailSent && this._pendingVerifyEmail) {
+            if (descEl) descEl.textContent = `Enter the 6-digit code sent to ${this._pendingVerifyEmail} to activate your account.`;
+            this.showToast('Verification code sent! Check your email.', 'success');
+          } else if (res.devCode) {
+            const digits = res.devCode.split('');
+            emailOtpInputs.forEach((inp, idx) => {
+              inp.value = digits[idx] || '';
+            });
+            if (descEl) {
+              descEl.textContent = this._pendingVerifyEmail
+                ? `Verification code: ${res.devCode} (entered for you below).`
+                : `Your authentication code is ${res.devCode} (entered for you below).`;
+            }
+            if (emailVerifyMsg) {
+              emailVerifyMsg.textContent = `Authentication code: ${res.devCode}. Click Verify below to activate.`;
+              emailVerifyMsg.style.color = '#00f59b';
+            }
+            this.showToast(`Your authentication code: ${res.devCode}`, 'info');
+          } else {
+            if (descEl) descEl.textContent = `Enter the 6-digit authentication code to activate your account.`;
+            this.showToast('Account created! Please enter verification code.', 'info');
           }
+
           if (emailVerifyModal) emailVerifyModal.classList.remove('hidden');
           document.getElementById('email-otp-0')?.focus();
-          this.showToast('Verification code sent! Check your email.', 'success');
         } else {
           this.showAuthMessage(res.message, 'error');
         }
@@ -517,11 +550,16 @@ class App {
       if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
       showEmailOtpMsg('');
       try {
-        const res = await api.verifyEmail(this._pendingVerifyUserId, code);
+        const res = await api.verifyEmail(
+          this._pendingVerifyUserId,
+          code,
+          this._pendingVerifyEmail,
+          this._pendingVerifyPhone
+        );
         if (res && res.ok && res.data?.success) {
           document.getElementById('modal-email-verify')?.classList.add('hidden');
           sound.playTradeWon();
-          this.showToast('Email verified! You can now log in.', 'success');
+          this.showToast('Account verified! You can now log in.', 'success');
           // Switch to login tab
           document.getElementById('auth-tab-login')?.click();
           clearEmailOtp();
@@ -548,8 +586,18 @@ class App {
           phone: this._pendingVerifyPhone,
         });
         if (res && res.ok && res.data?.success) {
-          showEmailOtpMsg('A new code has been sent to your email.', '#00f59b');
           if (res.data.userId) this._pendingVerifyUserId = res.data.userId;
+          if (res.data.devCode) {
+            const digits = res.data.devCode.split('');
+            emailOtpInputs.forEach((inp, idx) => {
+              inp.value = digits[idx] || '';
+            });
+            showEmailOtpMsg(`Fresh authentication code: ${res.data.devCode} — entered for you.`, '#00f59b');
+            this.showToast(`Verification code: ${res.data.devCode}`, 'info');
+          } else {
+            showEmailOtpMsg('A new authentication code has been sent to your email.', '#00f59b');
+            this.showToast('Verification code sent! Check your inbox.', 'success');
+          }
         } else {
           showEmailOtpMsg(res?.data?.message || 'Failed to resend. Try again shortly.');
         }
@@ -702,11 +750,21 @@ class App {
 
     // Step 1 — Send reset code
     document.getElementById('btn-send-reset-code')?.addEventListener('click', async () => {
-      const email = document.getElementById('forgot-email')?.value.trim() || '';
-      if (!email || !email.includes('@')) {
-        this.showAuthMessage('Please enter a valid email address.', 'error');
+      const inputVal = document.getElementById('forgot-email')?.value.trim() || '';
+      if (!inputVal) {
+        this.showAuthMessage('Please enter your registered email address or Safaricom phone number.', 'error');
         return;
       }
+
+      const isEmail = inputVal.includes('@');
+      const email = isEmail ? inputVal : '';
+      const phone = !isEmail ? inputVal.replace(/\D/g, '') : '';
+
+      if (!isEmail && phone.length < 9) {
+        this.showAuthMessage('Please enter a valid email or Safaricom phone number.', 'error');
+        return;
+      }
+
       const btn = document.getElementById('btn-send-reset-code');
       if (!btn) return;
 
@@ -717,43 +775,44 @@ class App {
       try {
         let res = null;
         try {
-          res = await api.forgotPin({ email });
+          res = await api.forgotPin({ email, phone });
         } catch (e) {
           console.warn('api.forgotPin request error:', e);
         }
 
         // 1. Backend response succeeded
         if (res && (res.ok || res.data?.success)) {
-          this._resetState.email = email;
+          this._resetState.email = email || res.data?.email || '';
+          this._resetState.phone = phone || res.data?.phone || '';
           this._resetState.userId = res.data?.userId || null;
-          const parts = email.split('@');
-          const masked = parts[0].slice(0, 2) + '***@' + parts[1];
 
           document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach(i => i.value = '');
           showAuthPanel('forgot-pin-step2');
           document.getElementById('reset-otp-0')?.focus();
 
-          // Email didn't deliver — show code directly and auto-fill OTP boxes
-          if (res.data?.devMode && res.data?.devCode) {
+          // Email didn't deliver or dev code available — show code directly and auto-fill OTP boxes
+          if (res.data?.devCode) {
             const devCode = res.data.devCode;
-            // Auto-fill the OTP digits so user just clicks verify
             const digits = devCode.split('');
             document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach((inp, i) => {
               inp.value = digits[i] || '';
             });
             document.getElementById('forgot-step2-hint').textContent =
-              `Email delivery issue — your reset code has been filled in automatically.`;
-            this.showAuthMessage(`Your reset code: ${devCode} — already filled in for you.`, 'info');
+              `Authentication code: ${devCode} — filled in automatically.`;
+            this.showAuthMessage(`Reset code: ${devCode} (auto-filled). Click Authenticate Code to proceed.`, 'info');
           } else {
+            const dest = email
+              ? (email.split('@')[0].slice(0, 2) + '***@' + email.split('@')[1])
+              : (phone.slice(0, 4) + '***' + phone.slice(-3));
             document.getElementById('forgot-step2-hint').textContent =
-              `Enter the 6-digit code sent to ${masked}`;
+              `Enter the 6-digit code sent to ${dest}`;
             this.showAuthMessage(res.data?.message || 'Authentication code sent! Check your inbox.', 'success');
             sound.playTradeWon();
           }
           return;
         }
 
-        this.showAuthMessage(res?.data?.message || 'Failed to send reset code. Please check your email.', 'error');
+        this.showAuthMessage(res?.data?.message || 'Failed to send reset code. Please check your details.', 'error');
       } catch (err) {
         console.error('Reset send code error:', err);
         this.showAuthMessage('Error sending reset code. Please try again.', 'error');
@@ -790,21 +849,30 @@ class App {
 
     // Step 2 — Resend code
     document.getElementById('btn-resend-reset-code')?.addEventListener('click', async () => {
-      const email = this._resetState.email;
-      if (!email) { showAuthPanel('forgot-pin-step1'); return; }
+      const { email, phone } = this._resetState;
+      if (!email && !phone) { showAuthPanel('forgot-pin-step1'); return; }
       const resendBtn = document.getElementById('btn-resend-reset-code');
       if (resendBtn) resendBtn.textContent = 'Resending…';
 
       try {
         let res = null;
         try {
-          res = await api.forgotPin({ email });
+          res = await api.forgotPin({ email, phone });
         } catch (e) {}
 
         if (res && (res.ok || res.data?.success)) {
-          this.showAuthMessage('A fresh authentication code has been sent to your email.', 'success');
-          resetOtpInputs.forEach(i => i.value = '');
-          resetOtpInputs[0]?.focus();
+          if (res.data?.devCode) {
+            const devCode = res.data.devCode;
+            const digits = devCode.split('');
+            resetOtpInputs.forEach((inp, i) => {
+              inp.value = digits[i] || '';
+            });
+            this.showAuthMessage(`Fresh authentication code: ${devCode} — filled in automatically.`, 'info');
+          } else {
+            this.showAuthMessage('A fresh authentication code has been sent.', 'success');
+            resetOtpInputs.forEach(i => i.value = '');
+            resetOtpInputs[0]?.focus();
+          }
           return;
         }
 

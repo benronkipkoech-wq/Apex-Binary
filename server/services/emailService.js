@@ -38,6 +38,11 @@ if (smtpHost && smtpUser && smtpPass) {
  * @param {string} verificationCode - 6-digit verification code.
  */
 export async function sendVerificationEmail(toEmail, verificationCode) {
+  if (!toEmail || toEmail.endsWith('@apexbinary.ke')) {
+    console.log(`[Email Service] Synthetic or non-deliverable recipient (${toEmail}). Suppressing outbound email.`);
+    return { success: false, provider: 'dev-console', code: verificationCode };
+  }
+
   const subject = `${verificationCode} is your Apex Binary verification code`;
   const textContent = `Your Apex Binary verification code is: ${verificationCode}\n\nThis code expires in 15 minutes.\nIf you did not request this, please ignore this email.`;
   const htmlContent = `
@@ -142,6 +147,11 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
  * @param {string} [type='Password / PIN'] - Type of reset requested.
  */
 export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / PIN') {
+  if (!toEmail || toEmail.endsWith('@apexbinary.ke')) {
+    console.log(`[Email Service] Synthetic or non-deliverable recipient (${toEmail}). Suppressing outbound reset email.`);
+    return { success: false, provider: 'dev-console', code: resetCode };
+  }
+
   const subject = `${resetCode} — Your Apex Binary ${type} Reset Code`;
   const textContent = `Your Apex Binary ${type} reset authentication code is: ${resetCode}\n\nThis code expires in 15 minutes.\nIf you did not request this reset, please ignore this email and ensure your account is secure.`;
   const htmlContent = `

@@ -76,8 +76,8 @@ class ApiService {
     return res;
   }
 
-  async verifyEmail(userId, code) {
-    return this.request('/auth/verify-email', 'POST', { userId, code });
+  async verifyEmail(userId, code, email = null, phone = null) {
+    return this.request('/auth/verify-email', 'POST', { userId, code, email, phone });
   }
 
   async resendVerification({ userId, email, phone }) {
