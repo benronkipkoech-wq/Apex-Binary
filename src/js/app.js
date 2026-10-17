@@ -256,13 +256,25 @@ class App {
     const msgEl = document.getElementById('auth-message');
     if (!msgEl) return;
     
+    if (this._authMsgTimeout) {
+      clearTimeout(this._authMsgTimeout);
+      this._authMsgTimeout = null;
+    }
+
+    if (!msg) {
+      msgEl.textContent = '';
+      msgEl.className = 'auth-message hidden';
+      return;
+    }
+    
     msgEl.textContent = msg;
     msgEl.className = `auth-message ${type}`;
+    msgEl.classList.remove('hidden');
     
-    // Clear after 5 seconds
-    setTimeout(() => {
+    // Clear after 6 seconds
+    this._authMsgTimeout = setTimeout(() => {
       msgEl.classList.add('hidden');
-    }, 5000);
+    }, 6000);
   }
 
   attachAuthListeners() {
@@ -366,7 +378,7 @@ class App {
       }
     };
 
-    document.querySelectorAll('.auth-keypad .keypad-btn').forEach(btn => {
+    document.querySelectorAll('#login-keypad .keypad-btn, #reg-keypad .keypad-btn').forEach(btn => {
       btn.addEventListener('click', (e) => handleKeypadPress(e.currentTarget.dataset.key));
     });
 
@@ -379,7 +391,7 @@ class App {
 
     // Forms Submission
     if (loginForm) {
-      loginForm.addEventListener('submit', (e) => {
+      loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const phone = document.getElementById('login-phone').value;
         const pin = this.authPins.login;
@@ -389,7 +401,7 @@ class App {
           return;
         }
 
-        const res = auth.login(phone, pin);
+        const res = await auth.login(phone, pin);
         if (res.success) {
           if (res.requires2FA) {
             document.getElementById('modal-2fa').classList.remove('hidden');
@@ -733,6 +745,7 @@ class App {
        'forgot-pin-step1', 'forgot-pin-step2', 'forgot-pin-step3']
         .forEach(pid => document.getElementById(pid)?.classList.add('hidden'));
       document.getElementById(id)?.classList.remove('hidden');
+      this.showAuthMessage('');
     };
 
     // Step 0 — "Forgot PIN?" link opens step 1
@@ -898,6 +911,7 @@ class App {
       ['reset-new-dot-', 'reset-confirm-dot-'].forEach(pfx => {
         for (let i = 0; i < 4; i++) document.getElementById(pfx + i)?.classList.remove('filled', 'error');
       });
+      this.showAuthMessage('');
       showAuthPanel('forgot-pin-step3');
       sound.playClick();
     });
@@ -945,12 +959,23 @@ class App {
 
     document.querySelectorAll('#reset-pin-keypad .keypad-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
+        e.stopPropagation();
         const key = e.currentTarget.dataset.key;
+        if (key === 'del') {
+          if (this.authPins._resetConfirm && this.authPins._resetConfirm.length > 0) {
+            this.authPins._resetConfirm = this.authPins._resetConfirm.slice(0, -1);
+            updateResetDots('_resetConfirm', this.authPins._resetConfirm);
+          } else if (this.authPins._resetNew && this.authPins._resetNew.length > 0) {
+            this.authPins._resetNew = this.authPins._resetNew.slice(0, -1);
+            updateResetDots('_resetNew', this.authPins._resetNew);
+          }
+          return;
+        }
+
         const isNewFull = this.authPins._resetNew.length === 4;
         const activeType = isNewFull ? '_resetConfirm' : '_resetNew';
-        if (key === 'del') {
-          this.authPins[activeType] = this.authPins[activeType].slice(0, -1);
-        } else if (this.authPins[activeType].length < 4) {
+
+        if (this.authPins[activeType].length < 4) {
           this.authPins[activeType] += key;
           sound.playTick();
         }

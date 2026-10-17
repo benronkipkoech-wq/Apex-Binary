@@ -141,13 +141,38 @@ class AuthEngine {
   }
 
   // --- Login ---
-  login(phone, pin) {
+  async login(phone, pin) {
     const normalizedPhone = this.normalizePhone(phone);
     const users = this.getAllUsers();
-    const user = users.find(u => u.phone === normalizedPhone);
+    let user = users.find(u => u.phone === normalizedPhone);
 
     if (!user) {
-      return { success: false, message: 'No account found with this phone number.' };
+      try {
+        const apiRes = await api.login(normalizedPhone, pin);
+        if (apiRes && apiRes.ok && apiRes.data?.user) {
+          const sUser = apiRes.data.user;
+          user = {
+            id: sUser.id || sUser._id,
+            fullName: sUser.fullName || 'Apex Trader',
+            phone: sUser.phone || normalizedPhone,
+            email: sUser.email || `${normalizedPhone}@apexbinary.ke`,
+            pinHash: this.hashPin(pin),
+            avatar: this.generateAvatar(sUser.fullName || 'Apex Trader'),
+            twoFactorEnabled: false,
+            securityLevel: 'standard',
+            loginAttempts: 0,
+            lockedUntil: null,
+            lastLogin: new Date().toISOString(),
+            verified: true,
+          };
+          users.push(user);
+          this.saveUsers(users);
+        } else {
+          return { success: false, message: apiRes?.data?.message || 'No account found with this phone number.' };
+        }
+      } catch (err) {
+        return { success: false, message: 'No account found with this phone number.' };
+      }
     }
 
     // Check if locked
@@ -157,6 +182,21 @@ class AuthEngine {
     }
 
     if (this.hashPin(pin) !== user.pinHash) {
+      // Check backend API in case credentials were reset or updated remotely
+      try {
+        const apiRes = await api.login(normalizedPhone, pin);
+        if (apiRes && apiRes.ok && apiRes.data?.user) {
+          user.pinHash = this.hashPin(pin);
+          user.loginAttempts = 0;
+          user.lockedUntil = null;
+          user.lastLogin = new Date().toISOString();
+          this.saveUsers(users);
+          this.createSession(user);
+          this.addLoginHistory(user, 'login');
+          return { success: true, user: this.sanitizeUser(user) };
+        }
+      } catch (_) {}
+
       user.loginAttempts = (user.loginAttempts || 0) + 1;
 
       if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
@@ -385,6 +425,10 @@ class AuthEngine {
         lastLogin: new Date().toISOString(),
         verified: true,
       };
+      if (!userLocal) {
+        users.push(sessionUser);
+        this.saveUsers(users);
+      }
       this.createSession(sessionUser);
       this.addLoginHistory(sessionUser, 'pin_reset');
     }
