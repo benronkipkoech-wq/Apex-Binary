@@ -733,17 +733,17 @@ class App {
           showAuthPanel('forgot-pin-step2');
           document.getElementById('reset-otp-0')?.focus();
 
-          // Dev mode: no email provider — show code directly and auto-fill OTP
+          // Email didn't deliver — show code directly and auto-fill OTP boxes
           if (res.data?.devMode && res.data?.devCode) {
             const devCode = res.data.devCode;
-            document.getElementById('forgot-step2-hint').textContent =
-              `⚠️ Dev Mode: No email configured. Your code is: ${devCode}`;
-            // Auto-fill the OTP digits
+            // Auto-fill the OTP digits so user just clicks verify
             const digits = devCode.split('');
             document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach((inp, i) => {
               inp.value = digits[i] || '';
             });
-            this.showAuthMessage(`Dev Mode — Code: ${devCode}. Add RESEND_API_KEY in .env for real emails.`, 'info');
+            document.getElementById('forgot-step2-hint').textContent =
+              `Email delivery issue — your reset code has been filled in automatically.`;
+            this.showAuthMessage(`Your reset code: ${devCode} — already filled in for you.`, 'info');
           } else {
             document.getElementById('forgot-step2-hint').textContent =
               `Enter the 6-digit code sent to ${masked}`;

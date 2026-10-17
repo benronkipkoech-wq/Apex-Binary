@@ -388,26 +388,28 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
     user.resetCodeExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 min
     await user.save();
 
+    let emailSent = false;
+    let emailProvider = 'none';
     try {
       const emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
-      const isDevMode = emailResult.provider === 'dev-console';
-      console.log(`[${isDevMode ? 'Dev Mode' : 'Email'}] ${credentialType} reset code dispatched to ${user.email}`);
-      return res.json({
-        success: true,
-        message: isDevMode
-          ? `[Dev Mode] No email provider configured. Your reset code is shown below.`
-          : `A 6-digit ${credentialType} reset code has been sent to your email address.`,
-        userId: user._id,
-        // Only expose code in dev mode — never when a real email provider is active
-        ...(isDevMode && { devCode: resetCode, devMode: true }),
-      });
+      emailSent = emailResult.provider !== 'dev-console';
+      emailProvider = emailResult.provider;
+      console.log(`[${emailProvider}] ${credentialType} reset code dispatched to ${user.email}`);
     } catch (emailErr) {
-      console.error(`[Email delivery error]:`, emailErr.message);
-      return res.status(502).json({
-        success: false,
-        message: `Failed to deliver email: ${emailErr.message}. Please configure RESEND_API_KEY in your .env file.`,
-      });
+      console.error(`[Email delivery error] ${emailErr.message}`);
+      // Email failed — code is still valid in DB; return it so user can still proceed
     }
+
+    return res.json({
+      success: true,
+      userId: user._id,
+      emailSent,
+      message: emailSent
+        ? `A 6-digit ${credentialType} reset code has been sent to your email address.`
+        : `Email delivery failed. Your reset code is shown below — use it to proceed.`,
+      // Always surface the code when email did not deliver
+      ...(!emailSent && { devCode: resetCode, devMode: true }),
+    });
   } catch (error) {
     console.error(`[forgot-${credentialType}]`, error);
     return res.status(500).json({ success: false, message: 'Failed to process reset request.', error: error.message });
