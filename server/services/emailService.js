@@ -7,7 +7,7 @@ dotenv.config();
 // Resend Configuration
 const resendApiKey = process.env.RESEND_API_KEY;
 // Must match your verified domain in Resend (myapexbinary.site)
-const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <noreply@myapexbinary.site>';
+const resendFrom = process.env.RESEND_FROM_EMAIL || 'Apex Binary <support@myapexbinary.site>';
 const resend = resendApiKey ? new Resend(resendApiKey) : null;
 
 // ── Startup diagnostic (visible in Render logs) ──────────────────────────────
@@ -20,7 +20,7 @@ const smtpHost = process.env.EMAIL_HOST;
 const smtpPort = parseInt(process.env.EMAIL_PORT) || 587;
 const smtpUser = process.env.EMAIL_USER;
 const smtpPass = process.env.EMAIL_PASS;
-const fromAddress = process.env.EMAIL_FROM || smtpUser || 'no-reply@apexbinary.ke';
+const fromAddress = process.env.EMAIL_FROM || smtpUser || 'support@myapexbinary.site';
 
 let transporter = null;
 if (smtpHost && smtpUser && smtpPass) {
@@ -82,6 +82,7 @@ export async function sendVerificationEmail(toEmail, verificationCode) {
       const response = await resend.emails.send({
         from: resendFrom,
         to: [toEmail],
+        reply_to: 'support@myapexbinary.site',
         subject,
         html: htmlContent,
         text: textContent,
@@ -193,6 +194,7 @@ export async function sendPinResetEmail(toEmail, resetCode, type = 'Password / P
       const response = await resend.emails.send({
         from: resendFrom,
         to: [toEmail],
+        reply_to: 'support@myapexbinary.site',
         subject,
         html: htmlContent,
         text: textContent,
