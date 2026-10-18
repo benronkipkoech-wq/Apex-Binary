@@ -2239,8 +2239,45 @@ class App {
         if (data.isLive) {
           document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
           document.getElementById('mpesa-deposit-step-3').classList.remove('hidden');
+          const step3Title = document.getElementById('mpesa-deposit-step-3').querySelector('h3');
+          if (step3Title) step3Title.textContent = 'Enter M-Pesa PIN on Phone';
           document.getElementById('mpesa-receipt-code').textContent = data.message;
-          document.getElementById('mpesa-deposit-step-3').querySelector('h3').textContent = 'Check Your Phone!';
+
+          const ref = data.checkoutRequestId;
+          if (ref) {
+            let attempts = 0;
+            const maxAttempts = 30; // 90 seconds (3s interval)
+            const pollInterval = setInterval(async () => {
+              attempts++;
+              try {
+                const checkRes = await api.getDepositStatus(ref);
+                if (checkRes.ok && checkRes.data) {
+                  if (checkRes.data.status === 'COMPLETED') {
+                    clearInterval(pollInterval);
+                    sound.playMpesaCash();
+                    wallet.credit(checkRes.data.amount, 'real');
+                    wallet.setType('real');
+                    await wallet.syncBalance();
+                    if (step3Title) step3Title.textContent = 'Deposit Successful!';
+                    document.getElementById('mpesa-receipt-code').textContent =
+                      `Payment Confirmed! M-Pesa Receipt: ${checkRes.data.mpesaReceipt}. Real Balance: KSh ${checkRes.data.updatedRealBalance?.toLocaleString() || wallet.realBalance.toLocaleString()}`;
+                    this.showToast(`M-Pesa payment of KSh ${checkRes.data.amount.toLocaleString()} confirmed!`, 'success');
+                  } else if (checkRes.data.status === 'FAILED') {
+                    clearInterval(pollInterval);
+                    if (step3Title) step3Title.textContent = 'Payment Not Completed';
+                    document.getElementById('mpesa-receipt-code').textContent =
+                      checkRes.data.rejectionReason || 'The payment request was cancelled or timed out.';
+                    this.showToast('M-Pesa payment failed or cancelled', 'error');
+                  }
+                }
+              } catch (e) {
+                // Ignore transient network errors
+              }
+              if (attempts >= maxAttempts) {
+                clearInterval(pollInterval);
+              }
+            }, 3000);
+          }
         } else {
           // Sandbox Simulator - show fake PIN screen
           wallet.clearPin();

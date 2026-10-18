@@ -8,7 +8,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "start": "node server/server.js",
-    "server": "node server/server.js"
+    "server": "node server/server.js",
+    "test:payhero": "node server/test-payhero.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

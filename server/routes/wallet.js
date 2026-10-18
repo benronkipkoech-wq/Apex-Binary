@@ -3,7 +3,7 @@ import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import { authenticate } from '../middleware/auth.js';
 import { isDbConnected } from '../config/db.js';
-import { initiateStkPush, isPayHeroConfigured, formatMpesaPhone } from '../services/payheroService.js';
+import { initiateStkPush, isPayHeroConfigured, formatMpesaPhone, getTransactionStatus } from '../services/payheroService.js';
 
 const router = express.Router();
 
@@ -106,16 +106,43 @@ router.post('/deposit/callback', async (req, res) => {
   try {
     if (!isDbConnected()) return res.status(200).send('OK');
 
+    console.log('[Payment Webhook Callback Received]', JSON.stringify(req.body));
+
     // 1. PayHero Webhook Payload Inspection
-    const payheroRef = req.body?.external_reference || req.body?.reference || req.body?.response?.external_reference;
-    const payheroStatus = (req.body?.status || req.body?.response?.status || '').toString().toLowerCase();
+    const payheroRef =
+      req.body?.external_reference ||
+      req.body?.reference ||
+      req.body?.checkout_request_id ||
+      req.body?.merchant_reference ||
+      req.body?.response?.external_reference ||
+      req.body?.response?.reference;
+
+    const rawStatus = (req.body?.status || req.body?.response?.status || '').toString().toLowerCase();
 
     if (payheroRef) {
       const tx = await Transaction.findOne({ checkoutRequestId: payheroRef });
       if (!tx || tx.status !== 'PENDING') return res.status(200).json({ status: 'ignored' });
 
-      if (payheroStatus === 'success' || payheroStatus === 'completed' || req.body?.status_code === 200) {
-        const mpesaReceipt = req.body?.mpesa_reference || req.body?.receipt || req.body?.response?.mpesa_reference || 'PH' + Date.now();
+      const isSuccess =
+        rawStatus === 'success' ||
+        rawStatus === 'successful' ||
+        rawStatus === 'completed' ||
+        rawStatus === 'ok' ||
+        String(req.body?.status_code) === '200' ||
+        req.body?.success === true ||
+        String(req.body?.response_code) === '0' ||
+        String(req.body?.result_code) === '0';
+
+      if (isSuccess) {
+        const mpesaReceipt =
+          req.body?.mpesa_receipt ||
+          req.body?.mpesa_reference ||
+          req.body?.receipt ||
+          req.body?.mpesa_code ||
+          req.body?.response?.mpesa_receipt ||
+          req.body?.response?.mpesa_reference ||
+          'PH' + Date.now();
+
         tx.status = 'COMPLETED';
         tx.mpesaReceipt = mpesaReceipt;
         await tx.save();
@@ -130,7 +157,7 @@ router.post('/deposit/callback', async (req, res) => {
         return res.status(200).json({ success: true, message: 'PayHero callback processed' });
       } else {
         tx.status = 'FAILED';
-        tx.rejectionReason = req.body?.message || 'Payment failed or cancelled by user';
+        tx.rejectionReason = req.body?.message || req.body?.error || req.body?.response?.message || 'Payment cancelled or failed';
         await tx.save();
         return res.status(200).json({ success: true, message: 'PayHero failure logged' });
       }
@@ -170,6 +197,63 @@ router.post('/deposit/callback', async (req, res) => {
   } catch (error) {
     console.error('[Payment Callback Error]', error);
     return res.status(200).send('OK');
+  }
+});
+
+// Check Deposit Status (Polled by client during live PayHero STK Push)
+router.get('/deposit/status/:reference', authenticate, async (req, res) => {
+  try {
+    const { reference } = req.params;
+    if (!reference) return res.status(400).json({ success: false, message: 'Reference required' });
+
+    if (!isDbConnected()) {
+      return res.json({ success: true, status: 'COMPLETED', isSimulator: true });
+    }
+
+    const tx = await Transaction.findOne({ checkoutRequestId: reference, userId: req.user._id });
+    if (!tx) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    // If still pending, query PayHero API to sync status in case callback was delayed
+    if (tx.status === 'PENDING' && isPayHeroConfigured()) {
+      try {
+        const liveStatus = await getTransactionStatus(reference);
+        if (liveStatus) {
+          const rawStatus = (liveStatus.status || '').toLowerCase();
+          const isDone = rawStatus === 'successful' || rawStatus === 'success' || rawStatus === 'completed' || liveStatus.success === true;
+          if (isDone) {
+            tx.status = 'COMPLETED';
+            tx.mpesaReceipt = liveStatus.mpesa_receipt || liveStatus.receipt || liveStatus.mpesa_reference || tx.mpesaReceipt || 'PH' + Date.now();
+            await tx.save();
+
+            const user = await User.findById(tx.userId);
+            if (user) {
+              user.balances.real = (user.balances.real || 0) + tx.amount;
+              await user.save();
+            }
+          } else if (rawStatus === 'failed' || rawStatus === 'cancelled') {
+            tx.status = 'FAILED';
+            tx.rejectionReason = liveStatus.message || 'Payment cancelled or failed';
+            await tx.save();
+          }
+        }
+      } catch (pollErr) {
+        // Silently continue with current DB status
+      }
+    }
+
+    const user = await User.findById(req.user._id);
+    return res.json({
+      success: true,
+      status: tx.status,
+      amount: tx.amount,
+      mpesaReceipt: tx.mpesaReceipt,
+      rejectionReason: tx.rejectionReason,
+      updatedRealBalance: user?.balances?.real || 0,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 

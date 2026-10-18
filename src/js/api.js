@@ -163,6 +163,10 @@ class ApiService {
     return this.request('/wallet/deposit/stk-push', 'POST', { amount, phone });
   }
 
+  async getDepositStatus(reference) {
+    return this.request(`/wallet/deposit/status/${reference}`);
+  }
+
   async withdrawMpesa(amount, phone) {
     return this.request('/wallet/withdraw', 'POST', { amount, phone });
   }
