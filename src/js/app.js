@@ -350,31 +350,69 @@ class App {
           }
         }
       }
+      const hiddenInputId = type === 'login' ? 'login-pin' : (type === 'reg' ? 'reg-pin' : 'reg-confirm-pin');
+      const hiddenInput = document.getElementById(hiddenInputId);
+      if (hiddenInput) hiddenInput.value = val;
     };
 
     const handleKeypadPress = (key) => {
-      let currentType = this.activeAuthKeypad;
-      if (currentType === 'register' && this.authPins.reg.length === 4) {
-        currentType = 'regConfirm'; // Auto-switch to confirm
-      } else if (currentType === 'register') {
-        currentType = 'reg';
-      }
-
-      if (key === 'del') {
-        this.authPins[currentType] = this.authPins[currentType].slice(0, -1);
-      } else if (key === 'bio') {
+      if (key === 'bio') {
         this.showToast('Biometric authentication not supported in demo.', 'info');
         return;
-      } else if (this.authPins[currentType].length < 4) {
-        this.authPins[currentType] += key;
-        sound.playTick(); // Tick sound for keypad
       }
-      
-      updatePinDisplay(currentType, this.authPins[currentType]);
-      
-      // Auto-submit login if PIN is full
-      if (currentType === 'login' && this.authPins.login.length === 4) {
-        document.getElementById('btn-login').click();
+
+      if (this.activeAuthKeypad === 'login') {
+        if (key === 'del') {
+          this.authPins.login = this.authPins.login.slice(0, -1);
+          sound.playTick();
+        } else if (key === 'clear') {
+          this.authPins.login = '';
+          sound.playTick();
+        } else if (this.authPins.login.length < 4) {
+          this.authPins.login += key;
+          sound.playTick();
+        }
+        updatePinDisplay('login', this.authPins.login);
+        if (this.authPins.login.length === 4) {
+          document.getElementById('btn-login').click();
+        }
+        return;
+      }
+
+      if (this.activeAuthKeypad === 'register') {
+        if (key === 'del') {
+          if (this.authPins.regConfirm.length > 0) {
+            this.authPins.regConfirm = this.authPins.regConfirm.slice(0, -1);
+            updatePinDisplay('regConfirm', this.authPins.regConfirm);
+          } else if (this.authPins.reg.length > 0) {
+            this.authPins.reg = this.authPins.reg.slice(0, -1);
+            updatePinDisplay('reg', this.authPins.reg);
+          }
+          sound.playTick();
+          return;
+        }
+
+        if (key === 'clear') {
+          if (this.authPins.regConfirm.length > 0) {
+            this.authPins.regConfirm = '';
+            updatePinDisplay('regConfirm', '');
+          } else {
+            this.authPins.reg = '';
+            updatePinDisplay('reg', '');
+          }
+          sound.playTick();
+          return;
+        }
+
+        if (this.authPins.reg.length < 4) {
+          this.authPins.reg += key;
+          updatePinDisplay('reg', this.authPins.reg);
+          sound.playTick();
+        } else if (this.authPins.regConfirm.length < 4) {
+          this.authPins.regConfirm += key;
+          updatePinDisplay('regConfirm', this.authPins.regConfirm);
+          sound.playTick();
+        }
       }
     };
 
@@ -969,6 +1007,19 @@ class App {
             this.authPins._resetNew = this.authPins._resetNew.slice(0, -1);
             updateResetDots('_resetNew', this.authPins._resetNew);
           }
+          sound.playTick();
+          return;
+        }
+
+        if (key === 'clear') {
+          if (this.authPins._resetConfirm && this.authPins._resetConfirm.length > 0) {
+            this.authPins._resetConfirm = '';
+            updateResetDots('_resetConfirm', '');
+          } else {
+            this.authPins._resetNew = '';
+            updateResetDots('_resetNew', '');
+          }
+          sound.playTick();
           return;
         }
 

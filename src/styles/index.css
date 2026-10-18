@@ -3582,6 +3582,18 @@ input:checked + .slider:before {
   background: rgba(0, 245, 155, 0.08);
 }
 
+.keypad-clear {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.keypad-clear:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .keypad-del {
   font-size: 18px;
   color: var(--red-main);
