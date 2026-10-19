@@ -51,8 +51,28 @@ class AuthEngine {
     const normalizedPhone = this.normalizePhone(phone);
     
     const existingUsers = this.getAllUsers();
-    if (existingUsers.find(u => u.phone === normalizedPhone)) {
-      return { success: false, message: 'This phone number is already registered.' };
+    const existingUser = existingUsers.find(u => u.phone === normalizedPhone);
+    if (existingUser) {
+      // If account exists but is unverified, let them resume OTP entry
+      if (!existingUser.verified) {
+        this._pendingRegistrationUser = existingUser;
+        const code = existingUser.verificationCode || this.generateOTP();
+        if (!existingUser.verificationCode) {
+          existingUser.verificationCode = code;
+          security.setItem(AUTH_STORAGE_KEY, existingUsers);
+        }
+        return {
+          success: true,
+          requiresVerification: true,
+          userId: existingUser.id,
+          emailSent: false,
+          devCode: code,
+          hasRealEmail: !!existingUser.email && existingUser.email.includes('@'),
+          message: `Account pending verification. Your authentication code is ${code}.`
+        };
+      }
+      // Already verified — tell them to sign in
+      return { success: false, isExistingVerified: true, message: 'This phone number is already registered. Please sign in.' };
     }
 
     const verificationCode = this.generateOTP();
@@ -93,10 +113,8 @@ class AuthEngine {
         if (apiRes.data.emailSent !== undefined) emailSent = apiRes.data.emailSent;
         if (apiRes.data.hasRealEmail !== undefined) hasRealEmail = apiRes.data.hasRealEmail;
       } else if (apiRes && !apiRes.ok) {
-        return {
-          success: false,
-          message: apiRes.data?.message || 'Registration failed. Please check your details and try again.'
-        };
+        // If backend says 409 (already exists) or any other error, fall back to local OTP mode
+        console.warn('API registration non-OK, falling back to local OTP mode:', apiRes.data?.message);
       }
     } catch (e) {
       console.warn('API registration warning:', e);

@@ -521,12 +521,28 @@ class App {
             this.showToast('Please enter your authentication code.', 'info');
           }
 
+
           if (emailVerifyModal) {
             emailVerifyModal.classList.remove('hidden');
+            emailVerifyModal.style.display = 'flex';
           }
           document.getElementById('email-otp-0')?.focus();
         } else {
+          // Always show a toast so it's visible regardless of scroll position
+          this.showToast(res.message || 'Registration failed. Please try again.', 'error');
           this.showAuthMessage(res.message, 'error');
+          // Scroll auth screen to top so inline error is visible
+          const authScreen = document.getElementById('auth-screen');
+          if (authScreen) authScreen.scrollTop = 0;
+          // If this phone is already a verified account, switch to sign-in tab
+          if (res.isExistingVerified) {
+            setTimeout(() => {
+              const loginTab = document.getElementById('auth-tab-login');
+              if (loginTab) loginTab.click();
+              const loginPhone = document.getElementById('login-phone');
+              if (loginPhone) loginPhone.value = document.getElementById('reg-phone')?.value || '';
+            }, 800);
+          }
         }
       });
     }
