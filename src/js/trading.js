@@ -53,7 +53,8 @@ export class TradingEngine {
       durationSec,
       expiryTimestamp,
       status: 'active',
-      inTheMoney: false
+      inTheMoney: false,
+      accountType: wallet.getType()
     };
 
     this.activeTrades.push(trade);
@@ -66,10 +67,10 @@ export class TradingEngine {
       direction: isCallDir ? 'CALL' : 'PUT',
       amount,
       duration: durationSec,
-      accountType: wallet.getType()
+      accountType: trade.accountType
     }).then(res => {
       if (res.ok && res.data.success && res.data.updatedBalance !== undefined) {
-        if (wallet.getType() === 'real') {
+        if (trade.accountType === 'real') {
           wallet.realBalance = res.data.updatedBalance;
           localStorage.setItem('tycoon_real_balance', wallet.realBalance.toString());
         } else {
@@ -147,12 +148,12 @@ export class TradingEngine {
     if (isWin) {
       profit = trade.amount * (trade.payoutRate / 100);
       payout = trade.amount + profit;
-      wallet.credit(payout);
+      wallet.credit(payout, trade.accountType || null);
       sound.playWin();
       this.triggerSettlementUI(trade, true, payout, exitPrice);
     } else if (isTie) {
       payout = trade.amount;
-      wallet.credit(payout);
+      wallet.credit(payout, trade.accountType || null);
       this.triggerSettlementUI(trade, 'tie', payout, exitPrice);
     } else {
       profit = -trade.amount;

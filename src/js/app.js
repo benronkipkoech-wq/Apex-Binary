@@ -1391,6 +1391,23 @@ class App {
       menuRealEl.textContent = wallet.formatCurrency(realBalance);
     }
 
+    // Keep dropdown active states in sync
+    const itemDemo = document.getElementById('menu-select-demo');
+    const itemReal = document.getElementById('menu-select-real');
+    if (itemDemo) itemDemo.classList.toggle('active', !isReal);
+    if (itemReal) itemReal.classList.toggle('active', isReal);
+
+    // Keep trade desk quick mode switcher in sync
+    const deskBtnDemo = document.getElementById('desk-btn-demo');
+    const deskBtnReal = document.getElementById('desk-btn-real');
+    if (deskBtnDemo) deskBtnDemo.classList.toggle('active', !isReal);
+    if (deskBtnReal) deskBtnReal.classList.toggle('active', isReal);
+
+    const deskDemoBal = document.getElementById('desk-demo-bal');
+    const deskRealBal = document.getElementById('desk-real-bal');
+    if (deskDemoBal) deskDemoBal.textContent = wallet.formatCurrency(demoBalance);
+    if (deskRealBal) deskRealBal.textContent = wallet.formatCurrency(realBalance);
+
     const withdrawAvail = document.getElementById('withdraw-avail-balance');
     if (withdrawAvail) {
       withdrawAvail.textContent = wallet.formatCurrency(realBalance);
@@ -2395,14 +2412,29 @@ class App {
 
     document.getElementById('menu-select-demo').addEventListener('click', () => {
       wallet.setType('demo');
+      sound.playClick();
       walletMenu.classList.add('hidden');
       this.showToast('Switched to Demo Account (KSh)', 'info');
     });
 
     document.getElementById('menu-select-real').addEventListener('click', () => {
       wallet.setType('real');
+      sound.playClick();
       walletMenu.classList.add('hidden');
       this.showToast('Switched to Real Account (KES)', 'info');
+    });
+
+    // Trade Desk Quick Switcher (Demo vs Real)
+    document.getElementById('desk-btn-demo')?.addEventListener('click', () => {
+      wallet.setType('demo');
+      sound.playClick();
+      this.showToast('Switched to Demo Account (Virtual KSh)', 'info');
+    });
+
+    document.getElementById('desk-btn-real')?.addEventListener('click', () => {
+      wallet.setType('real');
+      sound.playClick();
+      this.showToast('Switched to Real Account (Live KES)', 'info');
     });
 
     document.getElementById('btn-reload-demo').addEventListener('click', (e) => {
@@ -2411,16 +2443,31 @@ class App {
       this.showToast('Demo balance reset to KSh 1,000,000.00', 'success');
     });
 
+    const openDepositFlow = () => {
+      if (!auth.isLoggedIn()) {
+        this.openModal('auth-screen');
+        this.showToast('Please sign in or create an account to deposit funds', 'info');
+        return;
+      }
+      const user = auth.getUser();
+      const phoneInput = document.getElementById('mpesa-phone-input');
+      if (phoneInput && user?.phone && !phoneInput.value) {
+        phoneInput.value = user.phone;
+      }
+      this.openModal('modal-mpesa-deposit');
+    };
+
     document.getElementById('btn-menu-deposit').addEventListener('click', (e) => {
       e.stopPropagation();
       walletMenu.classList.add('hidden');
-      this.openModal('modal-mpesa-deposit');
+      sound.playClick();
+      openDepositFlow();
     });
 
     // 8. M-Pesa Deposit Flow
     document.getElementById('btn-header-deposit').addEventListener('click', () => {
       sound.playClick();
-      this.openModal('modal-mpesa-deposit');
+      openDepositFlow();
     });
 
     document.getElementById('btn-close-deposit-modal').addEventListener('click', () => {
@@ -2439,130 +2486,148 @@ class App {
     });
 
     document.getElementById('btn-submit-stk-push').addEventListener('click', async () => {
-      const phone = document.getElementById('mpesa-phone-input').value.trim();
+      if (!auth.isLoggedIn()) {
+        this.closeModal('modal-mpesa-deposit');
+        this.openModal('auth-screen');
+        this.showToast('Please sign in or register before making a deposit', 'info');
+        return;
+      }
+
+      const rawPhone = document.getElementById('mpesa-phone-input').value.trim();
       const amount = parseFloat(customAmtInput.value) || 0;
 
-      if (!phone || phone.length < 9) {
-        this.showToast('Please enter a valid Safaricom phone number', 'error');
+      // Extract raw digits & normalize Safaricom numbers
+      let digits = rawPhone.replace(/\D/g, '');
+      if (digits.startsWith('254') && digits.length === 12) {
+        digits = digits.substring(3);
+      } else if (digits.startsWith('0') && digits.length === 10) {
+        digits = digits.substring(1);
+      }
+
+      if (digits.length !== 9) {
+        this.showToast('Please enter a valid Safaricom phone number (e.g. 0712 345 678)', 'error');
         return;
       }
-      if (amount < 50) {
-        this.showToast('Minimum M-Pesa deposit is KSh 50', 'error');
+      if (amount < 10) {
+        this.showToast('Minimum M-Pesa deposit is KSh 10', 'error');
         return;
       }
+
+      const formattedPhone = '254' + digits;
 
       sound.playClick();
       const btn = document.getElementById('btn-submit-stk-push');
       const originalText = btn.innerHTML;
-      btn.innerHTML = '<span>Processing...</span>';
+      btn.innerHTML = '<span>Sending STK Push...</span>';
       btn.disabled = true;
 
-      const res = await api.depositMpesa(amount, phone);
-      
-      btn.innerHTML = originalText;
-      btn.disabled = false;
+      try {
+        const res = await api.depositMpesa(amount, formattedPhone);
+        
+        btn.innerHTML = originalText;
+        btn.disabled = false;
 
-      if (res.ok && res.data.success) {
-        const data = res.data;
-        if (data.isLive) {
-          // Show step 3 in WAITING state
-          document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
-          const step3 = document.getElementById('mpesa-deposit-step-3');
-          step3.classList.remove('hidden');
+        if (res.ok && res.data && res.data.success) {
+          const data = res.data;
+          if (data.isLive) {
+            // Live gateway (PayHero / Daraja STK Push directly to phone)
+            document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
+            const step3 = document.getElementById('mpesa-deposit-step-3');
+            step3.classList.remove('hidden');
 
-          const waitingEl = document.getElementById('mpesa-step3-waiting');
-          const doneEl = document.getElementById('mpesa-step3-done');
-          const countdownEl = document.getElementById('mpesa-step3-countdown');
-          const resultTitle = document.getElementById('mpesa-step3-result-title');
-          const resultIcon = document.getElementById('mpesa-step3-icon');
+            const waitingEl = document.getElementById('mpesa-step3-waiting');
+            const doneEl = document.getElementById('mpesa-step3-done');
+            const countdownEl = document.getElementById('mpesa-step3-countdown');
+            const resultTitle = document.getElementById('mpesa-step3-result-title');
+            const resultIcon = document.getElementById('mpesa-step3-icon');
 
-          // Show waiting pane, hide result pane
-          if (waitingEl) waitingEl.style.display = '';
-          if (doneEl) doneEl.style.display = 'none';
+            if (waitingEl) waitingEl.style.display = '';
+            if (doneEl) doneEl.style.display = 'none';
 
-          // 90-second countdown
-          let secs = 90;
-          const countdownTimer = setInterval(() => {
-            secs--;
-            if (countdownEl) countdownEl.textContent = secs;
-            if (secs <= 0) clearInterval(countdownTimer);
-          }, 1000);
+            let secs = 90;
+            const countdownTimer = setInterval(() => {
+              secs--;
+              if (countdownEl) countdownEl.textContent = secs;
+              if (secs <= 0) clearInterval(countdownTimer);
+            }, 1000);
 
-          this.showToast(`M-Pesa STK Push sent to +254${phone}. Check your phone!`, 'success');
+            this.showToast(`M-Pesa STK Push sent to +${formattedPhone}. Check your phone!`, 'success');
 
-          const ref = data.checkoutRequestId;
-          if (ref) {
-            let attempts = 0;
-            const maxAttempts = 30; // 90s at 3s interval
-            const pollInterval = setInterval(async () => {
-              attempts++;
-              try {
-                const checkRes = await api.getDepositStatus(ref);
-                if (checkRes.ok && checkRes.data) {
-                  if (checkRes.data.status === 'COMPLETED') {
-                    clearInterval(pollInterval);
-                    clearInterval(countdownTimer);
-                    sound.playMpesaCash();
-                    wallet.credit(checkRes.data.amount, 'real');
-                    wallet.setType('real');
-                    await wallet.syncBalance();
-                    // Transition to success state
-                    if (waitingEl) waitingEl.style.display = 'none';
-                    if (doneEl) doneEl.style.display = '';
-                    if (resultIcon) { resultIcon.textContent = '✓'; resultIcon.style.color = '#00f59b'; }
-                    if (resultTitle) resultTitle.textContent = 'Deposit Successful! 🎉';
-                    const receiptCode = checkRes.data.mpesaReceipt || ('PH' + Date.now());
-                    const newBal = (checkRes.data.updatedRealBalance || wallet.realBalance).toLocaleString('en-KE');
-                    document.getElementById('mpesa-receipt-code').textContent =
-                      `${receiptCode} Confirmed. KSh ${checkRes.data.amount?.toLocaleString() || amount.toLocaleString()} sent to Apex Binary. New Real Balance: KSh ${newBal}`;
-                    this.showToast(`KSh ${(checkRes.data.amount || amount).toLocaleString()} deposited successfully!`, 'success');
-                  } else if (checkRes.data.status === 'FAILED') {
-                    clearInterval(pollInterval);
-                    clearInterval(countdownTimer);
-                    // Transition to fail state
-                    if (waitingEl) waitingEl.style.display = 'none';
-                    if (doneEl) doneEl.style.display = '';
-                    if (resultIcon) { resultIcon.textContent = '✕'; resultIcon.style.color = '#ff4d6d'; }
-                    if (resultTitle) resultTitle.textContent = 'Payment Not Completed';
-                    document.getElementById('mpesa-receipt-code').textContent =
-                      checkRes.data.rejectionReason || 'The M-Pesa request was cancelled or timed out. Please try again.';
-                    this.showToast('M-Pesa payment failed or cancelled', 'error');
+            const ref = data.checkoutRequestId;
+            if (ref) {
+              let attempts = 0;
+              const maxAttempts = 36; // 90s at 2.5s interval
+              const pollInterval = setInterval(async () => {
+                attempts++;
+                try {
+                  const checkRes = await api.getDepositStatus(ref);
+                  if (checkRes.ok && checkRes.data) {
+                    if (checkRes.data.status === 'COMPLETED') {
+                      clearInterval(pollInterval);
+                      clearInterval(countdownTimer);
+                      sound.playMpesaCash();
+                      wallet.credit(checkRes.data.amount || amount, 'real');
+                      wallet.setType('real');
+                      await wallet.syncBalance();
+                      if (waitingEl) waitingEl.style.display = 'none';
+                      if (doneEl) doneEl.style.display = '';
+                      if (resultIcon) { resultIcon.textContent = '✓'; resultIcon.style.color = '#00f59b'; }
+                      if (resultTitle) resultTitle.textContent = 'Deposit Successful! 🎉';
+                      const receiptCode = checkRes.data.mpesaReceipt || ('PH' + Date.now());
+                      const newBal = (checkRes.data.updatedRealBalance || wallet.realBalance).toLocaleString('en-KE');
+                      document.getElementById('mpesa-receipt-code').textContent =
+                        `${receiptCode} Confirmed. KSh ${(checkRes.data.amount || amount).toLocaleString()} sent to Apex Binary. New Real Balance: KSh ${newBal}`;
+                      this.showToast(`KSh ${(checkRes.data.amount || amount).toLocaleString()} deposited successfully!`, 'success');
+                    } else if (checkRes.data.status === 'FAILED') {
+                      clearInterval(pollInterval);
+                      clearInterval(countdownTimer);
+                      if (waitingEl) waitingEl.style.display = 'none';
+                      if (doneEl) doneEl.style.display = '';
+                      if (resultIcon) { resultIcon.textContent = '✕'; resultIcon.style.color = '#ff4d6d'; }
+                      if (resultTitle) resultTitle.textContent = 'Payment Not Completed';
+                      document.getElementById('mpesa-receipt-code').textContent =
+                        checkRes.data.rejectionReason || 'The M-Pesa request was cancelled or timed out. Please try again.';
+                      this.showToast('M-Pesa payment failed or cancelled', 'error');
+                    }
                   }
+                } catch (e) { /* ignore transient errors */ }
+
+                if (attempts >= maxAttempts) {
+                  clearInterval(pollInterval);
+                  clearInterval(countdownTimer);
+                  if (waitingEl) waitingEl.style.display = 'none';
+                  if (doneEl) doneEl.style.display = '';
+                  if (resultIcon) { resultIcon.textContent = '⏱'; resultIcon.style.color = '#f59e0b'; }
+                  if (resultTitle) resultTitle.textContent = 'Request Timed Out';
+                  document.getElementById('mpesa-receipt-code').textContent =
+                    'The M-Pesa prompt expired. If you entered your PIN, your balance will update shortly.';
                 }
-              } catch (e) { /* ignore transient errors */ }
-              if (attempts >= maxAttempts) {
-                clearInterval(pollInterval);
-                clearInterval(countdownTimer);
-                // Timeout
-                if (waitingEl) waitingEl.style.display = 'none';
-                if (doneEl) doneEl.style.display = '';
-                if (resultIcon) { resultIcon.textContent = '⏱'; resultIcon.style.color = '#f59e0b'; }
-                if (resultTitle) resultTitle.textContent = 'Request Timed Out';
-                document.getElementById('mpesa-receipt-code').textContent =
-                  'The M-Pesa prompt expired. If you entered your PIN, your balance will update shortly. Otherwise, please try again.';
-              }
-            }, 3000);
+              }, 2500);
+            }
+          } else {
+            // Interactive STK Simulator Mode
+            wallet.clearPin();
+            this.updatePinDots();
+            document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
+            document.getElementById('mpesa-deposit-step-2').classList.remove('hidden');
+            document.getElementById('stk-prompt-amount').textContent = amount.toLocaleString();
+            document.getElementById('stk-prompt-phone').textContent = `+${formattedPhone}`;
+            const doneEl2 = document.getElementById('mpesa-step3-done');
+            const waitEl2 = document.getElementById('mpesa-step3-waiting');
+            if (doneEl2) doneEl2.style.display = '';
+            if (waitEl2) waitEl2.style.display = 'none';
+            const ri = document.getElementById('mpesa-step3-icon');
+            const rt = document.getElementById('mpesa-step3-result-title');
+            if (ri) { ri.textContent = '✓'; ri.style.color = ''; }
+            if (rt) rt.textContent = 'Deposit Successful!';
           }
         } else {
-          // Sandbox Simulator - show fake M-Pesa PIN screen
-          wallet.clearPin();
-          this.updatePinDots();
-          document.getElementById('mpesa-deposit-step-1').classList.add('hidden');
-          document.getElementById('mpesa-deposit-step-2').classList.remove('hidden');
-          document.getElementById('stk-prompt-amount').textContent = amount.toLocaleString();
-          document.getElementById('stk-prompt-phone').textContent = `+254${phone}`;
-          // Ensure step3 is in default state for next time
-          const doneEl2 = document.getElementById('mpesa-step3-done');
-          const waitEl2 = document.getElementById('mpesa-step3-waiting');
-          if (doneEl2) doneEl2.style.display = '';
-          if (waitEl2) waitEl2.style.display = 'none';
-          const ri = document.getElementById('mpesa-step3-icon');
-          const rt = document.getElementById('mpesa-step3-result-title');
-          if (ri) { ri.textContent = '✓'; ri.style.color = ''; }
-          if (rt) rt.textContent = 'Deposit Successful!';
+          this.showToast(res.data?.message || 'Deposit failed. Please try again.', 'error');
         }
-      } else {
-        this.showToast(res.data?.message || 'Deposit failed. Please try again.', 'error');
+      } catch (err) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+        this.showToast(err.message || 'Network error initiating deposit.', 'error');
       }
     });
 

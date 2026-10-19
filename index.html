@@ -1120,6 +1120,24 @@
             <span class="payout-highlight" id="desk-payout-rate">+98%</span>
           </div>
 
+          <!-- Account Mode Quick Switcher (Demo vs Real) -->
+          <div class="desk-mode-toggle" id="desk-mode-toggle" title="Switch between Demo practice funds and Real KES balance">
+            <button type="button" class="desk-mode-btn active" id="desk-btn-demo">
+              <span class="mode-title-row">
+                <span class="mode-dot gold"></span>
+                <span>Demo</span>
+              </span>
+              <span class="mode-bal-sub" id="desk-demo-bal">KSh 1,000,000</span>
+            </button>
+            <button type="button" class="desk-mode-btn" id="desk-btn-real">
+              <span class="mode-title-row">
+                <span class="mode-dot green"></span>
+                <span>Real Live</span>
+              </span>
+              <span class="mode-bal-sub" id="desk-real-bal">KSh 0.00</span>
+            </button>
+          </div>
+
           <!-- Expiry Duration -->
           <div class="desk-section">
             <div class="section-label-row">
@@ -1254,7 +1272,7 @@
             <label for="mpesa-phone-input">Safaricom Phone Number</label>
             <div class="phone-input-wrapper">
               <span class="phone-prefix">🇰🇪 +254</span>
-              <input type="tel" id="mpesa-phone-input" placeholder="712 345 678" value="712345678" maxlength="9">
+              <input type="tel" id="mpesa-phone-input" placeholder="0712 345 678" maxlength="13">
             </div>
             <small class="helper-text">Enter Safaricom number (e.g. 712345678 or 112345678)</small>
           </div>
@@ -1379,7 +1397,7 @@
             <label for="withdraw-phone-input">M-Pesa Recipient Phone Number</label>
             <div class="phone-input-wrapper">
               <span class="phone-prefix">🇰🇪 +254</span>
-              <input type="tel" id="withdraw-phone-input" placeholder="712 345 678" value="712345678" maxlength="9">
+              <input type="tel" id="withdraw-phone-input" placeholder="0712 345 678" maxlength="13">
             </div>
           </div>
 
