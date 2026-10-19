@@ -5723,3 +5723,112 @@ body.theme-dark::before {
     max-width: none;
   }
 }
+
+/* ── Custom Dark Glass Scrollbars ─────────────────────────────────────── */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 99px;
+  transition: background 0.2s ease;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 245, 155, 0.4);
+}
+
+/* ── Elite Glassmorphic Modals ────────────────────────────────────────── */
+.modal-overlay {
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  background: rgba(5, 8, 14, 0.82) !important;
+  transition: opacity 0.25s ease;
+}
+
+.modal-card {
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.08), 0 0 40px rgba(0, 245, 155, 0.04) !important;
+}
+
+/* ── Input Neon Focus Rings ───────────────────────────────────────────── */
+.auth-input:focus,
+.phone-input-wrapper input:focus,
+.custom-amt-wrapper input:focus,
+#withdraw-phone-input:focus,
+#withdraw-amount-input:focus,
+#mpesa-phone-input:focus,
+#mpesa-custom-amount:focus {
+  border-color: rgba(0, 245, 155, 0.6) !important;
+  box-shadow: 0 0 0 3px rgba(0, 245, 155, 0.18), 0 0 20px rgba(0, 245, 155, 0.12) !important;
+  outline: none !important;
+}
+
+/* ── Keypad Dynamic Glow & Tap Feedback ───────────────────────────────── */
+.keypad-btn {
+  transition: transform 0.1s ease, background 0.15s ease, box-shadow 0.15s ease !important;
+}
+.keypad-btn:active {
+  background: rgba(0, 245, 155, 0.25) !important;
+  box-shadow: 0 0 16px rgba(0, 245, 155, 0.45) !important;
+  transform: scale(0.93) !important;
+}
+.keypad-del:active {
+  background: rgba(255, 77, 109, 0.25) !important;
+  box-shadow: 0 0 16px rgba(255, 77, 109, 0.45) !important;
+  transform: scale(0.93) !important;
+}
+
+/* ── Active Trade Live Cards & Progress Shimmer ───────────────────────── */
+.trade-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+.trade-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5) !important;
+}
+.trade-card.in-the-money {
+  border-left: 3px solid #00f59b !important;
+  box-shadow: inset 0 0 20px rgba(0, 245, 155, 0.05), 0 0 15px rgba(0, 245, 155, 0.15) !important;
+}
+.trade-card.out-of-money {
+  border-left: 3px solid #ff4d6d !important;
+  box-shadow: inset 0 0 20px rgba(255, 77, 109, 0.05) !important;
+}
+.trade-progress-fill {
+  background: linear-gradient(90deg, #00f59b, #00d2ff, #00f59b);
+  background-size: 200% 100%;
+  animation: progressShimmer 2.5s linear infinite;
+}
+
+@keyframes progressShimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* ── Quick Chips & Stepper Buttons ────────────────────────────────────── */
+.mpesa-amt-btn.active {
+  border-color: #00f59b !important;
+  background: rgba(0, 245, 155, 0.12) !important;
+  box-shadow: 0 0 18px rgba(0, 245, 155, 0.28) !important;
+  font-weight: 700;
+  transform: translateY(-1px);
+}
+.amount-chip {
+  transition: transform 0.12s ease, border-color 0.15s ease, background 0.15s ease;
+}
+.amount-chip:hover {
+  border-color: rgba(0, 245, 155, 0.4);
+  transform: translateY(-1px);
+}
+.amount-chip:active {
+  transform: scale(0.93);
+}
+
+.expiry-pill.active {
+  background: linear-gradient(135deg, rgba(0, 245, 155, 0.2), rgba(0, 210, 255, 0.15)) !important;
+  border-color: #00f59b !important;
+  box-shadow: 0 0 14px rgba(0, 245, 155, 0.25) !important;
+}

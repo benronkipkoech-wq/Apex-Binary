@@ -381,7 +381,7 @@ class App {
           sound.playTick();
         } else if (this.authPins.login.length < 4) {
           this.authPins.login += key;
-          sound.playTick();
+          sound.playKeypadBeep();
         }
         updatePinDisplay('login', this.authPins.login);
         if (this.authPins.login.length === 4) {
@@ -418,11 +418,11 @@ class App {
         if (this.authPins.reg.length < 4) {
           this.authPins.reg += key;
           updatePinDisplay('reg', this.authPins.reg);
-          sound.playTick();
+          sound.playKeypadBeep();
         } else if (this.authPins.regConfirm.length < 4) {
           this.authPins.regConfirm += key;
           updatePinDisplay('regConfirm', this.authPins.regConfirm);
-          sound.playTick();
+          sound.playKeypadBeep();
         }
       }
     };
@@ -629,6 +629,16 @@ class App {
           inlineErr.style.display = 'block';
           this.showToast(msg, 'error');
           this.showAuthMessage(msg, 'error');
+          sound.playLoss();
+          for (let i = 0; i < 4; i++) {
+            const dot = document.getElementById(`reg-confirm-dot-${i}`);
+            if (dot) {
+              dot.classList.remove('filled');
+              void dot.offsetWidth;
+              dot.classList.add('error');
+            }
+          }
+          this.authPins.regConfirm = '';
           return;
         }
 
