@@ -3805,6 +3805,11 @@ input:checked + .slider:before {
    2FA OTP MODAL
    ========================================================================== */
 
+#modal-email-verify,
+#modal-2fa {
+  z-index: 100002 !important;
+}
+
 .modal-2fa-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);

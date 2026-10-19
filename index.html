@@ -376,14 +376,15 @@
        EMAIL VERIFICATION MODAL (Post-Registration OTP)
        ============================================================ -->
   <div class="modal-overlay hidden" id="modal-email-verify">
-    <div class="modal-card modal-2fa-card">
+    <div class="modal-card modal-2fa-card" style="position:relative;">
+      <button class="auth-close-btn" id="btn-close-email-verify" title="Close" style="top:12px;right:12px;">✕</button>
       <div class="modal-2fa-header">
-        <span class="modal-2fa-icon">📧</span>
-        <h3>Verify Your Email</h3>
-        <p id="email-verify-desc">Enter the 6-digit code sent to your email address to activate your account.</p>
+        <span class="modal-2fa-icon">🔐</span>
+        <h3>Authentication Code</h3>
+        <p id="email-verify-desc">Enter the 6-digit authentication code sent to your email or Safaricom phone to activate your account.</p>
       </div>
       <div class="otp-input-group" id="email-otp-input-group">
-        <input type="tel" class="otp-digit" id="email-otp-0" maxlength="1">
+        <input type="tel" class="otp-digit" id="email-otp-0" maxlength="1" autocomplete="one-time-code">
         <input type="tel" class="otp-digit" id="email-otp-1" maxlength="1">
         <input type="tel" class="otp-digit" id="email-otp-2" maxlength="1">
         <input type="tel" class="otp-digit" id="email-otp-3" maxlength="1">

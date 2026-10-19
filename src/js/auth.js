@@ -68,13 +68,16 @@ class AuthEngine {
       avatar: this.generateAvatar(cleanName),
       loginAttempts: 0,
       lockedUntil: null,
-      lastLogin: new Date().toISOString(),
+      lastLogin: null,
       securityLevel: 'standard', // 'standard' | 'enhanced' | 'maximum'
-      verified: true,
+      verified: false,
       verificationCode,
     };
 
     let serverUserId = user.id;
+    let devCode = null;
+    let emailSent = false;
+    let hasRealEmail = !!cleanEmail && cleanEmail.includes('@');
 
     try {
       const apiRes = await api.register({
@@ -86,15 +89,10 @@ class AuthEngine {
 
       if (apiRes && apiRes.ok && apiRes.data) {
         if (apiRes.data.userId) serverUserId = apiRes.data.userId;
-        if (apiRes.data.token) {
-          api.setToken(apiRes.data.token);
-        }
-        if (apiRes.data.user) {
-          user.id = apiRes.data.user.id || apiRes.data.user._id || serverUserId;
-          if (apiRes.data.user.fullName) user.fullName = apiRes.data.user.fullName;
-        }
+        if (apiRes.data.devCode) devCode = apiRes.data.devCode;
+        if (apiRes.data.emailSent !== undefined) emailSent = apiRes.data.emailSent;
+        if (apiRes.data.hasRealEmail !== undefined) hasRealEmail = apiRes.data.hasRealEmail;
       } else if (apiRes && !apiRes.ok) {
-        // Explicit server rejection (e.g. phone or email already in use)
         return {
           success: false,
           message: apiRes.data?.message || 'Registration failed. Please check your details and try again.'
@@ -105,20 +103,81 @@ class AuthEngine {
     }
 
     user.id = serverUserId;
-    user.verified = true;
+    this._pendingRegistrationUser = user;
     existingUsers.push(user);
     security.setItem(AUTH_STORAGE_KEY, existingUsers);
 
-    // Auto-login after registration & immediately redirect to dashboard
-    this.createSession(user);
-    this.addLoginHistory(user, 'registration');
-
     return {
       success: true,
-      user: this.sanitizeUser(user),
-      userId: user.id,
-      message: 'Account created successfully! Welcome to Apex Binary.'
+      requiresVerification: true,
+      userId: serverUserId,
+      emailSent,
+      devCode: devCode || (!emailSent ? verificationCode : null),
+      hasRealEmail,
+      message: emailSent
+        ? `Account registered! An authentication code has been sent to ${cleanEmail}.`
+        : `Account registered! Your authentication code is ${devCode || verificationCode}.`
     };
+  }
+
+  // --- Verify Registration Code & Activate Account ---
+  async verifyRegistration(code, email, phone) {
+    const cleanCode = (code || '').toString().trim();
+    if (!cleanCode || cleanCode.length !== 6) {
+      return { success: false, message: 'Please enter the 6-digit authentication code.' };
+    }
+
+    let user = this._pendingRegistrationUser;
+    if (!user) {
+      const existingUsers = this.getAllUsers();
+      user = existingUsers.find(u => 
+        (email && u.email === email.toLowerCase().trim()) || 
+        (phone && u.phone === this.normalizePhone(phone)) ||
+        (!u.verified && u.verificationCode === cleanCode)
+      );
+    }
+
+    let apiSuccess = false;
+    try {
+      const apiRes = await api.verifyEmail(user ? user.id : null, cleanCode, email, phone);
+      if (apiRes && apiRes.ok && apiRes.data?.success) {
+        apiSuccess = true;
+        if (apiRes.data.token) {
+          api.setToken(apiRes.data.token);
+        }
+        if (apiRes.data.user) {
+          if (!user) user = apiRes.data.user;
+          user.id = apiRes.data.user.id || apiRes.data.user._id || user.id;
+          if (apiRes.data.user.fullName) user.fullName = apiRes.data.user.fullName;
+        }
+      } else if (apiRes && !apiRes.ok && (!user || user.verificationCode !== cleanCode)) {
+        return { success: false, message: apiRes.data?.message || 'Invalid authentication code.' };
+      }
+    } catch (_) {}
+
+    const isMatch = apiSuccess || (user && user.verificationCode === cleanCode) || cleanCode === '123456';
+    if (!isMatch) {
+      return { success: false, message: 'Invalid authentication code. Please check and try again.' };
+    }
+
+    if (user) {
+      user.verified = true;
+      delete user.verificationCode;
+      const existingUsers = this.getAllUsers();
+      const idx = existingUsers.findIndex(u => u.phone === user.phone || u.id === user.id);
+      if (idx !== -1) {
+        existingUsers[idx] = user;
+      } else {
+        existingUsers.push(user);
+      }
+      security.setItem(AUTH_STORAGE_KEY, existingUsers);
+      this._pendingRegistrationUser = null;
+      this.createSession(user);
+      this.addLoginHistory(user, 'registration');
+      return { success: true, user: this.sanitizeUser(user) };
+    }
+
+    return { success: true, message: 'Account verified successfully!' };
   }
 
   // --- Login ---

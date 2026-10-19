@@ -29,25 +29,16 @@ router.post('/register', async (req, res) => {
     const traderName = fullName || 'Apex Trader';
 
     if (!isDbConnected()) {
-      // Local/offline demo mode token for instant trader experience
-      const mockTrader = {
-        _id: 'trader_' + userPhone,
-        userId: 'trader_' + userPhone,
-        email: userEmail,
-        phone: userPhone,
-        fullName: traderName,
-        role: 'trader',
-        balances: { demo: 1000000, real: 0 },
-        isVerified: true,
-      };
-      const token = generateToken(mockTrader);
+      // Offline / local demo mode: provide demo authentication code
+      const demoCode = '123456';
       return res.status(201).json({
         success: true,
+        requiresVerification: true,
         offlineMode: true,
-        message: 'Account created successfully (Offline Demo Mode).',
-        token,
-        userId: mockTrader._id,
-        user: mockTrader,
+        userId: 'trader_' + userPhone,
+        devCode: demoCode,
+        devMode: true,
+        message: `Account created! Enter authentication code ${demoCode} to activate your dashboard.`,
       });
     }
 
@@ -68,26 +59,35 @@ router.post('/register', async (req, res) => {
         real: 0,
       },
       verificationCode,
-      isVerified: true,
+      isVerified: false,
     });
 
     await user.save();
 
-    // Send verification/welcome email in background if configured
-    if (hasRealEmail) {
-      sendVerificationEmail(user.email, verificationCode).catch(emailErr => {
-        console.error('[Registration Email Error]:', emailErr.message);
-      });
-    }
+    // Send verification code email
+    let emailSent = false;
+    let emailWarning = null;
 
-    const token = generateToken(user);
+    if (hasRealEmail) {
+      try {
+        const emailResult = await sendVerificationEmail(user.email, verificationCode);
+        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
+      } catch (emailErr) {
+        console.error('[Registration Email Error]:', emailErr.message);
+        emailWarning = emailErr.message;
+      }
+    }
 
     return res.status(201).json({
       success: true,
-      token,
+      requiresVerification: true,
       userId: user._id,
-      user,
-      message: 'Account created successfully! Welcome to Apex Binary.',
+      emailSent,
+      hasRealEmail,
+      message: emailSent
+        ? `Account created! A 6-digit authentication code has been sent to ${user.email}.`
+        : `Account created! Your authentication code is ${verificationCode}.`,
+      ...(!emailSent && { devCode: verificationCode, devMode: true }),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
@@ -200,7 +200,22 @@ router.post('/verify-email', async (req, res) => {
     }
 
     if (!isDbConnected()) {
-      return res.json({ success: true, message: 'Email verified successfully (Demo Mode). You can now log in.' });
+      const mockTrader = {
+        _id: userId || 'trader_' + cleanPhone(phone || '254700000000'),
+        email: email || 'demo@apexbinary.ke',
+        phone: cleanPhone(phone || '254700000000'),
+        fullName: 'Apex Trader',
+        role: 'trader',
+        balances: { demo: 1000000, real: 0 },
+        isVerified: true,
+      };
+      const token = generateToken(mockTrader);
+      return res.json({
+        success: true,
+        token,
+        user: mockTrader,
+        message: 'Account verified successfully (Demo Mode). Welcome to Apex Binary!',
+      });
     }
 
     let user = null;
@@ -218,7 +233,8 @@ router.post('/verify-email', async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found.' });
     }
     if (user.isVerified) {
-      return res.json({ success: true, message: 'Account already verified.' });
+      const token = generateToken(user);
+      return res.json({ success: true, token, user, message: 'Account already verified.' });
     }
     if (user.verificationCode !== code.toString().trim()) {
       return res.status(400).json({ success: false, message: 'Invalid verification code.' });
@@ -226,7 +242,14 @@ router.post('/verify-email', async (req, res) => {
     user.isVerified = true;
     user.verificationCode = undefined;
     await user.save();
-    return res.json({ success: true, message: 'Email verified successfully. You can now log in.' });
+
+    const token = generateToken(user);
+    return res.json({
+      success: true,
+      token,
+      user,
+      message: 'Account verified successfully! Welcome to Apex Binary.',
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Verification failed', error: error.message });
   }

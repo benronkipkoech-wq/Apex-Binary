@@ -484,13 +484,47 @@ class App {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
 
         if (res.success) {
-          sound.playTradeWon();
-          this.closeAuthModal();
-          document.getElementById('modal-email-verify')?.classList.add('hidden');
-          this.toggleAuthState(true);
-          wallet.syncBalance();
-          this.showToast(`Welcome to Apex Binary, ${res.user?.fullName || 'Trader'}! Account created successfully.`, 'success');
-          return;
+          sound.playClick();
+
+          this._pendingVerifyUserId = res.userId;
+          this._pendingVerifyEmail = (document.getElementById('reg-email')?.value || '').trim();
+          this._pendingVerifyPhone = (document.getElementById('reg-phone')?.value || '').trim();
+
+          const emailVerifyModal = document.getElementById('modal-email-verify');
+          const descEl = document.getElementById('email-verify-desc');
+          const emailVerifyMsg = document.getElementById('email-verify-msg');
+          if (emailVerifyMsg) emailVerifyMsg.textContent = '';
+
+          const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
+          emailOtpInputs.forEach(i => i.value = '');
+
+          if (res.emailSent && this._pendingVerifyEmail) {
+            if (descEl) descEl.textContent = `Enter the 6-digit authentication code sent to ${this._pendingVerifyEmail} to activate your account.`;
+            this.showToast('Authentication code sent! Please check your email.', 'success');
+          } else if (res.devCode) {
+            const digits = res.devCode.toString().split('');
+            emailOtpInputs.forEach((inp, idx) => {
+              inp.value = digits[idx] || '';
+            });
+            if (descEl) {
+              descEl.textContent = this._pendingVerifyEmail
+                ? `Authentication code: ${res.devCode} (entered for you below).`
+                : `Your authentication code is ${res.devCode} (entered for you below).`;
+            }
+            if (emailVerifyMsg) {
+              emailVerifyMsg.textContent = `Authentication code: ${res.devCode}. Click Verify to enter dashboard.`;
+              emailVerifyMsg.style.color = '#00f59b';
+            }
+            this.showToast(`Your authentication code: ${res.devCode}`, 'info');
+          } else {
+            if (descEl) descEl.textContent = `Enter the 6-digit authentication code to activate your account.`;
+            this.showToast('Please enter your authentication code.', 'info');
+          }
+
+          if (emailVerifyModal) {
+            emailVerifyModal.classList.remove('hidden');
+          }
+          document.getElementById('email-otp-0')?.focus();
         } else {
           this.showAuthMessage(res.message, 'error');
         }
@@ -526,6 +560,11 @@ class App {
         twoFaOtpInputs.forEach(i => i.value = '');
         twoFaOtpInputs[0].focus();
       }
+    });
+
+    // Close button on authentication code modal
+    document.getElementById('btn-close-email-verify')?.addEventListener('click', () => {
+      document.getElementById('modal-email-verify')?.classList.add('hidden');
     });
 
     // Email OTP Verification Logic (post-registration)
@@ -564,22 +603,21 @@ class App {
       if (btn) { btn.disabled = true; btn.textContent = 'Verifying...'; }
       showEmailOtpMsg('');
       try {
-        const res = await api.verifyEmail(
-          this._pendingVerifyUserId,
+        const res = await auth.verifyRegistration(
           code,
           this._pendingVerifyEmail,
           this._pendingVerifyPhone
         );
-        if (res && res.ok && res.data?.success) {
+        if (res && res.success) {
           document.getElementById('modal-email-verify')?.classList.add('hidden');
           this.closeAuthModal();
           sound.playTradeWon();
-          this.showToast('Account verified! Welcome to your dashboard.', 'success');
+          this.showToast(`Welcome to Apex Binary, ${res.user?.fullName || 'Trader'}! Account activated.`, 'success');
           this.toggleAuthState(true);
           wallet.syncBalance();
           clearEmailOtp();
         } else {
-          showEmailOtpMsg(res?.data?.message || 'Invalid code. Please try again.');
+          showEmailOtpMsg(res?.message || 'Invalid code. Please try again.');
           clearEmailOtp();
         }
       } catch (err) {
