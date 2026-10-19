@@ -232,6 +232,18 @@ class AuthEngine {
           };
           users.push(user);
           this.saveUsers(users);
+        } else if (apiRes?.data?.requiresVerification) {
+          // Account exists on server but is unverified — surface OTP modal
+          this._pendingVerifyUserId = apiRes.data.userId;
+          return {
+            success: false,
+            requiresVerification: true,
+            userId: apiRes.data.userId,
+            emailSent: apiRes.data.emailSent || false,
+            devCode: apiRes.data.devCode || null,
+            hasRealEmail: apiRes.data.hasRealEmail || false,
+            message: apiRes.data.message || 'Account not yet verified. Please check your email for the verification code.'
+          };
         } else {
           return { success: false, message: apiRes?.data?.message || 'No account found with this phone number.' };
         }
@@ -259,6 +271,18 @@ class AuthEngine {
           this.createSession(user);
           this.addLoginHistory(user, 'login');
           return { success: true, user: this.sanitizeUser(user) };
+        } else if (apiRes?.data?.requiresVerification) {
+          // Account exists but is unverified — surface OTP modal
+          this._pendingVerifyUserId = apiRes.data.userId;
+          return {
+            success: false,
+            requiresVerification: true,
+            userId: apiRes.data.userId,
+            emailSent: apiRes.data.emailSent || false,
+            devCode: apiRes.data.devCode || null,
+            hasRealEmail: apiRes.data.hasRealEmail || false,
+            message: apiRes.data.message || 'Account not yet verified. Please enter your verification code.'
+          };
         }
       } catch (_) {}
 

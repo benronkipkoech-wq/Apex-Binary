@@ -451,42 +451,50 @@ class App {
         }
 
         const res = await auth.login(phone, pin);
-        if (res.success) {
-          if (res.requiresVerification) {
-            // Account exists but email/OTP not yet verified — show OTP modal
-            sound.playClick();
-            this._pendingVerifyUserId = res.userId;
-            this._pendingVerifyEmail = (document.getElementById('login-phone')?.value || '').trim();
-            this._pendingVerifyPhone = phone;
 
-            const emailVerifyModal = document.getElementById('modal-email-verify');
-            const descEl = document.getElementById('email-verify-desc');
-            const emailVerifyMsg = document.getElementById('email-verify-msg');
-            if (emailVerifyMsg) emailVerifyMsg.textContent = '';
+        // Helper: show OTP verification modal
+        const showVerifyModal = () => {
+          sound.playClick();
+          this._pendingVerifyUserId = res.userId;
+          this._pendingVerifyEmail = (document.getElementById('login-phone')?.value || '').trim();
+          this._pendingVerifyPhone = phone;
 
-            const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
-            emailOtpInputs.forEach(i => i.value = '');
+          const emailVerifyModal = document.getElementById('modal-email-verify');
+          const descEl = document.getElementById('email-verify-desc');
+          const emailVerifyMsg = document.getElementById('email-verify-msg');
+          if (emailVerifyMsg) emailVerifyMsg.textContent = '';
 
-            if (res.devCode) {
-              const digits = res.devCode.toString().split('');
-              emailOtpInputs.forEach((inp, idx) => { inp.value = digits[idx] || ''; });
-              if (descEl) descEl.textContent = `Your account needs verification. Authentication code: ${res.devCode} (entered below).`;
-              if (emailVerifyMsg) {
-                emailVerifyMsg.textContent = `Code: ${res.devCode}. Click Verify to activate your account.`;
-                emailVerifyMsg.style.color = '#00f59b';
-              }
-              this.showToast(`Verify your account. Code: ${res.devCode}`, 'info');
-            } else {
-              if (descEl) descEl.textContent = 'Enter the 6-digit authentication code sent to your email to activate your account.';
-              this.showToast('Please verify your account first.', 'info');
+          const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
+          emailOtpInputs.forEach(i => i.value = '');
+
+          if (res.devCode) {
+            const digits = res.devCode.toString().split('');
+            emailOtpInputs.forEach((inp, idx) => { inp.value = digits[idx] || ''; });
+            if (descEl) descEl.textContent = `Your account needs verification. Authentication code: ${res.devCode} (entered below).`;
+            if (emailVerifyMsg) {
+              emailVerifyMsg.textContent = `Code: ${res.devCode}. Click Verify to activate your account.`;
+              emailVerifyMsg.style.color = '#00f59b';
             }
+            this.showToast(`Verify your account. Code: ${res.devCode}`, 'info');
+          } else {
+            if (descEl) descEl.textContent = res.message || 'Enter the 6-digit authentication code sent to your email to activate your account.';
+            this.showToast(res.message || 'Please verify your account first.', 'info');
+          }
 
-            if (emailVerifyModal) {
-              emailVerifyModal.classList.remove('hidden');
-              emailVerifyModal.style.display = 'flex';
-            }
-            document.getElementById('email-otp-0')?.focus();
-          } else if (res.requires2FA) {
+          if (emailVerifyModal) {
+            emailVerifyModal.classList.remove('hidden');
+            emailVerifyModal.style.display = 'flex';
+          }
+          document.getElementById('email-otp-0')?.focus();
+        };
+
+        if (res.requiresVerification) {
+          // Account exists but not yet verified — show OTP modal regardless of res.success
+          showVerifyModal();
+          const inlineLoginErr = loginForm.querySelector('.auth-inline-error');
+          if (inlineLoginErr) inlineLoginErr.style.display = 'none';
+        } else if (res.success) {
+          if (res.requires2FA) {
             document.getElementById('modal-2fa').classList.remove('hidden');
             this.showToast(`2FA required. Hint: ${res.otpHint}`, 'info');
             document.getElementById('otp-0').focus();
