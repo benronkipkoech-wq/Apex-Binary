@@ -132,8 +132,12 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
   }
 
   const formattedPhone = formatMpesaPhone(phone);
-  const cbUrl = callbackUrl || process.env.PAYHERO_CALLBACK_URL;
+  let cbUrl = callbackUrl || process.env.PAYHERO_CALLBACK_URL;
+  if (!cbUrl || cbUrl.includes('your-domain.onrender.com')) {
+    cbUrl = 'https://www.myapexbinary.site/api/wallet/deposit/callback';
+  }
   const baseUrl = getApiBaseUrl();
+  const apiKey = (process.env.PAYHERO_API_KEY || '').trim();
 
   const payload = {
     amount: Math.round(amount),
@@ -157,6 +161,22 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
     },
     body: JSON.stringify(payload),
   });
+
+  // If 401 Unauthorized and using raw API Key, try Bearer format
+  if (response.status === 401 && apiKey && !authHeader.startsWith('Bearer ')) {
+    const bearerHeader = `Bearer ${apiKey}`;
+    const retryAuthRes = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': bearerHeader,
+      },
+      body: JSON.stringify(payload),
+    });
+    if (retryAuthRes.ok) {
+      response = retryAuthRes;
+    }
+  }
 
   if (response.status === 404) {
     // Fallback to /payments
