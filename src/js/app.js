@@ -547,6 +547,20 @@ class App {
           twoFaOtpInputs[index - 1].focus();
         }
       });
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, twoFaOtpInputs.length);
+        if (pasteData) {
+          pasteData.split('').forEach((char, i) => {
+            if (twoFaOtpInputs[i]) twoFaOtpInputs[i].value = char;
+          });
+          const nextIndex = Math.min(pasteData.length, twoFaOtpInputs.length - 1);
+          twoFaOtpInputs[nextIndex]?.focus();
+          if (pasteData.length === twoFaOtpInputs.length) {
+            document.getElementById('btn-verify-otp')?.click();
+          }
+        }
+      });
     });
 
     document.getElementById('btn-verify-otp')?.addEventListener('click', () => {
@@ -589,6 +603,20 @@ class App {
       input.addEventListener('keydown', (e) => {
         if (e.key === 'Backspace' && !e.target.value && index > 0) {
           emailOtpInputs[index - 1].focus();
+        }
+      });
+      input.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+        if (pasteData) {
+          pasteData.split('').forEach((char, i) => {
+            if (emailOtpInputs[i]) emailOtpInputs[i].value = char;
+          });
+          const nextIndex = Math.min(pasteData.length, emailOtpInputs.length - 1);
+          emailOtpInputs[nextIndex]?.focus();
+          if (pasteData.length === 6) {
+            document.getElementById('btn-verify-email-otp')?.click();
+          }
         }
       });
     });
