@@ -62,8 +62,7 @@ class AuthEngine {
       if (apiRes && apiRes.ok && apiRes.data) {
         const d = apiRes.data;
         const serverUserId = d.userId || d.user?._id || ('usr_' + Date.now().toString(36));
-        const devCode = d.devCode || null;
-        const emailSent = d.emailSent !== undefined ? d.emailSent : false;
+        const emailSent = d.emailSent !== undefined ? d.emailSent : true;
         const hasRealEmail = d.hasRealEmail !== undefined ? d.hasRealEmail : (!!cleanEmail && cleanEmail.includes('@'));
 
         // Sync local user cache
@@ -85,13 +84,11 @@ class AuthEngine {
             lastLogin: null,
             securityLevel: 'standard',
             verified: false,
-            verificationCode: devCode,
           };
           existingUsers.push(user);
         } else {
           user.id = serverUserId;
           user.pinHash = this.hashPin(pin);
-          user.verificationCode = devCode;
           if (cleanName) user.fullName = cleanName;
           if (cleanEmail) user.email = cleanEmail;
         }
@@ -102,12 +99,10 @@ class AuthEngine {
           success: true,
           requiresVerification: true,
           userId: serverUserId,
+          email: cleanEmail || d.email,
           emailSent,
-          devCode,
           hasRealEmail,
-          message: d.message || (emailSent
-            ? `Account registered! An authentication code has been sent to ${cleanEmail}.`
-            : `Account registered! Your authentication code is ${devCode}.`)
+          message: d.message || `Account created! An authentication code has been sent to ${cleanEmail}.`
         };
       }
 
@@ -308,10 +303,11 @@ class AuthEngine {
           success: false,
           requiresVerification: true,
           userId: apiRes.data.userId,
-          emailSent: apiRes.data.emailSent || false,
-          devCode: apiRes.data.devCode || null,
-          hasRealEmail: apiRes.data.hasRealEmail || false,
-          message: apiRes.data.message || 'Account not yet verified. Please enter your verification code.'
+          email: apiRes.data.email,
+          phone: apiRes.data.phone,
+          emailSent: apiRes.data.emailSent || true,
+          hasRealEmail: apiRes.data.hasRealEmail || true,
+          message: apiRes.data.message || 'Account not yet verified. An authentication code has been sent to your email.'
         };
       }
 

@@ -78,21 +78,24 @@ router.post('/register', async (req, res) => {
         await existingUser.save();
 
         if (hasRealEmail) {
-          sendVerificationEmail(existingUser.email, verificationCode).catch(emailErr => {
+          try {
+            await sendVerificationEmail(existingUser.email, verificationCode);
+            console.log(`[Resume Registration] Verification email sent to ${existingUser.email}`);
+          } catch (emailErr) {
             console.error('[Resume Registration Email Error]:', emailErr.message);
-          });
+          }
         }
 
         return res.status(200).json({
           success: true,
           requiresVerification: true,
           userId: existingUser._id,
+          email: existingUser.email,
           emailSent: hasRealEmail,
           hasRealEmail,
-          devCode: verificationCode,
           message: hasRealEmail
-            ? `Account pending verification. An authentication code is being sent to ${existingUser.email}.`
-            : `Account pending verification. Your authentication code is ${verificationCode}.`,
+            ? `Account pending verification. An authentication code has been sent to ${existingUser.email}.`
+            : 'Account pending verification. Please verify your account.',
         });
       }
 
@@ -120,23 +123,25 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Send verification code email asynchronously (fire-and-forget) so response returns immediately
     if (hasRealEmail) {
-      sendVerificationEmail(user.email, verificationCode).catch(emailErr => {
+      try {
+        await sendVerificationEmail(user.email, verificationCode);
+        console.log(`[Registration] Verification email sent to ${user.email}`);
+      } catch (emailErr) {
         console.error('[Registration Email Error]:', emailErr.message);
-      });
+      }
     }
 
     return res.status(201).json({
       success: true,
       requiresVerification: true,
       userId: user._id,
+      email: user.email,
       emailSent: hasRealEmail,
       hasRealEmail,
-      devCode: verificationCode,
       message: hasRealEmail
-        ? `Account created! An authentication code is being sent to ${user.email}.`
-        : `Account created! Your authentication code is ${verificationCode}.`,
+        ? `Account created! An authentication code has been sent to ${user.email}.`
+        : 'Account created! Please verify your account.',
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
@@ -224,9 +229,12 @@ router.post('/login', async (req, res) => {
 
       const isReal = user.email && !user.email.endsWith('@apexbinary.ke');
       if (isReal) {
-        sendVerificationEmail(user.email, verificationCode).catch(e => {
+        try {
+          await sendVerificationEmail(user.email, verificationCode);
+          console.log(`[Login Unverified] Verification email sent to ${user.email}`);
+        } catch (e) {
           console.error('[Login Verification Email Error]:', e.message);
-        });
+        }
       }
 
       return res.status(200).json({
@@ -236,10 +244,9 @@ router.post('/login', async (req, res) => {
         email: user.email,
         phone: user.phone,
         emailSent: isReal,
-        devCode: verificationCode,
         message: isReal
-          ? `Account not yet verified. An authentication code is being sent to ${user.email}.`
-          : `Account not yet verified. Your authentication code is ${verificationCode}.`,
+          ? `Account not yet verified. An authentication code has been sent to ${user.email}.`
+          : 'Account not yet verified. Please verify your account.',
       });
     }
     const token = generateToken(user);
@@ -368,20 +375,23 @@ router.post('/resend-verification', async (req, res) => {
 
     const hasRealEmail = user.email && user.email.includes('@') && !user.email.endsWith('@apexbinary.ke');
     if (hasRealEmail) {
-      sendVerificationEmail(user.email, verificationCode).catch(err => {
+      try {
+        await sendVerificationEmail(user.email, verificationCode);
+        console.log(`[Resend Verification] Email sent to ${user.email}`);
+      } catch (err) {
         console.error('[Resend Verification Error]:', err.message);
-      });
+      }
     }
 
     return res.json({
       success: true,
       userId: user._id,
+      email: user.email,
       emailSent: hasRealEmail,
       hasRealEmail,
-      devCode: verificationCode,
       message: hasRealEmail
         ? `A fresh verification code has been dispatched to ${user.email}.`
-        : `Your fresh verification code is ${verificationCode}.`,
+        : 'A fresh verification code has been generated.',
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to resend verification code', error: error.message });
@@ -545,20 +555,23 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
 
     const hasRealEmail = user.email && user.email.includes('@') && !user.email.endsWith('@apexbinary.ke');
     if (hasRealEmail) {
-      sendPinResetEmail(user.email, resetCode, credentialType).catch(emailErr => {
+      try {
+        await sendPinResetEmail(user.email, resetCode, credentialType);
+        console.log(`[Forgot ${credentialType}] Reset code sent to ${user.email}`);
+      } catch (emailErr) {
         console.error(`[Email delivery error] ${emailErr.message}`);
-      });
+      }
     }
 
     return res.json({
       success: true,
       userId: user._id,
+      email: user.email,
       emailSent: hasRealEmail,
       hasRealEmail,
-      devCode: resetCode,
       message: hasRealEmail
-        ? `A 6-digit ${credentialType} reset code is being sent to your email address (${user.email}).`
-        : `Account registered via phone. Your reset authentication code is ${resetCode}.`,
+        ? `A 6-digit ${credentialType} reset code has been sent to your email address (${user.email}).`
+        : `Please contact support to reset your ${credentialType}.`,
     });
   } catch (error) {
     console.error(`[forgot-${credentialType}]`, error);

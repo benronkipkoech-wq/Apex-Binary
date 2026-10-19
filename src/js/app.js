@@ -508,19 +508,11 @@ class App {
           const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
           emailOtpInputs.forEach(i => i.value = '');
 
-          if (res.devCode) {
-            const digits = res.devCode.toString().split('');
-            emailOtpInputs.forEach((inp, idx) => { inp.value = digits[idx] || ''; });
-            if (descEl) descEl.textContent = `Your account needs verification. Authentication code: ${res.devCode} (entered below).`;
-            if (emailVerifyMsg) {
-              emailVerifyMsg.textContent = `Code: ${res.devCode}. Click Verify to activate your account.`;
-              emailVerifyMsg.style.color = '#00f59b';
-            }
-            this.showToast(`Verify your account. Code: ${res.devCode}`, 'info');
-          } else {
-            if (descEl) descEl.textContent = res.message || 'Enter the 6-digit authentication code sent to your email to activate your account.';
-            this.showToast(res.message || 'Please verify your account first.', 'info');
+          const targetEmail = res.email || this._pendingVerifyEmail || 'your email';
+          if (descEl) {
+            descEl.innerHTML = `Your account is pending verification. Enter the 6-digit authentication code sent to <strong style="color:#00f59b;">${targetEmail}</strong>.`;
           }
+          this.showToast(`Authentication code sent to ${targetEmail}! Check your inbox.`, 'info');
 
           if (emailVerifyModal) {
             emailVerifyModal.classList.remove('hidden');
@@ -612,6 +604,16 @@ class App {
           return;
         }
 
+        if (!email || !email.includes('@') || !email.includes('.')) {
+          const msg = 'Please enter a valid email address to receive your authentication code.';
+          inlineErr.textContent = msg;
+          inlineErr.style.display = 'block';
+          this.showToast(msg, 'error');
+          this.showAuthMessage(msg, 'error');
+          document.getElementById('reg-email')?.focus();
+          return;
+        }
+
         if (!pinVal || pinVal.length !== 4) {
           const msg = 'Please create a 4-digit PIN using the keypad below.';
           inlineErr.textContent = msg;
@@ -669,29 +671,11 @@ class App {
           const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
           emailOtpInputs.forEach(i => i.value = '');
 
-          // Always auto-fill devCode if provided so user can verify immediately
-          if (res.devCode) {
-            const digits = res.devCode.toString().split('');
-            emailOtpInputs.forEach((inp, idx) => {
-              inp.value = digits[idx] || '';
-            });
-            if (descEl) {
-              descEl.textContent = email
-                ? `Authentication code: ${res.devCode} (entered for you below). Also sent to ${email}.`
-                : `Your authentication code is ${res.devCode} (entered for you below).`;
-            }
-            if (emailVerifyMsg) {
-              emailVerifyMsg.textContent = `Authentication code: ${res.devCode}. Click Verify to enter dashboard.`;
-              emailVerifyMsg.style.color = '#00f59b';
-            }
-            this.showToast(`Your authentication code: ${res.devCode}`, 'info');
-          } else if (res.emailSent && email) {
-            if (descEl) descEl.textContent = `Enter the 6-digit authentication code sent to ${email} to activate your account.`;
-            this.showToast('Authentication code sent! Please check your email.', 'success');
-          } else {
-            if (descEl) descEl.textContent = `Enter the 6-digit authentication code to activate your account.`;
-            this.showToast('Please enter your authentication code.', 'info');
+          const targetEmail = email || res.email;
+          if (descEl) {
+            descEl.innerHTML = `Enter the 6-digit authentication code sent to <strong style="color:#00f59b;">${targetEmail}</strong> to activate your account.`;
           }
+          this.showToast(`Authentication code sent to ${targetEmail}! Check your inbox.`, 'success');
 
           if (emailVerifyModal) {
             emailVerifyModal.classList.remove('hidden');
@@ -858,17 +842,11 @@ class App {
         });
         if (res && res.ok && res.data?.success) {
           if (res.data.userId) this._pendingVerifyUserId = res.data.userId;
-          if (res.data.devCode) {
-            const digits = res.data.devCode.split('');
-            emailOtpInputs.forEach((inp, idx) => {
-              inp.value = digits[idx] || '';
-            });
-            showEmailOtpMsg(`Fresh authentication code: ${res.data.devCode} — entered for you.`, '#00f59b');
-            this.showToast(`Verification code: ${res.data.devCode}`, 'info');
-          } else {
-            showEmailOtpMsg('A new authentication code has been sent to your email.', '#00f59b');
-            this.showToast('Verification code sent! Check your inbox.', 'success');
-          }
+          const targetEmail = this._pendingVerifyEmail || 'your email';
+          showEmailOtpMsg(`A new authentication code has been sent to ${targetEmail}.`, '#00f59b');
+          this.showToast(`Verification code sent to ${targetEmail}! Check your inbox.`, 'success');
+          emailOtpInputs.forEach(i => i.value = '');
+          document.getElementById('email-otp-0')?.focus();
         } else {
           showEmailOtpMsg(res?.data?.message || 'Failed to resend. Try again shortly.');
         }
@@ -1062,25 +1040,12 @@ class App {
           showAuthPanel('forgot-pin-step2');
           document.getElementById('reset-otp-0')?.focus();
 
-          // Email didn't deliver or dev code available — show code directly and auto-fill OTP boxes
-          if (res.data?.devCode) {
-            const devCode = res.data.devCode;
-            const digits = devCode.split('');
-            document.querySelectorAll('#reset-otp-input-group .otp-digit').forEach((inp, i) => {
-              inp.value = digits[i] || '';
-            });
-            document.getElementById('forgot-step2-hint').textContent =
-              `Authentication code: ${devCode} — filled in automatically.`;
-            this.showAuthMessage(`Reset code: ${devCode} (auto-filled). Click Authenticate Code to proceed.`, 'info');
-          } else {
-            const dest = email
-              ? (email.split('@')[0].slice(0, 2) + '***@' + email.split('@')[1])
-              : (phone.slice(0, 4) + '***' + phone.slice(-3));
-            document.getElementById('forgot-step2-hint').textContent =
-              `Enter the 6-digit code sent to ${dest}`;
-            this.showAuthMessage(res.data?.message || 'Authentication code sent! Check your inbox.', 'success');
-            try { sound?.playTradeWon?.(); } catch (_) {}
-          }
+          const dest = email || (phone.slice(0, 4) + '***' + phone.slice(-3));
+          document.getElementById('forgot-step2-hint').innerHTML =
+            `Enter the 6-digit authentication code sent to <strong style="color:#00f59b;">${dest}</strong>.`;
+          this.showAuthMessage(res.data?.message || 'Authentication code sent! Please check your inbox.', 'success');
+          this.showToast('Reset code sent! Check your inbox.', 'success');
+          try { sound?.playTradeWon?.(); } catch (_) {}
           return;
         }
 
@@ -1133,18 +1098,10 @@ class App {
         } catch (e) {}
 
         if (res && (res.ok || res.data?.success)) {
-          if (res.data?.devCode) {
-            const devCode = res.data.devCode;
-            const digits = devCode.split('');
-            resetOtpInputs.forEach((inp, i) => {
-              inp.value = digits[i] || '';
-            });
-            this.showAuthMessage(`Fresh authentication code: ${devCode} — filled in automatically.`, 'info');
-          } else {
-            this.showAuthMessage('A fresh authentication code has been sent.', 'success');
-            resetOtpInputs.forEach(i => i.value = '');
-            resetOtpInputs[0]?.focus();
-          }
+          this.showAuthMessage('A fresh authentication code has been sent to your email.', 'success');
+          this.showToast('Fresh reset code sent! Check your inbox.', 'success');
+          resetOtpInputs.forEach(i => i.value = '');
+          resetOtpInputs[0]?.focus();
           return;
         }
 
