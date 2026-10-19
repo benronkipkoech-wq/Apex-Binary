@@ -11,6 +11,16 @@ const getApiBaseUrl = () => {
   return url.replace(/\/+$/, '');
 };
 
+// Startup diagnostic — visible in Render logs immediately
+const _apiKey = (process.env.PAYHERO_API_KEY || process.env.PAYHERO_API_TOKEN || process.env.PAYHERO_TOKEN || '').trim();
+const _username = (process.env.PAYHERO_API_USERNAME || process.env.PAYHERO_USERNAME || '').trim();
+const _channelId = (process.env.PAYHERO_CHANNEL_ID || process.env.PAYHERO_CHANNEL || process.env.CHANNEL_ID || '').trim();
+console.log('[PayHero] API Key set:', !!_apiKey, _apiKey ? '| prefix: ' + _apiKey.slice(0, 8) + '...' : '| MISSING');
+console.log('[PayHero] Username set:', !!_username, _username ? '| ' + _username.slice(0, 4) + '...' : '| MISSING');
+console.log('[PayHero] Channel ID:', _channelId || 'MISSING (will auto-discover)');
+console.log('[PayHero] Configured (will use live STK):', !!(_apiKey || (_username && (process.env.PAYHERO_API_PASSWORD || '').trim())));
+
+
 /**
  * Format Safaricom phone numbers to 2547XXXXXXXX or 2541XXXXXXXX
  */
