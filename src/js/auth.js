@@ -276,6 +276,27 @@ class AuthEngine {
     user.lastLogin = new Date().toISOString();
     this.saveUsers(users);
 
+    // --- Email/OTP Verification Gate ---
+    // If the account has never been verified, force OTP before granting access
+    if (!user.verified) {
+      // Re-use existing code or generate a fresh one
+      const code = user.verificationCode || this.generateOTP();
+      if (!user.verificationCode) {
+        user.verificationCode = code;
+        this.saveUsers(users);
+      }
+      this._pendingRegistrationUser = user;
+      return {
+        success: true,
+        requiresVerification: true,
+        userId: user.id,
+        emailSent: false,
+        devCode: code,
+        hasRealEmail: !!user.email && user.email.includes('@'),
+        message: `Please verify your account first. Your authentication code is ${code}.`
+      };
+    }
+
     // Sync trader session with backend API to acquire JWT
     api.login(normalizedPhone, pin).catch(() => {});
 
