@@ -4,6 +4,8 @@
  * Docs: https://docs.payhero.co.ke
  */
 
+let cachedChannelId = null;
+
 const getApiBaseUrl = () => {
   const url = process.env.PAYHERO_API_URL || 'https://backend.payhero.co.ke/api/v2';
   return url.replace(/\/+$/, '');
@@ -28,12 +30,36 @@ export function formatMpesaPhone(phone) {
 }
 
 /**
- * Get Basic Auth Header for PayHero API
+ * Get credentials from environment with alias support
+ */
+export function getPayHeroCredentials() {
+  const username = (process.env.PAYHERO_API_USERNAME || process.env.PAYHERO_USERNAME || '').trim();
+  const password = (process.env.PAYHERO_API_PASSWORD || process.env.PAYHERO_PASSWORD || '').trim();
+  const apiKey = (
+    process.env.PAYHERO_API_KEY ||
+    process.env.PAYHERO_KEY ||
+    process.env.PAYHERO_API_TOKEN ||
+    process.env.PAYHERO_TOKEN ||
+    process.env.PAYHERO_SECRET ||
+    ''
+  ).trim();
+
+  const channelId = (
+    process.env.PAYHERO_CHANNEL_ID ||
+    process.env.PAYHERO_CHANNEL ||
+    process.env.CHANNEL_ID ||
+    process.env.PAYHERO_PAYBILL ||
+    ''
+  ).trim();
+
+  return { username, password, apiKey, channelId };
+}
+
+/**
+ * Get Basic / Bearer Auth Header for PayHero API
  */
 export function getAuthHeader() {
-  const username = (process.env.PAYHERO_API_USERNAME || '').trim();
-  const password = (process.env.PAYHERO_API_PASSWORD || '').trim();
-  const apiKey = (process.env.PAYHERO_API_KEY || '').trim();
+  const { username, password, apiKey } = getPayHeroCredentials();
 
   if (username && password) {
     return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
@@ -53,12 +79,11 @@ export function getAuthHeader() {
 }
 
 /**
- * Check if PayHero credentials are configured in environment
+ * Check if PayHero is configured
  */
 export function isPayHeroConfigured() {
   const auth = getAuthHeader();
-  const channelId = (process.env.PAYHERO_CHANNEL_ID || '').trim();
-  return Boolean(auth && channelId);
+  return Boolean(auth);
 }
 
 /**
@@ -117,18 +142,35 @@ export async function getTransactionStatus(reference) {
 
 /**
  * Initiate an M-Pesa STK Push via PayHero
- * @param {Object} params
- * @param {number} params.amount
- * @param {string} params.phone
- * @param {string} params.reference
- * @param {string} [params.callbackUrl]
  */
 export async function initiateStkPush({ amount, phone, reference, callbackUrl }) {
   const authHeader = getAuthHeader();
-  const channelId = (process.env.PAYHERO_CHANNEL_ID || '').trim();
+  const { channelId, apiKey } = getPayHeroCredentials();
 
-  if (!authHeader || !channelId) {
-    throw new Error('PayHero is not fully configured (missing PAYHERO_API_USERNAME/PASSWORD or PAYHERO_API_KEY, and PAYHERO_CHANNEL_ID)');
+  if (!authHeader) {
+    throw new Error('PayHero credentials missing (set PAYHERO_API_KEY or PAYHERO_API_USERNAME & PAYHERO_API_PASSWORD)');
+  }
+
+  // Resolve channel ID: use env or auto-discover from PayHero portal
+  let activeChannel = channelId || cachedChannelId;
+  if (!activeChannel) {
+    try {
+      const channelsRes = await getPaymentChannels();
+      const list = Array.isArray(channelsRes)
+        ? channelsRes
+        : (channelsRes.data || channelsRes.channels || []);
+      if (list && list.length > 0) {
+        activeChannel = list[0].id || list[0].channel_id;
+        cachedChannelId = activeChannel;
+        console.log(`[PayHero Auto-Discovered Channel ID]: ${activeChannel}`);
+      }
+    } catch (err) {
+      console.warn('[PayHero Channel Discovery Warning]:', err.message);
+    }
+  }
+
+  if (!activeChannel) {
+    throw new Error('PayHero Channel ID is required. Please set PAYHERO_CHANNEL_ID in your environment or verify channels on payhero.co.ke');
   }
 
   const formattedPhone = formatMpesaPhone(phone);
@@ -137,12 +179,11 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
     cbUrl = 'https://www.myapexbinary.site/api/wallet/deposit/callback';
   }
   const baseUrl = getApiBaseUrl();
-  const apiKey = (process.env.PAYHERO_API_KEY || '').trim();
 
   const payload = {
     amount: Math.round(amount),
     phone_number: formattedPhone,
-    channel_id: isNaN(Number(channelId)) ? channelId : Number(channelId),
+    channel_id: isNaN(Number(activeChannel)) ? activeChannel : Number(activeChannel),
     provider: 'm-pesa',
     external_reference: reference,
   };
@@ -162,7 +203,7 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
     body: JSON.stringify(payload),
   });
 
-  // If 401 Unauthorized and using raw API Key, try Bearer format
+  // If 401 Unauthorized and using raw API Key, retry with Bearer format
   if (response.status === 401 && apiKey && !authHeader.startsWith('Bearer ')) {
     const bearerHeader = `Bearer ${apiKey}`;
     const retryAuthRes = await fetch(endpoint, {
@@ -202,6 +243,7 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
     success: true,
     data,
     reference,
+    channelId: activeChannel,
     checkoutRequestId: data.checkout_request_id || data.reference || reference,
     phone: formattedPhone,
   };
@@ -214,4 +256,5 @@ export default {
   getPaymentChannels,
   getTransactionStatus,
   getAuthHeader,
+  getPayHeroCredentials,
 };

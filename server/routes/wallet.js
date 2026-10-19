@@ -3,7 +3,7 @@ import Transaction from '../models/Transaction.js';
 import User from '../models/User.js';
 import { authenticate } from '../middleware/auth.js';
 import { isDbConnected } from '../config/db.js';
-import { initiateStkPush, isPayHeroConfigured, formatMpesaPhone, getTransactionStatus } from '../services/payheroService.js';
+import { initiateStkPush, isPayHeroConfigured, formatMpesaPhone, getTransactionStatus, getPayHeroCredentials, getAuthHeader } from '../services/payheroService.js';
 
 const router = express.Router();
 
@@ -318,6 +318,26 @@ router.get('/transactions', authenticate, async (req, res) => {
     return res.json({ success: true, transactions });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PayHero diagnostic route to inspect configuration state
+router.get('/payhero-diagnostics', authenticate, async (req, res) => {
+  try {
+    const creds = getPayHeroCredentials();
+    const hasAuth = Boolean(getAuthHeader());
+    const isConfigured = isPayHeroConfigured();
+    return res.json({
+      success: true,
+      isConfigured,
+      hasAuth,
+      hasChannelId: Boolean(creds.channelId),
+      hasApiKey: Boolean(creds.apiKey),
+      hasUsername: Boolean(creds.username),
+      channelIdConfigured: creds.channelId || 'auto-discovery',
+    });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
