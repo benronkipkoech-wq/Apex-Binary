@@ -286,6 +286,9 @@ class App {
     const regForm = document.getElementById('auth-register-form');
 
     const switchAuthTab = (isLogin) => {
+      const loginPhone = document.getElementById('login-phone');
+      const regPhone = document.getElementById('reg-phone');
+
       if (isLogin) {
         loginTab.classList.add('active');
         regTab.classList.remove('active');
@@ -293,6 +296,9 @@ class App {
         loginForm.classList.remove('hidden');
         regForm.classList.add('hidden');
         this.activeAuthKeypad = 'login';
+        if (regPhone?.value && !loginPhone?.value) {
+          loginPhone.value = regPhone.value;
+        }
       } else {
         regTab.classList.add('active');
         loginTab.classList.remove('active');
@@ -300,6 +306,9 @@ class App {
         regForm.classList.remove('hidden');
         loginForm.classList.add('hidden');
         this.activeAuthKeypad = 'register';
+        if (loginPhone?.value && !regPhone?.value) {
+          regPhone.value = loginPhone.value;
+        }
       }
       this.clearAuthPins();
       const authScreen = document.getElementById('auth-screen');
@@ -485,9 +494,31 @@ class App {
             sound.playTradeWon(); // Success sound
             wallet.syncBalance();
           }
+          const inlineLoginErr = loginForm.querySelector('.auth-inline-error');
+          if (inlineLoginErr) inlineLoginErr.style.display = 'none';
         } else {
-          this.showAuthMessage(res.message, 'error');
-          this.showToast(res.message || 'Login failed. Please try again.', 'error');
+          let inlineLoginErr = loginForm.querySelector('.auth-inline-error');
+          if (!inlineLoginErr) {
+            inlineLoginErr = document.createElement('div');
+            inlineLoginErr.className = 'auth-inline-error';
+            inlineLoginErr.style.cssText = 'color:#ff4d6d;font-size:13px;text-align:center;margin:10px 0;padding:10px 14px;background:rgba(255,77,109,0.12);border-radius:6px;border:1px solid rgba(255,77,109,0.3);line-height:1.4;';
+            const btn = document.getElementById('btn-login');
+            if (btn && btn.parentNode) {
+              btn.parentNode.insertBefore(inlineLoginErr, btn);
+            }
+          }
+
+          let errMsg = res.message || 'Login failed. Please check your credentials.';
+          if (errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('no account')) {
+            errMsg = `No account found for +254 ${phone}. Please click "Create Account" above to register.`;
+          }
+          if (inlineLoginErr) {
+            inlineLoginErr.textContent = errMsg;
+            inlineLoginErr.style.display = 'block';
+          }
+
+          this.showAuthMessage(errMsg, 'error');
+          this.showToast(errMsg, 'error');
           this.clearAuthPins();
           // Error shake animation
           for (let i=0; i<4; i++) {
