@@ -120,6 +120,13 @@ class AuthEngine {
             message: apiRes.data?.message || 'This account is already registered. Please sign in.'
           };
         }
+        if (apiRes.status === 408) {
+          // Server timed out (email sending slow) — tell user to retry
+          return {
+            success: false,
+            message: 'Server is taking too long. Please try again in a moment.'
+          };
+        }
         console.warn('API registration non-OK, falling back to local OTP mode:', apiRes.data?.message);
       }
     } catch (e) {

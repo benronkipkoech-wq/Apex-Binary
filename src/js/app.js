@@ -545,20 +545,34 @@ class App {
       regForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const submitBtn = regForm.querySelector('button[type="submit"]') || regForm.querySelector('.auth-submit-btn');
+
+        // Guaranteed reset — runs even if auth.register() throws
+        const resetBtn = () => {
+          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
+        };
+
         if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating account...'; }
 
-        const pinVal = this.authPins?.reg || document.getElementById('reg-pin')?.value || '';
-        const confirmPinVal = this.authPins?.regConfirm || document.getElementById('reg-confirm-pin')?.value || '';
+        let res;
+        try {
+          const pinVal = this.authPins?.reg || document.getElementById('reg-pin')?.value || '';
+          const confirmPinVal = this.authPins?.regConfirm || document.getElementById('reg-confirm-pin')?.value || '';
 
-        const res = await auth.register({
-          fullName: (document.getElementById('reg-name')?.value || '').trim(),
-          phone: (document.getElementById('reg-phone')?.value || '').trim(),
-          email: (document.getElementById('reg-email')?.value || '').trim(),
-          pin: pinVal,
-          confirmPin: confirmPinVal
-        });
+          res = await auth.register({
+            fullName: (document.getElementById('reg-name')?.value || '').trim(),
+            phone: (document.getElementById('reg-phone')?.value || '').trim(),
+            email: (document.getElementById('reg-email')?.value || '').trim(),
+            pin: pinVal,
+            confirmPin: confirmPinVal
+          });
+        } catch (regErr) {
+          resetBtn();
+          this.showToast('Registration failed. Please try again.', 'error');
+          return;
+        }
 
-        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
+        resetBtn();
+
 
         // Manage inline error element directly above register button
         let inlineErr = regForm.querySelector('.auth-inline-error');

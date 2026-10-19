@@ -56,12 +56,13 @@ class ApiService {
 
   // Auth endpoints
   async register({ email, phone, password, pin, fullName }) {
-    const res = await this.request('/auth/register', 'POST', { email, phone, password, pin, fullName });
+    const res = await this.request('/auth/register', 'POST', { email, phone, password, pin, fullName }, 20000);
     if (res.ok && res.data.token) {
       this.setToken(res.data.token);
     }
     return res;
   }
+
 
   async login(identifier, secret) {
     const isEmail = identifier && identifier.includes('@');

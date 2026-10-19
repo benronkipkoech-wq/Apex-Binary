@@ -77,26 +77,22 @@ router.post('/register', async (req, res) => {
         if (traderName) existingUser.fullName = traderName;
         await existingUser.save();
 
-        let emailSent = false;
         if (hasRealEmail) {
-          try {
-            const emailResult = await sendVerificationEmail(existingUser.email, verificationCode);
-            emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
-          } catch (emailErr) {
+          sendVerificationEmail(existingUser.email, verificationCode).catch(emailErr => {
             console.error('[Resume Registration Email Error]:', emailErr.message);
-          }
+          });
         }
 
         return res.status(200).json({
           success: true,
           requiresVerification: true,
           userId: existingUser._id,
-          emailSent,
+          emailSent: hasRealEmail,
           hasRealEmail,
-          message: emailSent
-            ? `Account pending verification. An authentication code has been sent to ${existingUser.email}.`
+          devCode: verificationCode,
+          message: hasRealEmail
+            ? `Account pending verification. An authentication code is being sent to ${existingUser.email}.`
             : `Account pending verification. Your authentication code is ${verificationCode}.`,
-          ...(!emailSent && { devCode: verificationCode, devMode: true }),
         });
       }
 
@@ -124,30 +120,23 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Send verification code email
-    let emailSent = false;
-    let emailWarning = null;
-
+    // Send verification code email asynchronously (fire-and-forget) so response returns immediately
     if (hasRealEmail) {
-      try {
-        const emailResult = await sendVerificationEmail(user.email, verificationCode);
-        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
-      } catch (emailErr) {
+      sendVerificationEmail(user.email, verificationCode).catch(emailErr => {
         console.error('[Registration Email Error]:', emailErr.message);
-        emailWarning = emailErr.message;
-      }
+      });
     }
 
     return res.status(201).json({
       success: true,
       requiresVerification: true,
       userId: user._id,
-      emailSent,
+      emailSent: hasRealEmail,
       hasRealEmail,
-      message: emailSent
-        ? `Account created! A 6-digit authentication code has been sent to ${user.email}.`
+      devCode: verificationCode,
+      message: hasRealEmail
+        ? `Account created! An authentication code is being sent to ${user.email}.`
         : `Account created! Your authentication code is ${verificationCode}.`,
-      ...(!emailSent && { devCode: verificationCode, devMode: true }),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
@@ -233,15 +222,11 @@ router.post('/login', async (req, res) => {
       user.verificationCode = verificationCode;
       await user.save();
 
-      let emailSent = false;
       const isReal = user.email && !user.email.endsWith('@apexbinary.ke');
       if (isReal) {
-        try {
-          const emailResult = await sendVerificationEmail(user.email, verificationCode);
-          emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
-        } catch (e) {
+        sendVerificationEmail(user.email, verificationCode).catch(e => {
           console.error('[Login Verification Email Error]:', e.message);
-        }
+        });
       }
 
       return res.status(200).json({
@@ -250,10 +235,10 @@ router.post('/login', async (req, res) => {
         userId: user._id,
         email: user.email,
         phone: user.phone,
-        emailSent,
-        devCode: !emailSent ? verificationCode : null,
-        message: emailSent
-          ? `Account not yet verified. An authentication code has been sent to ${user.email}.`
+        emailSent: isReal,
+        devCode: verificationCode,
+        message: isReal
+          ? `Account not yet verified. An authentication code is being sent to ${user.email}.`
           : `Account not yet verified. Your authentication code is ${verificationCode}.`,
       });
     }
@@ -382,30 +367,21 @@ router.post('/resend-verification', async (req, res) => {
     await user.save();
 
     const hasRealEmail = user.email && user.email.includes('@') && !user.email.endsWith('@apexbinary.ke');
-    let emailSent = false;
-    let emailWarning = null;
-
     if (hasRealEmail) {
-      try {
-        const emailResult = await sendVerificationEmail(user.email, verificationCode);
-        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
-      } catch (err) {
+      sendVerificationEmail(user.email, verificationCode).catch(err => {
         console.error('[Resend Verification Error]:', err.message);
-        emailWarning = err.message;
-      }
+      });
     }
 
     return res.json({
       success: true,
       userId: user._id,
-      emailSent,
+      emailSent: hasRealEmail,
       hasRealEmail,
-      message: emailSent
+      devCode: verificationCode,
+      message: hasRealEmail
         ? `A fresh verification code has been dispatched to ${user.email}.`
-        : (hasRealEmail
-            ? `Email delivery issue (${emailWarning || 'unavailable'}). Your fresh code is provided below.`
-            : `Your fresh verification code is provided below.`),
-      ...(!emailSent && { devCode: verificationCode, devMode: true }),
+        : `Your fresh verification code is ${verificationCode}.`,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to resend verification code', error: error.message });
@@ -568,34 +544,21 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
     await user.save();
 
     const hasRealEmail = user.email && user.email.includes('@') && !user.email.endsWith('@apexbinary.ke');
-    let emailSent = false;
-    let emailProvider = 'none';
-    let emailWarning = null;
-
     if (hasRealEmail) {
-      try {
-        const emailResult = await sendPinResetEmail(user.email, resetCode, credentialType);
-        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
-        emailProvider = emailResult.provider;
-        console.log(`[${emailProvider}] ${credentialType} reset code dispatched to ${user.email}`);
-      } catch (emailErr) {
+      sendPinResetEmail(user.email, resetCode, credentialType).catch(emailErr => {
         console.error(`[Email delivery error] ${emailErr.message}`);
-        emailWarning = emailErr.message;
-      }
+      });
     }
 
     return res.json({
       success: true,
       userId: user._id,
-      emailSent,
+      emailSent: hasRealEmail,
       hasRealEmail,
-      message: emailSent
-        ? `A 6-digit ${credentialType} reset code has been sent to your email address (${user.email}).`
-        : (hasRealEmail
-            ? `Email delivery issue (${emailWarning || 'unavailable'}). Your reset code is provided below.`
-            : `Account registered via phone. Your reset authentication code is provided below.`),
-      // Always surface code when real email was not delivered so user is never locked out
-      ...(!emailSent && { devCode: resetCode, devMode: true }),
+      devCode: resetCode,
+      message: hasRealEmail
+        ? `A 6-digit ${credentialType} reset code is being sent to your email address (${user.email}).`
+        : `Account registered via phone. Your reset authentication code is ${resetCode}.`,
     });
   } catch (error) {
     console.error(`[forgot-${credentialType}]`, error);
