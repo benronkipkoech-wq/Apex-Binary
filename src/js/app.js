@@ -302,6 +302,8 @@ class App {
         this.activeAuthKeypad = 'register';
       }
       this.clearAuthPins();
+      const authScreen = document.getElementById('auth-screen');
+      if (authScreen) authScreen.scrollTop = 0;
       sound.playClick();
     };
 
@@ -2004,7 +2006,10 @@ class App {
 
   openModal(modalId) {
     const modal = document.getElementById(modalId);
-    if (modal) modal.classList.remove('hidden');
+    if (modal) {
+      modal.classList.remove('hidden');
+      modal.scrollTop = 0;
+    }
   }
 
   closeModal(modalId) {

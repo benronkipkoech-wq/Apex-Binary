@@ -3179,8 +3179,11 @@ input:checked + .slider:before {
   inset: 0;
   z-index: 99999;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   background: var(--bg-main);
   transition: opacity 0.5s ease, transform 0.5s ease;
 }
@@ -3249,7 +3252,8 @@ input:checked + .slider:before {
   z-index: 2;
   width: 100%;
   max-width: 440px;
-  padding: 0 20px;
+  padding: 24px 16px max(32px, env(safe-area-inset-bottom, 32px));
+  margin: auto;
   animation: authSlideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
@@ -3337,12 +3341,11 @@ input:checked + .slider:before {
 
 /* --- Auth Card --- */
 .auth-card {
+  position: relative;
   background: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-lg);
-  padding: 24px 16px 16px;   /* extra top padding */
-  max-height: 85vh;           /* keep card below top edge */
-  overflow-y: auto;          /* scroll when needed */
+  padding: 40px 18px 20px;
   backdrop-filter: blur(20px);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
@@ -4615,20 +4618,86 @@ input:checked + .slider:before {
 /* --- Responsive Auth --- */
 @media (max-width: 480px) {
   .auth-container {
-    padding: 0 16px;
+    padding: 16px 14px max(24px, env(safe-area-inset-bottom, 24px));
   }
 
-  .auth-card {
-    padding: 18px;
+  .auth-hero {
+    margin-bottom: 16px;
+  }
+
+  .auth-logo {
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+
+  .auth-logo-icon {
+    width: 56px;
   }
 
   .auth-brand {
     font-size: 22px;
   }
 
+  .auth-tagline {
+    font-size: 12px;
+    margin-bottom: 10px;
+  }
+
+  .auth-trust-badges {
+    gap: 8px;
+  }
+
+  .auth-trust-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+
+  .auth-card {
+    padding: 38px 14px 18px;
+    border-radius: var(--radius-md);
+  }
+
+  .auth-tabs {
+    margin-bottom: 14px;
+  }
+
+  .auth-tab {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .auth-input-group {
+    margin-bottom: 11px;
+  }
+
+  .auth-input {
+    padding: 10px 12px;
+    font-size: 13px;
+  }
+
+  .auth-pin-display {
+    padding: 8px 0;
+    gap: 10px;
+  }
+
+  .pin-dot {
+    width: 15px;
+    height: 15px;
+  }
+
+  .auth-keypad {
+    gap: 6px;
+    margin: 0 auto 12px;
+  }
+
   .keypad-btn {
+    padding: 10px;
+    font-size: 19px;
+  }
+
+  .auth-submit-btn {
     padding: 12px;
-    font-size: 20px;
+    font-size: 13px;
   }
 
   .security-panel {
@@ -4703,15 +4772,15 @@ input:checked + .slider:before {
 /* --- Auth Close Button --- */
 .auth-close-btn {
   position: absolute;
-  top: 16px;
-  right: 16px;
+  top: 12px;
+  right: 12px;
   background: rgba(255, 255, 255, 0.05);
   border: none;
   color: var(--text-muted);
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  font-size: 14px;
+  font-size: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
