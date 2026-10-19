@@ -277,24 +277,52 @@ class AuthEngine {
     this.saveUsers(users);
 
     // --- Email/OTP Verification Gate ---
-    // If the account has never been verified, force OTP before granting access
+    // If not verified locally, check backend first — they may be verified there
     if (!user.verified) {
-      // Re-use existing code or generate a fresh one
-      const code = user.verificationCode || this.generateOTP();
-      if (!user.verificationCode) {
-        user.verificationCode = code;
-        this.saveUsers(users);
+      try {
+        const apiRes = await api.login(normalizedPhone, pin);
+        if (apiRes && apiRes.ok) {
+          // Backend accepted — trust it, mark verified locally and proceed
+          user.verified = true;
+          user.verificationCode = null;
+          this.saveUsers(users);
+          // Fall through to session creation below
+        } else {
+          // Backend also doesn't recognize them — force OTP
+          const code = user.verificationCode || this.generateOTP();
+          if (!user.verificationCode) {
+            user.verificationCode = code;
+            this.saveUsers(users);
+          }
+          this._pendingRegistrationUser = user;
+          return {
+            success: true,
+            requiresVerification: true,
+            userId: user.id,
+            emailSent: false,
+            devCode: code,
+            hasRealEmail: !!user.email && user.email.includes('@'),
+            message: `Please verify your account. Your authentication code is ${code}.`
+          };
+        }
+      } catch (_) {
+        // API unreachable — fall back to OTP gate
+        const code = user.verificationCode || this.generateOTP();
+        if (!user.verificationCode) {
+          user.verificationCode = code;
+          this.saveUsers(users);
+        }
+        this._pendingRegistrationUser = user;
+        return {
+          success: true,
+          requiresVerification: true,
+          userId: user.id,
+          emailSent: false,
+          devCode: code,
+          hasRealEmail: !!user.email && user.email.includes('@'),
+          message: `Please verify your account. Your authentication code is ${code}.`
+        };
       }
-      this._pendingRegistrationUser = user;
-      return {
-        success: true,
-        requiresVerification: true,
-        userId: user.id,
-        emailSent: false,
-        devCode: code,
-        hasRealEmail: !!user.email && user.email.includes('@'),
-        message: `Please verify your account first. Your authentication code is ${code}.`
-      };
     }
 
     // Sync trader session with backend API to acquire JWT
