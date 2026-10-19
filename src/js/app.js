@@ -484,52 +484,13 @@ class App {
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
 
         if (res.success) {
-          sound.playClick();
-
-          // Instant demo login in offline mode
-          if (res.offlineMode) {
-            this.closeAuthModal();
-            this.showToast('Welcome to Apex Binary (Demo Mode)!', 'success');
-            return;
-          }
-
-          this._pendingVerifyUserId = res.userId;
-          this._pendingVerifyEmail = (document.getElementById('reg-email')?.value || '').trim();
-          this._pendingVerifyPhone = (document.getElementById('reg-phone')?.value || '').trim();
-
-          const emailVerifyModal = document.getElementById('modal-email-verify');
-          const descEl = document.getElementById('email-verify-desc');
-          const emailVerifyMsg = document.getElementById('email-verify-msg');
-          if (emailVerifyMsg) emailVerifyMsg.textContent = '';
-
-          const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
-          emailOtpInputs.forEach(i => i.value = '');
-
-          if (res.emailSent && this._pendingVerifyEmail) {
-            if (descEl) descEl.textContent = `Enter the 6-digit code sent to ${this._pendingVerifyEmail} to activate your account.`;
-            this.showToast('Verification code sent! Check your email.', 'success');
-          } else if (res.devCode) {
-            const digits = res.devCode.split('');
-            emailOtpInputs.forEach((inp, idx) => {
-              inp.value = digits[idx] || '';
-            });
-            if (descEl) {
-              descEl.textContent = this._pendingVerifyEmail
-                ? `Verification code: ${res.devCode} (entered for you below).`
-                : `Your authentication code is ${res.devCode} (entered for you below).`;
-            }
-            if (emailVerifyMsg) {
-              emailVerifyMsg.textContent = `Authentication code: ${res.devCode}. Click Verify below to activate.`;
-              emailVerifyMsg.style.color = '#00f59b';
-            }
-            this.showToast(`Your authentication code: ${res.devCode}`, 'info');
-          } else {
-            if (descEl) descEl.textContent = `Enter the 6-digit authentication code to activate your account.`;
-            this.showToast('Account created! Please enter verification code.', 'info');
-          }
-
-          if (emailVerifyModal) emailVerifyModal.classList.remove('hidden');
-          document.getElementById('email-otp-0')?.focus();
+          sound.playTradeWon();
+          this.closeAuthModal();
+          document.getElementById('modal-email-verify')?.classList.add('hidden');
+          this.toggleAuthState(true);
+          wallet.syncBalance();
+          this.showToast(`Welcome to Apex Binary, ${res.user?.fullName || 'Trader'}! Account created successfully.`, 'success');
+          return;
         } else {
           this.showAuthMessage(res.message, 'error');
         }
@@ -611,10 +572,11 @@ class App {
         );
         if (res && res.ok && res.data?.success) {
           document.getElementById('modal-email-verify')?.classList.add('hidden');
+          this.closeAuthModal();
           sound.playTradeWon();
-          this.showToast('Account verified! You can now log in.', 'success');
-          // Switch to login tab
-          document.getElementById('auth-tab-login')?.click();
+          this.showToast('Account verified! Welcome to your dashboard.', 'success');
+          this.toggleAuthState(true);
+          wallet.syncBalance();
           clearEmailOtp();
         } else {
           showEmailOtpMsg(res?.data?.message || 'Invalid code. Please try again.');
@@ -2015,6 +1977,11 @@ class App {
   closeModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.add('hidden');
+  }
+
+  closeAuthModal() {
+    const authScreen = document.getElementById('auth-screen');
+    if (authScreen) authScreen.classList.add('hidden');
   }
 
   // Attach all user interactions

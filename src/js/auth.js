@@ -68,24 +68,13 @@ class AuthEngine {
       avatar: this.generateAvatar(cleanName),
       loginAttempts: 0,
       lockedUntil: null,
-      lastLogin: null,
+      lastLogin: new Date().toISOString(),
       securityLevel: 'standard', // 'standard' | 'enhanced' | 'maximum'
-      verified: false,
+      verified: true,
       verificationCode,
     };
 
-    existingUsers.push(user);
-    security.setItem(AUTH_STORAGE_KEY, existingUsers);
-
-    // Auto-login removed; email verification required
-    // No session created here
-
-    // Sync trader registration to backend and capture server-assigned userId for email OTP
     let serverUserId = user.id;
-    let devCode = null;
-    let emailSent = false;
-    let hasRealEmail = !!cleanEmail && cleanEmail.includes('@');
-    let offlineMode = false;
 
     try {
       const apiRes = await api.register({
@@ -97,22 +86,12 @@ class AuthEngine {
 
       if (apiRes && apiRes.ok && apiRes.data) {
         if (apiRes.data.userId) serverUserId = apiRes.data.userId;
-        if (apiRes.data.devCode) devCode = apiRes.data.devCode;
-        if (apiRes.data.emailSent !== undefined) emailSent = apiRes.data.emailSent;
-        if (apiRes.data.hasRealEmail !== undefined) hasRealEmail = apiRes.data.hasRealEmail;
-        if (apiRes.data.offlineMode) offlineMode = true;
-
-        if (offlineMode && apiRes.data.token) {
-          user.verified = true;
-          existingUsers.push(user);
-          security.setItem(AUTH_STORAGE_KEY, existingUsers);
-          this.createSession(user);
-          return {
-            success: true,
-            offlineMode: true,
-            userId: serverUserId,
-            message: apiRes.data.message || 'Account created successfully (Offline Demo Mode).'
-          };
+        if (apiRes.data.token) {
+          api.setToken(apiRes.data.token);
+        }
+        if (apiRes.data.user) {
+          user.id = apiRes.data.user.id || apiRes.data.user._id || serverUserId;
+          if (apiRes.data.user.fullName) user.fullName = apiRes.data.user.fullName;
         }
       } else if (apiRes && !apiRes.ok) {
         // Explicit server rejection (e.g. phone or email already in use)
@@ -125,18 +104,20 @@ class AuthEngine {
       console.warn('API registration warning:', e);
     }
 
+    user.id = serverUserId;
+    user.verified = true;
     existingUsers.push(user);
     security.setItem(AUTH_STORAGE_KEY, existingUsers);
 
+    // Auto-login after registration & immediately redirect to dashboard
+    this.createSession(user);
+    this.addLoginHistory(user, 'registration');
+
     return {
       success: true,
-      userId: serverUserId,
-      emailSent,
-      devCode: devCode || (!emailSent ? verificationCode : null),
-      hasRealEmail,
-      message: emailSent
-        ? 'Account created! Verification code sent to your email.'
-        : 'Account created! Please enter your authentication code.'
+      user: this.sanitizeUser(user),
+      userId: user.id,
+      message: 'Account created successfully! Welcome to Apex Binary.'
     };
   }
 

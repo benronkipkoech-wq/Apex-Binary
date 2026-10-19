@@ -68,38 +68,26 @@ router.post('/register', async (req, res) => {
         real: 0,
       },
       verificationCode,
-      isVerified: false,
+      isVerified: true,
     });
 
     await user.save();
 
-    // Attempt to send verification email
-    let emailSent = false;
-    let emailWarning = null;
-
+    // Send verification/welcome email in background if configured
     if (hasRealEmail) {
-      try {
-        const emailResult = await sendVerificationEmail(user.email, verificationCode);
-        emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
-      } catch (emailErr) {
+      sendVerificationEmail(user.email, verificationCode).catch(emailErr => {
         console.error('[Registration Email Error]:', emailErr.message);
-        emailWarning = emailErr.message;
-      }
+      });
     }
 
-    // Do not issue JWT yet; client must verify email first
+    const token = generateToken(user);
+
     return res.status(201).json({
       success: true,
+      token,
       userId: user._id,
-      emailSent,
-      hasRealEmail,
-      message: emailSent
-        ? `Account created successfully! A 6-digit authentication code has been sent to ${user.email}.`
-        : (hasRealEmail
-            ? `Account created. Email delivery issue (${emailWarning || 'delivery pending'}). Your authentication code is provided below.`
-            : `Account created! Your authentication code is provided below.`),
-      // If email didn't send (dev mode, delivery issue, or phone-only sign up), provide code so user is never blocked
-      ...(!emailSent && { devCode: verificationCode, devMode: true }),
+      user,
+      message: 'Account created successfully! Welcome to Apex Binary.',
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Registration failed', error: error.message });
