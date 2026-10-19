@@ -207,8 +207,9 @@ class AuthEngine {
   // --- Login ---
   async login(phone, pin) {
     const normalizedPhone = this.normalizePhone(phone);
+    const last9 = normalizedPhone.slice(-9);
     const users = this.getAllUsers();
-    let user = users.find(u => u.phone === normalizedPhone);
+    let user = users.find(u => u.phone === normalizedPhone || (u.phone && u.phone.slice(-9) === last9));
 
     if (!user) {
       try {
@@ -618,9 +619,9 @@ class AuthEngine {
 
   // --- Helpers ---
   normalizePhone(phone) {
-    let clean = phone.replace(/\D/g, '');
+    let clean = (phone || '').toString().replace(/\D/g, '');
     if (clean.startsWith('254')) clean = '0' + clean.slice(3);
-    if (clean.startsWith('7')) clean = '0' + clean;
+    if (clean.length === 9) clean = '0' + clean;
     return clean;
   }
 

@@ -10,7 +10,26 @@ const router = express.Router();
 // Helper to normalize phone
 function cleanPhone(p) {
   if (!p) return '';
-  return p.toString().replace(/\D/g, '');
+  let clean = p.toString().replace(/\D/g, '');
+  if (clean.startsWith('254')) clean = '0' + clean.slice(3);
+  if (clean.length === 9) clean = '0' + clean;
+  return clean;
+}
+
+// Generate flexible phone query matching any Kenyan phone format
+function getPhoneQuery(p) {
+  if (!p) return null;
+  const digits = p.toString().replace(/\D/g, '');
+  if (!digits) return null;
+  const last9 = digits.slice(-9);
+  const variants = Array.from(new Set([
+    digits,
+    last9,
+    '0' + last9,
+    '254' + last9,
+    '+254' + last9
+  ]));
+  return { phone: { $in: variants } };
 }
 
 // Register new trader (Supports Phone + PIN or Email + Password)
@@ -42,7 +61,13 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const existingUser = await User.findOne({ $or: [{ email: userEmail }, { phone: userPhone }] });
+    const phoneFilter = getPhoneQuery(userPhone);
+    const existingUser = await User.findOne({
+      $or: [
+        { email: userEmail },
+        ...(phoneFilter ? [phoneFilter] : [{ phone: userPhone }])
+      ]
+    });
     if (existingUser) {
       if (!existingUser.isVerified) {
         // Unverified account — resume registration with updated PIN and fresh OTP code
@@ -187,7 +212,8 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const query = email ? { email: email.toLowerCase().trim() } : { phone: userPhone };
+    const phoneFilter = getPhoneQuery(userPhone);
+    const query = email ? { email: email.toLowerCase().trim() } : (phoneFilter || { phone: userPhone });
     const user = await User.findOne(query);
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials. User not found.' });
@@ -287,7 +313,8 @@ router.post('/verify-email', async (req, res) => {
       user = await User.findOne({ email: email.toLowerCase().trim() });
     }
     if (!user && phone) {
-      user = await User.findOne({ phone: cleanPhone(phone) });
+      const pFilter = getPhoneQuery(phone);
+      user = await User.findOne(pFilter || { phone: cleanPhone(phone) });
     }
 
     if (!user) {
@@ -339,7 +366,8 @@ router.post('/resend-verification', async (req, res) => {
       user = await User.findOne({ email: email.toLowerCase().trim() });
     }
     if (!user && phone) {
-      user = await User.findOne({ phone: cleanPhone(phone) });
+      const pFilter = getPhoneQuery(phone);
+      user = await User.findOne(pFilter || { phone: cleanPhone(phone) });
     }
 
     if (!user) {
@@ -522,7 +550,8 @@ const handleForgotPasswordOrPin = async (req, res, credentialType = 'Password / 
       user = await User.findOne({ email: finalEmail });
     }
     if (!user && cleanP) {
-      user = await User.findOne({ phone: cleanP });
+      const pFilter = getPhoneQuery(cleanP);
+      user = await User.findOne(pFilter || { phone: cleanP });
     }
 
     // Always respond with generic success to prevent user enumeration if account not found
