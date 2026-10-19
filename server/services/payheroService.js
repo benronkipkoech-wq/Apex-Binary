@@ -266,62 +266,59 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
     payload.callback_url = cbUrl;
   }
 
-  // Official v2 primary endpoint is /payments/initiate-stk-push, with /payments as fallback
-  let endpoint = `${baseUrl}/payments/initiate-stk-push`;
-  let response = await fetch(endpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': authHeader,
-    },
-    body: JSON.stringify(payload),
-  });
+  // PayHero v2: try initiate-stk-push first, then /payments as fallback
+  const endpoint1 = `${baseUrl}/payments/initiate-stk-push`;
+  const endpoint2 = `${baseUrl}/payments`;
 
-  // If 401 Unauthorized and using raw API Key, retry with Bearer format
+  console.log(`[PayHero STK Push] Initiating | phone=${formattedPhone} amount=${Math.round(amount)} channel=${activeChannel}`);
+  console.log(`[PayHero STK Push] Auth: ${authHeader.split(' ')[0]} | Payload:`, JSON.stringify(payload));
+
+  const makeRequest = async (url, authHdr) => {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': authHdr },
+      body: JSON.stringify(payload),
+    });
+    const text = await res.text();
+    console.log(`[PayHero STK Push] ${url} → HTTP ${res.status}:`, text.substring(0, 600));
+    let parsed = {};
+    try { parsed = JSON.parse(text); } catch (_) { parsed = { raw: text }; }
+    return { res, parsed };
+  };
+
+  let { res: response, parsed: data } = await makeRequest(endpoint1, authHeader);
+
+  // 401: retry with Bearer token
   if (response.status === 401 && apiKey && !authHeader.startsWith('Bearer ')) {
-    const bearerHeader = `Bearer ${apiKey}`;
-    const retryAuthRes = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': bearerHeader,
-      },
-      body: JSON.stringify(payload),
-    });
-    if (retryAuthRes.ok) {
-      response = retryAuthRes;
-    }
+    console.log('[PayHero STK Push] 401 with Basic → retrying with Bearer...');
+    const bearerTry = await makeRequest(endpoint1, `Bearer ${apiKey}`);
+    if (bearerTry.res.ok) { response = bearerTry.res; data = bearerTry.parsed; }
   }
 
+  // 404: fallback to /payments endpoint
   if (response.status === 404) {
-    // Fallback to /payments
-    endpoint = `${baseUrl}/payments`;
-    response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': authHeader,
-      },
-      body: JSON.stringify(payload),
-    });
+    console.log('[PayHero STK Push] 404 on initiate-stk-push → falling back to /payments...');
+    const fallback = await makeRequest(endpoint2, authHeader);
+    response = fallback.res; data = fallback.parsed;
   }
-
-  const data = await response.json().catch(() => ({}));
 
   if (!response.ok || data.success === false || data.status === 'Failed') {
     const errorMsg = data.message || data.error || data.response_description || `PayHero HTTP ${response.status}`;
+    console.error(`[PayHero STK Push] FAILED: ${errorMsg}`, JSON.stringify(data));
     throw new Error(`PayHero STK Push failed: ${errorMsg}`);
   }
 
+  console.log('[PayHero STK Push] SUCCESS:', JSON.stringify(data));
   return {
     success: true,
     data,
     reference,
     channelId: activeChannel,
-    checkoutRequestId: data.checkout_request_id || data.reference || reference,
+    checkoutRequestId: data.checkout_request_id || data.reference || data.CheckoutRequestID || reference,
     phone: formattedPhone,
   };
 }
+
 
 export default {
   initiateStkPush,
