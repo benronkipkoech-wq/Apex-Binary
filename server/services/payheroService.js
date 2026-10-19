@@ -12,13 +12,19 @@ const getApiBaseUrl = () => {
 };
 
 // Startup diagnostic — visible in Render logs immediately
-const _apiKey = (process.env.PAYHERO_API_KEY || process.env.PAYHERO_API_TOKEN || process.env.PAYHERO_TOKEN || '').trim();
-const _username = (process.env.PAYHERO_API_USERNAME || process.env.PAYHERO_USERNAME || '').trim();
-const _channelId = (process.env.PAYHERO_CHANNEL_ID || process.env.PAYHERO_CHANNEL || process.env.CHANNEL_ID || '').trim();
-console.log('[PayHero] API Key set:', !!_apiKey, _apiKey ? '| prefix: ' + _apiKey.slice(0, 8) + '...' : '| MISSING');
-console.log('[PayHero] Username set:', !!_username, _username ? '| ' + _username.slice(0, 4) + '...' : '| MISSING');
-console.log('[PayHero] Channel ID:', _channelId || 'MISSING (will auto-discover)');
-console.log('[PayHero] Configured (will use live STK):', !!(_apiKey || (_username && (process.env.PAYHERO_API_PASSWORD || '').trim())));
+const _diagUser = (process.env.PAYHERO_API_USER || process.env.PAYHERO_API_USERNAME || process.env.PAYHERO_USERNAME || '').trim();
+const _diagPass = (process.env.PAYHERO_API_PASS || process.env.PAYHERO_API_PASSWORD || process.env.PAYHERO_PASSWORD || '').trim();
+const _diagKey  = (process.env.PAYHERO_API_KEY  || process.env.PAYHERO_API_TOKEN    || '').trim();
+const _diagChan = (process.env.PAYHERO_CHANNEL_ID || process.env.PAYHERO_CHANNEL    || '').trim();
+const _diagUrl  = (process.env.PAYHERO_API_URL   || 'https://backend.payhero.co.ke/api/v2').trim();
+console.log('[PayHero] PAYHERO_API_USER set:', !!_diagUser, _diagUser ? '| ' + _diagUser.slice(0, 5) + '...' : '| MISSING');
+console.log('[PayHero] PAYHERO_API_PASS set:', !!_diagPass, _diagPass ? '(ok)' : '| MISSING');
+console.log('[PayHero] PAYHERO_API_KEY  set:', !!_diagKey,  _diagKey  ? '| prefix: ' + _diagKey.slice(0, 8) + '...' : '| not set');
+console.log('[PayHero] PAYHERO_CHANNEL_ID  :', _diagChan  || 'MISSING — will auto-discover');
+console.log('[PayHero] PAYHERO_API_URL     :', _diagUrl);
+const _diagConfigured = !!(_diagKey || (_diagUser && _diagPass));
+console.log('[PayHero] Live STK Push ACTIVE:', _diagConfigured, _diagConfigured ? '✓' : '✗ — will use SANDBOX (no credentials)');
+
 
 
 /**
