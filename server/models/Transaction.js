@@ -40,6 +40,11 @@ const transactionSchema = new mongoose.Schema(
       type: String,
       index: true,
     },
+    // PayHero's own transaction/checkout ID (different from our external_reference)
+    payheroRef: {
+      type: String,
+      index: true,
+    },
     status: {
       type: String,
       enum: ['PENDING', 'COMPLETED', 'FAILED', 'REJECTED'],

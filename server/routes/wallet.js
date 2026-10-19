@@ -52,6 +52,21 @@ router.post('/deposit/stk-push', authenticate, async (req, res) => {
           reference,
         });
 
+        // Store PayHero's own checkout ID so callbacks can match it
+        const payheroOwnId =
+          payheroResult.data?.checkout_request_id ||
+          payheroResult.data?.CheckoutRequestID ||
+          payheroResult.data?.id ||
+          payheroResult.data?.reference ||
+          payheroResult.checkoutRequestId ||
+          null;
+
+        if (payheroOwnId && payheroOwnId !== reference) {
+          tx.payheroRef = payheroOwnId;
+          await tx.save();
+          console.log(`[Deposit] Stored PayHero ref: ${payheroOwnId} for our ref: ${reference}`);
+        }
+
         return res.json({
           success: true,
           message: `PayHero M-Pesa STK Push sent to ${mpesaPhone}. Enter your M-Pesa PIN on your phone to complete.`,
@@ -106,28 +121,43 @@ router.post('/deposit/callback', async (req, res) => {
   try {
     if (!isDbConnected()) return res.status(200).send('OK');
 
-    console.log('[Payment Webhook Callback Received]', JSON.stringify(req.body));
+    console.log('[Webhook] PayHero callback received:', JSON.stringify(req.body));
 
-    // 1. PayHero Webhook Payload Inspection
+    // Extract all possible reference fields PayHero might send
     const payheroRef =
       req.body?.external_reference ||
       req.body?.reference ||
       req.body?.checkout_request_id ||
+      req.body?.CheckoutRequestID ||
       req.body?.merchant_reference ||
+      req.body?.id ||
       req.body?.response?.external_reference ||
-      req.body?.response?.reference;
+      req.body?.response?.reference ||
+      req.body?.response?.checkout_request_id;
 
     const rawStatus = (req.body?.status || req.body?.response?.status || '').toString().toLowerCase();
+    console.log(`[Webhook] ref=${payheroRef} status=${rawStatus}`);
 
     if (payheroRef) {
-      const tx = await Transaction.findOne({ checkoutRequestId: payheroRef });
-      if (!tx || tx.status !== 'PENDING') return res.status(200).json({ status: 'ignored' });
+      // Match by our reference OR PayHero's own reference (stored in payheroRef field)
+      const tx = await Transaction.findOne({
+        $or: [
+          { checkoutRequestId: payheroRef },
+          { payheroRef: payheroRef },
+        ],
+      });
+
+      if (!tx || tx.status !== 'PENDING') {
+        console.log(`[Webhook] Transaction not found or not PENDING for ref=${payheroRef}`);
+        return res.status(200).json({ status: 'ignored' });
+      }
 
       const isSuccess =
         rawStatus === 'success' ||
         rawStatus === 'successful' ||
         rawStatus === 'completed' ||
         rawStatus === 'ok' ||
+        rawStatus === 'paid' ||
         String(req.body?.status_code) === '200' ||
         req.body?.success === true ||
         String(req.body?.response_code) === '0' ||
@@ -147,18 +177,18 @@ router.post('/deposit/callback', async (req, res) => {
         tx.mpesaReceipt = mpesaReceipt;
         await tx.save();
 
-        // Credit User Real Balance
         const user = await User.findById(tx.userId);
         if (user) {
           user.balances.real = (user.balances.real || 0) + tx.amount;
           await user.save();
         }
-        console.log(`[PayHero Webhook] Payment of KSh ${tx.amount} completed for user ${tx.userId}. Receipt: ${mpesaReceipt}`);
+        console.log(`[Webhook] ✓ Payment KSh ${tx.amount} COMPLETED for user ${tx.userId}. Receipt: ${mpesaReceipt}`);
         return res.status(200).json({ success: true, message: 'PayHero callback processed' });
       } else {
         tx.status = 'FAILED';
         tx.rejectionReason = req.body?.message || req.body?.error || req.body?.response?.message || 'Payment cancelled or failed';
         await tx.save();
+        console.log(`[Webhook] ✗ Payment FAILED for ref=${payheroRef}: ${tx.rejectionReason}`);
         return res.status(200).json({ success: true, message: 'PayHero failure logged' });
       }
     }
@@ -215,31 +245,46 @@ router.get('/deposit/status/:reference', authenticate, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // If still pending, query PayHero API to sync status in case callback was delayed
+    // If still pending, query PayHero API using both our ref and PayHero's own ref
     if (tx.status === 'PENDING' && isPayHeroConfigured()) {
       try {
-        const liveStatus = await getTransactionStatus(reference);
+        // Try with our external_reference first, then PayHero's own ref if stored
+        const refsToTry = [reference];
+        if (tx.payheroRef && tx.payheroRef !== reference) refsToTry.push(tx.payheroRef);
+
+        let liveStatus = null;
+        for (const ref of refsToTry) {
+          liveStatus = await getTransactionStatus(ref);
+          if (liveStatus) {
+            console.log(`[Status Poll] PayHero returned for ref=${ref}:`, JSON.stringify(liveStatus));
+            break;
+          }
+        }
+
         if (liveStatus) {
-          const rawStatus = (liveStatus.status || '').toLowerCase();
-          const isDone = rawStatus === 'successful' || rawStatus === 'success' || rawStatus === 'completed' || liveStatus.success === true;
+          const isDone = liveStatus.success === true || (liveStatus.status || '').toLowerCase() === 'successful';
+          const isFailed = (liveStatus.status || '').toLowerCase() === 'failed';
+
           if (isDone) {
             tx.status = 'COMPLETED';
-            tx.mpesaReceipt = liveStatus.mpesa_receipt || liveStatus.receipt || liveStatus.mpesa_reference || tx.mpesaReceipt || 'PH' + Date.now();
+            tx.mpesaReceipt = liveStatus.mpesa_receipt || 'PH' + Date.now();
             await tx.save();
-
             const user = await User.findById(tx.userId);
-            if (user) {
-              user.balances.real = (user.balances.real || 0) + tx.amount;
-              await user.save();
-            }
-          } else if (rawStatus === 'failed' || rawStatus === 'cancelled') {
+            if (user) { user.balances.real = (user.balances.real || 0) + tx.amount; await user.save(); }
+            console.log(`[Status Poll] ✓ Marked COMPLETED via API poll for ref=${reference}`);
+          } else if (isFailed) {
             tx.status = 'FAILED';
             tx.rejectionReason = liveStatus.message || 'Payment cancelled or failed';
             await tx.save();
+            console.log(`[Status Poll] ✗ Marked FAILED via API poll for ref=${reference}`);
+          } else {
+            console.log(`[Status Poll] Still PENDING for ref=${reference}, PayHero status=${liveStatus.status}`);
           }
+        } else {
+          console.log(`[Status Poll] No PayHero data for ref=${reference} (webhook may arrive later)`);
         }
       } catch (pollErr) {
-        // Silently continue with current DB status
+        console.warn('[Status Poll Error]', pollErr.message);
       }
     }
 
@@ -256,6 +301,7 @@ router.get('/deposit/status/:reference', authenticate, async (req, res) => {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
+
 
 // Request M-Pesa Withdrawal
 router.post('/withdraw', authenticate, async (req, res) => {
