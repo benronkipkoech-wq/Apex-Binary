@@ -33,14 +33,31 @@ export function formatMpesaPhone(phone) {
  * Get credentials from environment with alias support
  */
 export function getPayHeroCredentials() {
-  const username = (process.env.PAYHERO_API_USERNAME || process.env.PAYHERO_USERNAME || '').trim();
-  const password = (process.env.PAYHERO_API_PASSWORD || process.env.PAYHERO_PASSWORD || '').trim();
+  const username = (
+    process.env.PAYHERO_API_USERNAME ||
+    process.env.PAYHERO_USERNAME ||
+    process.env.PAYHERO_USER ||
+    process.env.PAYHERO_API_USER ||
+    ''
+  ).trim();
+  const password = (
+    process.env.PAYHERO_API_PASSWORD ||
+    process.env.PAYHERO_PASSWORD ||
+    process.env.PAYHERO_PASS ||
+    process.env.PAYHERO_API_PASS ||
+    ''
+  ).trim();
   const apiKey = (
     process.env.PAYHERO_API_KEY ||
+    process.env.PAYHERO_APIKEY ||
     process.env.PAYHERO_KEY ||
     process.env.PAYHERO_API_TOKEN ||
     process.env.PAYHERO_TOKEN ||
     process.env.PAYHERO_SECRET ||
+    process.env.PAYHERO_AUTH ||
+    process.env.PAYHERO_AUTHORIZATION ||
+    process.env.PAYHERO_BASIC ||
+    process.env.API_KEY ||
     ''
   ).trim();
 
