@@ -49,30 +49,109 @@ class AuthEngine {
     const cleanName = security.sanitizeInput(fullName.trim());
     const cleanEmail = security.sanitizeInput((email || '').trim().toLowerCase());
     const normalizedPhone = this.normalizePhone(phone);
-    
-    const existingUsers = this.getAllUsers();
-    const existingUser = existingUsers.find(u => u.phone === normalizedPhone);
-    if (existingUser) {
-      // If account exists but is unverified, let them resume OTP entry
-      if (!existingUser.verified) {
-        this._pendingRegistrationUser = existingUser;
-        const code = existingUser.verificationCode || this.generateOTP();
-        if (!existingUser.verificationCode) {
-          existingUser.verificationCode = code;
-          security.setItem(AUTH_STORAGE_KEY, existingUsers);
+
+    // ── STEP 1: Always call backend API first (source of truth) ──────────────
+    try {
+      const apiRes = await api.register({
+        fullName: cleanName,
+        phone: normalizedPhone,
+        pin,
+        email: cleanEmail
+      });
+
+      if (apiRes && apiRes.ok && apiRes.data) {
+        const d = apiRes.data;
+        const serverUserId = d.userId || d.user?._id || ('usr_' + Date.now().toString(36));
+        const devCode = d.devCode || null;
+        const emailSent = d.emailSent !== undefined ? d.emailSent : false;
+        const hasRealEmail = d.hasRealEmail !== undefined ? d.hasRealEmail : (!!cleanEmail && cleanEmail.includes('@'));
+
+        // Sync local user cache
+        const existingUsers = this.getAllUsers();
+        let user = existingUsers.find(u => u.phone === normalizedPhone);
+        if (!user) {
+          user = {
+            id: serverUserId,
+            fullName: cleanName,
+            phone: normalizedPhone,
+            email: cleanEmail || `${normalizedPhone}@apexbinary.ke`,
+            pinHash: this.hashPin(pin),
+            createdAt: new Date().toISOString(),
+            twoFactorEnabled: false,
+            twoFactorSecret: null,
+            avatar: this.generateAvatar(cleanName),
+            loginAttempts: 0,
+            lockedUntil: null,
+            lastLogin: null,
+            securityLevel: 'standard',
+            verified: false,
+            verificationCode: devCode,
+          };
+          existingUsers.push(user);
+        } else {
+          user.id = serverUserId;
+          user.pinHash = this.hashPin(pin);
+          user.verificationCode = devCode;
+          if (cleanName) user.fullName = cleanName;
+          if (cleanEmail) user.email = cleanEmail;
         }
+        this._pendingRegistrationUser = user;
+        security.setItem(AUTH_STORAGE_KEY, existingUsers);
+
         return {
           success: true,
           requiresVerification: true,
-          userId: existingUser.id,
-          emailSent: false,
-          devCode: code,
-          hasRealEmail: !!existingUser.email && existingUser.email.includes('@'),
-          message: `Account pending verification. Your authentication code is ${code}.`
+          userId: serverUserId,
+          emailSent,
+          devCode,
+          hasRealEmail,
+          message: d.message || (emailSent
+            ? `Account registered! An authentication code has been sent to ${cleanEmail}.`
+            : `Account registered! Your authentication code is ${devCode}.`)
         };
       }
-      // Already verified — tell them to sign in
-      return { success: false, isExistingVerified: true, message: 'This phone number is already registered. Please sign in.' };
+
+      if (apiRes && !apiRes.ok) {
+        if (apiRes.status === 409 || apiRes.data?.isExistingVerified) {
+          return {
+            success: false,
+            isExistingVerified: true,
+            message: apiRes.data?.message || 'This account is already registered. Please sign in.'
+          };
+        }
+        if (apiRes.status === 408) {
+          return {
+            success: false,
+            message: 'Server is taking too long. Please try again in a moment.'
+          };
+        }
+        return {
+          success: false,
+          message: apiRes.data?.message || 'Registration failed. Please check your details and try again.'
+        };
+      }
+    } catch (e) {
+      console.warn('API registration error, checking offline fallback:', e);
+    }
+
+    // ── STEP 2: Offline fallback (only when server is unreachable) ─────────────
+    const existingUsers = this.getAllUsers();
+    const existingUser = existingUsers.find(u => u.phone === normalizedPhone);
+    if (existingUser) {
+      if (existingUser.verified) {
+        return { success: false, isExistingVerified: true, message: 'This phone number is already registered. Please sign in.' };
+      }
+      this._pendingRegistrationUser = existingUser;
+      const code = existingUser.verificationCode || this.generateOTP();
+      return {
+        success: true,
+        requiresVerification: true,
+        userId: existingUser.id,
+        emailSent: false,
+        devCode: code,
+        hasRealEmail: !!existingUser.email && existingUser.email.includes('@'),
+        message: `Account pending verification. Your authentication code is ${code}.`
+      };
     }
 
     const verificationCode = this.generateOTP();
@@ -89,51 +168,10 @@ class AuthEngine {
       loginAttempts: 0,
       lockedUntil: null,
       lastLogin: null,
-      securityLevel: 'standard', // 'standard' | 'enhanced' | 'maximum'
+      securityLevel: 'standard',
       verified: false,
       verificationCode,
     };
-
-    let serverUserId = user.id;
-    let devCode = null;
-    let emailSent = false;
-    let hasRealEmail = !!cleanEmail && cleanEmail.includes('@');
-
-    try {
-      const apiRes = await api.register({
-        fullName: cleanName,
-        phone: normalizedPhone,
-        pin,
-        email: cleanEmail
-      });
-
-      if (apiRes && apiRes.ok && apiRes.data) {
-        if (apiRes.data.userId) serverUserId = apiRes.data.userId;
-        if (apiRes.data.devCode) devCode = apiRes.data.devCode;
-        if (apiRes.data.emailSent !== undefined) emailSent = apiRes.data.emailSent;
-        if (apiRes.data.hasRealEmail !== undefined) hasRealEmail = apiRes.data.hasRealEmail;
-      } else if (apiRes && !apiRes.ok) {
-        if (apiRes.status === 409 || apiRes.data?.isExistingVerified) {
-          return {
-            success: false,
-            isExistingVerified: true,
-            message: apiRes.data?.message || 'This account is already registered. Please sign in.'
-          };
-        }
-        if (apiRes.status === 408) {
-          // Server timed out (email sending slow) — tell user to retry
-          return {
-            success: false,
-            message: 'Server is taking too long. Please try again in a moment.'
-          };
-        }
-        console.warn('API registration non-OK, falling back to local OTP mode:', apiRes.data?.message);
-      }
-    } catch (e) {
-      console.warn('API registration warning:', e);
-    }
-
-    user.id = serverUserId;
     this._pendingRegistrationUser = user;
     existingUsers.push(user);
     security.setItem(AUTH_STORAGE_KEY, existingUsers);
@@ -141,13 +179,11 @@ class AuthEngine {
     return {
       success: true,
       requiresVerification: true,
-      userId: serverUserId,
-      emailSent,
-      devCode: devCode || (!emailSent ? verificationCode : null),
-      hasRealEmail,
-      message: emailSent
-        ? `Account registered! An authentication code has been sent to ${cleanEmail}.`
-        : `Account registered! Your authentication code is ${devCode || verificationCode}.`
+      userId: user.id,
+      emailSent: false,
+      devCode: verificationCode,
+      hasRealEmail: !!cleanEmail && cleanEmail.includes('@'),
+      message: `Account registered! Your authentication code is ${verificationCode}.`
     };
   }
 

@@ -442,15 +442,56 @@ class App {
     if (loginForm) {
       loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const phone = document.getElementById('login-phone').value;
+        const loginBtn = document.getElementById('btn-login');
+        const phone = (document.getElementById('login-phone')?.value || '').trim();
         const pin = this.authPins.login;
-        
-        if (pin.length !== 4) {
-          this.showAuthMessage('Please enter your 4-digit PIN.', 'error');
+
+        // Ensure inline error element exists
+        let inlineLoginErr = loginForm.querySelector('.auth-inline-error');
+        if (!inlineLoginErr) {
+          inlineLoginErr = document.createElement('div');
+          inlineLoginErr.className = 'auth-inline-error';
+          if (loginBtn && loginBtn.parentNode) {
+            loginBtn.parentNode.insertBefore(inlineLoginErr, loginBtn);
+          }
+        }
+        inlineLoginErr.style.display = 'none';
+
+        if (!phone || phone.replace(/\D/g, '').length < 9) {
+          const phoneErrMsg = 'Please enter a valid Safaricom phone number.';
+          inlineLoginErr.textContent = phoneErrMsg;
+          inlineLoginErr.style.display = 'block';
+          this.showAuthMessage(phoneErrMsg, 'error');
+          this.showToast(phoneErrMsg, 'error');
+          document.getElementById('login-phone')?.focus();
           return;
         }
 
-        const res = await auth.login(phone, pin);
+        if (pin.length !== 4) {
+          const pinErrMsg = 'Please enter your 4-digit PIN using the keypad below.';
+          inlineLoginErr.textContent = pinErrMsg;
+          inlineLoginErr.style.display = 'block';
+          this.showAuthMessage(pinErrMsg, 'error');
+          this.showToast(pinErrMsg, 'error');
+          return;
+        }
+
+        if (loginBtn) {
+          loginBtn.disabled = true;
+          loginBtn.innerHTML = '<span>Signing in...</span>';
+        }
+
+        let res;
+        try {
+          res = await auth.login(phone, pin);
+        } catch (loginErr) {
+          res = { success: false, message: 'Login failed. Please check your connection and try again.' };
+        } finally {
+          if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<span class="auth-btn-icon">🔓</span><span>Sign In Securely</span>';
+          }
+        }
 
         // Helper: show OTP verification modal
         const showVerifyModal = () => {
@@ -491,7 +532,6 @@ class App {
         if (res.requiresVerification) {
           // Account exists but not yet verified — show OTP modal regardless of res.success
           showVerifyModal();
-          const inlineLoginErr = loginForm.querySelector('.auth-inline-error');
           if (inlineLoginErr) inlineLoginErr.style.display = 'none';
         } else if (res.success) {
           if (res.requires2FA) {
@@ -502,20 +542,8 @@ class App {
             sound.playTradeWon(); // Success sound
             wallet.syncBalance();
           }
-          const inlineLoginErr = loginForm.querySelector('.auth-inline-error');
           if (inlineLoginErr) inlineLoginErr.style.display = 'none';
         } else {
-          let inlineLoginErr = loginForm.querySelector('.auth-inline-error');
-          if (!inlineLoginErr) {
-            inlineLoginErr = document.createElement('div');
-            inlineLoginErr.className = 'auth-inline-error';
-            inlineLoginErr.style.cssText = 'color:#ff4d6d;font-size:13px;text-align:center;margin:10px 0;padding:10px 14px;background:rgba(255,77,109,0.12);border-radius:6px;border:1px solid rgba(255,77,109,0.3);line-height:1.4;';
-            const btn = document.getElementById('btn-login');
-            if (btn && btn.parentNode) {
-              btn.parentNode.insertBefore(inlineLoginErr, btn);
-            }
-          }
-
           let errMsg = res.message || 'Login failed. Please check your credentials.';
           if (errMsg.toLowerCase().includes('not found') || errMsg.toLowerCase().includes('no account')) {
             errMsg = `No account found for +254 ${phone}. Please click "Create Account" above to register.`;
@@ -529,9 +557,9 @@ class App {
           this.showToast(errMsg, 'error');
           this.clearAuthPins();
           // Error shake animation
-          for (let i=0; i<4; i++) {
+          for (let i = 0; i < 4; i++) {
             const dot = document.getElementById(`login-dot-${i}`);
-            if(dot) {
+            if (dot) {
               dot.classList.remove('filled');
               void dot.offsetWidth; // Trigger reflow
               dot.classList.add('error');
@@ -544,54 +572,94 @@ class App {
     if (regForm) {
       regForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const submitBtn = regForm.querySelector('button[type="submit"]') || regForm.querySelector('.auth-submit-btn');
-
-        // Guaranteed reset — runs even if auth.register() throws
-        const resetBtn = () => {
-          if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
-        };
-
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating account...'; }
-
-        let res;
-        try {
-          const pinVal = this.authPins?.reg || document.getElementById('reg-pin')?.value || '';
-          const confirmPinVal = this.authPins?.regConfirm || document.getElementById('reg-confirm-pin')?.value || '';
-
-          res = await auth.register({
-            fullName: (document.getElementById('reg-name')?.value || '').trim(),
-            phone: (document.getElementById('reg-phone')?.value || '').trim(),
-            email: (document.getElementById('reg-email')?.value || '').trim(),
-            pin: pinVal,
-            confirmPin: confirmPinVal
-          });
-        } catch (regErr) {
-          resetBtn();
-          this.showToast('Registration failed. Please try again.', 'error');
-          return;
-        }
-
-        resetBtn();
-
+        const submitBtn = document.getElementById('btn-register') || regForm.querySelector('button[type="submit"]') || regForm.querySelector('.auth-submit-btn');
 
         // Manage inline error element directly above register button
         let inlineErr = regForm.querySelector('.auth-inline-error');
         if (!inlineErr) {
           inlineErr = document.createElement('div');
           inlineErr.className = 'auth-inline-error';
-          inlineErr.style.cssText = 'color:#ff4d6d;font-size:13px;text-align:center;margin:10px 0;padding:10px 14px;background:rgba(255,77,109,0.12);border-radius:6px;border:1px solid rgba(255,77,109,0.3);line-height:1.4;';
           if (submitBtn && submitBtn.parentNode) {
             submitBtn.parentNode.insertBefore(inlineErr, submitBtn);
+          }
+        }
+        inlineErr.style.display = 'none';
+
+        const fullName = (document.getElementById('reg-name')?.value || '').trim();
+        const phone = (document.getElementById('reg-phone')?.value || '').trim();
+        const email = (document.getElementById('reg-email')?.value || '').trim();
+        const pinVal = this.authPins?.reg || document.getElementById('reg-pin')?.value || '';
+        const confirmPinVal = this.authPins?.regConfirm || document.getElementById('reg-confirm-pin')?.value || '';
+
+        // Pre-validation checks with immediate feedback
+        if (!fullName || fullName.length < 2) {
+          const msg = 'Please enter your Full Name.';
+          inlineErr.textContent = msg;
+          inlineErr.style.display = 'block';
+          this.showToast(msg, 'error');
+          this.showAuthMessage(msg, 'error');
+          document.getElementById('reg-name')?.focus();
+          return;
+        }
+
+        if (!phone || phone.replace(/\D/g, '').length < 9) {
+          const msg = 'Please enter a valid Safaricom phone number (e.g. 0712 345 678).';
+          inlineErr.textContent = msg;
+          inlineErr.style.display = 'block';
+          this.showToast(msg, 'error');
+          this.showAuthMessage(msg, 'error');
+          document.getElementById('reg-phone')?.focus();
+          return;
+        }
+
+        if (!pinVal || pinVal.length !== 4) {
+          const msg = 'Please create a 4-digit PIN using the keypad below.';
+          inlineErr.textContent = msg;
+          inlineErr.style.display = 'block';
+          this.showToast(msg, 'error');
+          this.showAuthMessage(msg, 'error');
+          return;
+        }
+
+        if (pinVal !== confirmPinVal) {
+          const msg = 'PINs do not match. Please re-enter to confirm.';
+          inlineErr.textContent = msg;
+          inlineErr.style.display = 'block';
+          this.showToast(msg, 'error');
+          this.showAuthMessage(msg, 'error');
+          return;
+        }
+
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<span>Creating account...</span>';
+        }
+
+        let res;
+        try {
+          res = await auth.register({
+            fullName,
+            phone,
+            email,
+            pin: pinVal,
+            confirmPin: confirmPinVal
+          });
+        } catch (regErr) {
+          res = { success: false, message: 'Registration failed. Please check connection and try again.' };
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span class="auth-btn-icon">🚀</span><span>Create Secure Account</span>';
           }
         }
 
         if (res.success) {
           sound.playClick();
-          if (inlineErr) inlineErr.style.display = 'none';
+          inlineErr.style.display = 'none';
 
           this._pendingVerifyUserId = res.userId;
-          this._pendingVerifyEmail = (document.getElementById('reg-email')?.value || '').trim();
-          this._pendingVerifyPhone = (document.getElementById('reg-phone')?.value || '').trim();
+          this._pendingVerifyEmail = email;
+          this._pendingVerifyPhone = phone;
 
           const emailVerifyModal = document.getElementById('modal-email-verify');
           const descEl = document.getElementById('email-verify-desc');
@@ -601,17 +669,15 @@ class App {
           const emailOtpInputs = document.querySelectorAll('#email-otp-input-group .otp-digit');
           emailOtpInputs.forEach(i => i.value = '');
 
-          if (res.emailSent && this._pendingVerifyEmail) {
-            if (descEl) descEl.textContent = `Enter the 6-digit authentication code sent to ${this._pendingVerifyEmail} to activate your account.`;
-            this.showToast('Authentication code sent! Please check your email.', 'success');
-          } else if (res.devCode) {
+          // Always auto-fill devCode if provided so user can verify immediately
+          if (res.devCode) {
             const digits = res.devCode.toString().split('');
             emailOtpInputs.forEach((inp, idx) => {
               inp.value = digits[idx] || '';
             });
             if (descEl) {
-              descEl.textContent = this._pendingVerifyEmail
-                ? `Authentication code: ${res.devCode} (entered for you below).`
+              descEl.textContent = email
+                ? `Authentication code: ${res.devCode} (entered for you below). Also sent to ${email}.`
                 : `Your authentication code is ${res.devCode} (entered for you below).`;
             }
             if (emailVerifyMsg) {
@@ -619,6 +685,9 @@ class App {
               emailVerifyMsg.style.color = '#00f59b';
             }
             this.showToast(`Your authentication code: ${res.devCode}`, 'info');
+          } else if (res.emailSent && email) {
+            if (descEl) descEl.textContent = `Enter the 6-digit authentication code sent to ${email} to activate your account.`;
+            this.showToast('Authentication code sent! Please check your email.', 'success');
           } else {
             if (descEl) descEl.textContent = `Enter the 6-digit authentication code to activate your account.`;
             this.showToast('Please enter your authentication code.', 'info');
@@ -630,22 +699,21 @@ class App {
           }
           document.getElementById('email-otp-0')?.focus();
         } else {
-          // Display error visibly in both toast and inline directly above the button
+          // Display error visibly in inline banner directly above the button and in toast
           const errMsg = res.message || 'Registration failed. Please try again.';
-          if (inlineErr) {
-            inlineErr.textContent = errMsg;
-            inlineErr.style.display = 'block';
-          }
+          inlineErr.textContent = errMsg;
+          inlineErr.style.display = 'block';
+
           this.showToast(errMsg, 'error');
           this.showAuthMessage(errMsg, 'error');
 
-          // If this account is already registered, automatically offer sign-in tab switch
+          // If this account is already registered, automatically switch to sign-in tab
           if (res.isExistingVerified) {
             setTimeout(() => {
               const loginTab = document.getElementById('auth-tab-login');
               if (loginTab) loginTab.click();
               const loginPhone = document.getElementById('login-phone');
-              if (loginPhone) loginPhone.value = document.getElementById('reg-phone')?.value || '';
+              if (loginPhone) loginPhone.value = phone;
               this.showToast('Account already exists. Please enter your PIN to sign in, or click "Forgot PIN".', 'info');
             }, 1200);
           }
