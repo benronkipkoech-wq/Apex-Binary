@@ -1334,9 +1334,18 @@
 
         <!-- Step 3: M-Pesa Success Receipt -->
         <div class="mpesa-body hidden" id="mpesa-deposit-step-3">
-          <div class="mpesa-success-state">
-            <div class="success-check-icon">✓</div>
-            <h3>Deposit Successful!</h3>
+          <!-- Waiting state (live PayHero STK push) -->
+          <div class="mpesa-success-state" id="mpesa-step3-waiting" style="display:none">
+            <div class="stk-waiting-icon">📱</div>
+            <h3 id="mpesa-step3-title">Check Your Phone</h3>
+            <p class="sms-receipt" id="mpesa-step3-desc">An M-Pesa prompt has been sent to your phone. Enter your M-Pesa PIN to complete the payment.</p>
+            <div class="stk-spinner" id="mpesa-step3-spinner"><div class="spinner-ring"></div><span>Waiting for payment...</span></div>
+            <p class="stk-timer-text" id="mpesa-step3-timer">This prompt expires in <strong id="mpesa-step3-countdown">90</strong>s</p>
+          </div>
+          <!-- Success/Fail state -->
+          <div class="mpesa-success-state" id="mpesa-step3-done">
+            <div class="success-check-icon" id="mpesa-step3-icon">✓</div>
+            <h3 id="mpesa-step3-result-title">Deposit Successful!</h3>
             <p class="sms-receipt" id="mpesa-receipt-code">
               QK892L019P Confirmed. KSh 1,000.00 sent to Apex Binary. New Real Account Balance updated.
             </p>
