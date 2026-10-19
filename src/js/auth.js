@@ -526,17 +526,7 @@ class AuthEngine {
       ? users.find(u => u.phone === identifier)
       : users.find(u => u.email && u.email.toLowerCase() === (email || '').toLowerCase());
 
-    if (!res || !res.ok) {
-      // Fallback for offline/local accounts
-      if (userLocal && (!userLocal.resetCode || userLocal.resetCode === resetCode)) {
-        userLocal.pinHash = this.hashPin(secret);
-        delete userLocal.resetCode;
-        delete userLocal.resetCodeExpiry;
-        this.saveUsers(users);
-        this.createSession(userLocal);
-        this.addLoginHistory(userLocal, 'pin_reset');
-        return { success: true, message: 'Credentials reset successfully! You are now logged in.' };
-      }
+    if (!res || !res.ok || !res.data?.success) {
       return { success: false, message: res?.data?.message || 'Invalid or expired authentication code.' };
     }
 

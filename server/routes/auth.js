@@ -605,8 +605,8 @@ const handleResetPasswordOrPin = async (req, res, credentialType = 'PIN') => {
       user = await User.findOne({ email: email.toLowerCase().trim() });
     }
     if (!user && (phone || (email && !email.includes('@')))) {
-      const p = cleanPhone(phone || email);
-      if (p) user = await User.findOne({ phone: p });
+      const pQuery = getPhoneQuery(phone || email);
+      if (pQuery) user = await User.findOne(pQuery);
     }
 
     if (!user) {
