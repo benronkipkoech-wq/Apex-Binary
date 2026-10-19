@@ -2556,7 +2556,7 @@ class App {
             const ref = data.checkoutRequestId;
             if (ref) {
               let attempts = 0;
-              const maxAttempts = 36; // 90s at 2.5s interval
+              const maxAttempts = 22; // ~88s at 4s interval
               const pollInterval = setInterval(async () => {
                 attempts++;
                 try {
@@ -2566,7 +2566,6 @@ class App {
                       clearInterval(pollInterval);
                       clearInterval(countdownTimer);
                       sound.playMpesaCash();
-                      wallet.credit(checkRes.data.amount || amount, 'real');
                       wallet.setType('real');
                       await wallet.syncBalance();
                       if (waitingEl) waitingEl.style.display = 'none';
@@ -2578,6 +2577,7 @@ class App {
                       document.getElementById('mpesa-receipt-code').textContent =
                         `${receiptCode} Confirmed. KSh ${(checkRes.data.amount || amount).toLocaleString()} sent to Apex Binary. New Real Balance: KSh ${newBal}`;
                       this.showToast(`KSh ${(checkRes.data.amount || amount).toLocaleString()} deposited successfully!`, 'success');
+                      return;
                     } else if (checkRes.data.status === 'FAILED') {
                       clearInterval(pollInterval);
                       clearInterval(countdownTimer);
@@ -2588,21 +2588,25 @@ class App {
                       document.getElementById('mpesa-receipt-code').textContent =
                         checkRes.data.rejectionReason || 'The M-Pesa request was cancelled or timed out. Please try again.';
                       this.showToast('M-Pesa payment failed or cancelled', 'error');
+                      return;
                     }
                   }
-                } catch (e) { /* ignore transient errors */ }
+                } catch (e) { /* ignore transient polling errors */ }
 
                 if (attempts >= maxAttempts) {
                   clearInterval(pollInterval);
                   clearInterval(countdownTimer);
+                  // Do a final balance sync — webhook may have fired even if polling missed it
+                  try { await wallet.syncBalance(); } catch (_) {}
+                  const balAfter = wallet.realBalance || 0;
                   if (waitingEl) waitingEl.style.display = 'none';
                   if (doneEl) doneEl.style.display = '';
                   if (resultIcon) { resultIcon.textContent = '⏱'; resultIcon.style.color = '#f59e0b'; }
-                  if (resultTitle) resultTitle.textContent = 'Request Timed Out';
+                  if (resultTitle) resultTitle.textContent = 'Still Waiting…';
                   document.getElementById('mpesa-receipt-code').textContent =
-                    'The M-Pesa prompt expired. If you entered your PIN, your balance will update shortly.';
+                    `The prompt window closed. If you completed the M-Pesa payment, your balance (KSh ${balAfter.toLocaleString()}) has been updated. Refresh to confirm.`;
                 }
-              }, 2500);
+              }, 4000);
             }
           } else {
             // Interactive STK Simulator Mode

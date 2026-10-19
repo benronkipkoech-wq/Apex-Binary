@@ -131,29 +131,86 @@ export async function getPaymentChannels() {
 }
 
 /**
- * Check status of a transaction on PayHero
+ * Check status of a transaction on PayHero.
+ * Tries multiple endpoints and normalizes the response.
  */
 export async function getTransactionStatus(reference) {
   const authHeader = getAuthHeader();
   if (!authHeader || !reference) return null;
 
   const baseUrl = getApiBaseUrl();
-  try {
-    const url = `${baseUrl}/transactions?reference=${encodeURIComponent(reference)}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json',
-      },
-    });
+  const headers = { 'Authorization': authHeader, 'Content-Type': 'application/json' };
 
-    if (response.ok) {
-      return await response.json().catch(() => null);
+  // Try multiple PayHero status endpoints
+  const endpoints = [
+    `${baseUrl}/transactions?external_reference=${encodeURIComponent(reference)}`,
+    `${baseUrl}/transactions?reference=${encodeURIComponent(reference)}`,
+    `${baseUrl}/payments?external_reference=${encodeURIComponent(reference)}`,
+    `${baseUrl}/payments/${encodeURIComponent(reference)}`,
+  ];
+
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, { method: 'GET', headers });
+      if (!response.ok) continue;
+
+      const raw = await response.json().catch(() => null);
+      if (!raw) continue;
+
+      // Normalize: PayHero can wrap in data[], response, or direct object
+      const record =
+        (Array.isArray(raw.data) && raw.data[0]) ||
+        (Array.isArray(raw) && raw[0]) ||
+        raw.data ||
+        raw.response ||
+        raw.transaction ||
+        raw;
+
+      if (!record || typeof record !== 'object') continue;
+
+      const rawStatus = (
+        record.status ||
+        record.payment_status ||
+        record.transaction_status ||
+        ''
+      ).toString().toLowerCase();
+
+      const isSuccess =
+        rawStatus === 'success' ||
+        rawStatus === 'successful' ||
+        rawStatus === 'completed' ||
+        rawStatus === 'paid' ||
+        record.success === true ||
+        String(record.status_code) === '200' ||
+        String(record.response_code) === '0' ||
+        String(record.result_code) === '0';
+
+      const isFailed =
+        rawStatus === 'failed' ||
+        rawStatus === 'cancelled' ||
+        rawStatus === 'rejected' ||
+        rawStatus === 'timeout';
+
+      if (isSuccess || isFailed) {
+        return {
+          status: isSuccess ? 'successful' : 'failed',
+          success: isSuccess,
+          mpesa_receipt:
+            record.mpesa_receipt ||
+            record.mpesa_reference ||
+            record.receipt_number ||
+            record.transaction_id ||
+            null,
+          amount: record.amount,
+          message: record.message || record.description || null,
+          _raw: record,
+        };
+      }
+    } catch (err) {
+      console.warn('[PayHero Status Query]', url, err.message);
     }
-  } catch (err) {
-    console.warn('[PayHero Status Query]', err.message);
   }
+
   return null;
 }
 
