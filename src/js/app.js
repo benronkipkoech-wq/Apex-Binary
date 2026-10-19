@@ -1382,6 +1382,14 @@ class App {
       labelEl.textContent = isReal ? 'REAL ACCOUNT (KES)' : 'DEMO ACCOUNT';
     }
     if (displayEl) {
+      if (this.lastObservedBalance !== undefined && balance !== this.lastObservedBalance) {
+        const flashClass = balance > this.lastObservedBalance ? 'balance-flash-green' : 'balance-flash-red';
+        displayEl.classList.remove('balance-flash-green', 'balance-flash-red');
+        void displayEl.offsetWidth; // re-trigger animation
+        displayEl.classList.add(flashClass);
+        setTimeout(() => displayEl.classList.remove(flashClass), 1500);
+      }
+      this.lastObservedBalance = balance;
       displayEl.textContent = wallet.formatCurrency(balance);
     }
     if (menuDemoEl) {
@@ -2200,7 +2208,7 @@ class App {
   }
 
   // Notifications Toast
-  showToast(message, type = 'info') {
+  showToast(message, type = 'info', duration = 4000) {
     const container = document.getElementById('toast-container');
     if (!container) return;
 
@@ -2210,16 +2218,31 @@ class App {
     
     // Sanitize message before rendering to prevent XSS
     const safeMessage = security.sanitizeHTML(message);
-    toast.innerHTML = `<span>${icon}</span> <span>${safeMessage}</span>`;
+    toast.innerHTML = `
+      <div class="toast-icon-wrap">${icon}</div>
+      <div class="toast-msg">${safeMessage}</div>
+      <button class="toast-close" title="Dismiss">×</button>
+      <div class="toast-progress-bar" style="animation-duration: ${duration}ms"></div>
+    `;
     
+    let isRemoved = false;
+    const dismiss = () => {
+      if (isRemoved) return;
+      isRemoved = true;
+      toast.classList.add('toast-exit');
+      setTimeout(() => toast.remove(), 260);
+    };
+
+    toast.querySelector('.toast-close')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dismiss();
+    });
+
     container.appendChild(toast);
 
     setTimeout(() => {
-      toast.style.opacity = '0';
-      toast.style.transform = 'translateX(50px)';
-      toast.style.transition = 'all 0.3s ease';
-      setTimeout(() => toast.remove(), 300);
-    }, 4000);
+      dismiss();
+    }, duration);
   }
 
   // Server Clock
@@ -2545,9 +2568,12 @@ class App {
             if (doneEl) doneEl.style.display = 'none';
 
             let secs = 90;
+            const progressFill = document.getElementById('stk-progress-fill');
+            if (progressFill) progressFill.style.width = '100%';
             const countdownTimer = setInterval(() => {
               secs--;
               if (countdownEl) countdownEl.textContent = secs;
+              if (progressFill) progressFill.style.width = `${Math.max(0, (secs / 90) * 100)}%`;
               if (secs <= 0) clearInterval(countdownTimer);
             }, 1000);
 
@@ -2566,12 +2592,18 @@ class App {
                       clearInterval(pollInterval);
                       clearInterval(countdownTimer);
                       sound.playMpesaCash();
+                      sound.vibrate([40, 60, 40, 60, 80]);
                       wallet.setType('real');
                       await wallet.syncBalance();
                       if (waitingEl) waitingEl.style.display = 'none';
                       if (doneEl) doneEl.style.display = '';
-                      if (resultIcon) { resultIcon.textContent = '✓'; resultIcon.style.color = '#00f59b'; }
+                      if (resultIcon) {
+                        resultIcon.textContent = '✓';
+                        resultIcon.style.color = '#00f59b';
+                        resultIcon.classList.add('success-pop-ring');
+                      }
                       if (resultTitle) resultTitle.textContent = 'Deposit Successful! 🎉';
+                      this.trading.launchConfetti();
                       const receiptCode = checkRes.data.mpesaReceipt || ('PH' + Date.now());
                       const newBal = (checkRes.data.updatedRealBalance || wallet.realBalance).toLocaleString('en-KE');
                       document.getElementById('mpesa-receipt-code').textContent =
@@ -2933,6 +2965,13 @@ class App {
   }
 
   executeTrade(direction) {
+    const btn = document.getElementById(direction === 'higher' ? 'btn-trade-higher' : 'btn-trade-lower');
+    if (btn) {
+      btn.classList.add('active-press');
+      setTimeout(() => btn.classList.remove('active-press'), 220);
+    }
+    sound.vibrate([25]);
+
     if (!auth.isLoggedIn()) {
       this.showToast('Please log in or create an account to place trades.', 'error');
       this.openModal('auth-screen');

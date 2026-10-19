@@ -193,7 +193,24 @@ export class TradingEngine {
       card.className = 'settlement-card win';
       badge.textContent = 'TRADE WON';
       icon.textContent = '🎉';
-      amountEl.textContent = `+KSh ${payout.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+      
+      // Animated count-up effect
+      const targetVal = payout;
+      const startTime = performance.now();
+      const animDuration = 600;
+      const step = (now) => {
+        const progress = Math.min((now - startTime) / animDuration, 1);
+        const easeOut = 1 - Math.pow(1 - progress, 3);
+        const currentVal = targetVal * easeOut;
+        amountEl.textContent = `+KSh ${currentVal.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        if (progress < 1) {
+          requestAnimationFrame(step);
+        } else {
+          amountEl.textContent = `+KSh ${targetVal.toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        }
+      };
+      requestAnimationFrame(step);
+
       detailEl.textContent = `${trade.assetName} strike ${trade.strikePrice.toFixed(trade.decimals)} closed at ${exitPrice.toFixed(trade.decimals)}`;
       this.launchConfetti();
     } else if (result === 'tie') {
