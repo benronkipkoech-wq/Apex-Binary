@@ -207,15 +207,19 @@ class AuthEngine {
   // --- Login ---
   async login(phone, pin) {
     const normalizedPhone = this.normalizePhone(phone);
-    const last9 = normalizedPhone.slice(-9);
-    const users = this.getAllUsers();
-    let user = users.find(u => u.phone === normalizedPhone || (u.phone && u.phone.slice(-9) === last9));
 
-    if (!user) {
-      try {
-        const apiRes = await api.login(normalizedPhone, pin);
-        if (apiRes && apiRes.ok && apiRes.data?.user) {
-          const sUser = apiRes.data.user;
+    // ── STEP 1: Always try backend API first (source of truth) ──────────────
+    try {
+      const apiRes = await api.login(normalizedPhone, pin);
+
+      if (apiRes && apiRes.ok && apiRes.data?.success && apiRes.data?.user) {
+        // ✅ Successful login — store JWT and sync local user cache
+        if (apiRes.data.token) api.setToken(apiRes.data.token);
+        const sUser = apiRes.data.user;
+        const users = this.getAllUsers();
+        const last9 = normalizedPhone.slice(-9);
+        let user = users.find(u => u.phone === normalizedPhone || (u.phone && u.phone.slice(-9) === last9));
+        if (!user) {
           user = {
             id: sUser.id || sUser._id,
             fullName: sUser.fullName || 'Apex Trader',
@@ -231,63 +235,69 @@ class AuthEngine {
             verified: true,
           };
           users.push(user);
-          this.saveUsers(users);
-        } else if (apiRes?.data?.requiresVerification) {
-          // Account exists on server but is unverified — surface OTP modal
-          this._pendingVerifyUserId = apiRes.data.userId;
-          return {
-            success: false,
-            requiresVerification: true,
-            userId: apiRes.data.userId,
-            emailSent: apiRes.data.emailSent || false,
-            devCode: apiRes.data.devCode || null,
-            hasRealEmail: apiRes.data.hasRealEmail || false,
-            message: apiRes.data.message || 'Account not yet verified. Please check your email for the verification code.'
-          };
         } else {
-          return { success: false, message: apiRes?.data?.message || 'No account found with this phone number.' };
+          // Update cache with latest server data
+          user.pinHash = this.hashPin(pin);
+          user.loginAttempts = 0;
+          user.lockedUntil = null;
+          user.lastLogin = new Date().toISOString();
+          user.verified = true;
+          if (sUser.fullName) user.fullName = sUser.fullName;
+          if (sUser.email) user.email = sUser.email;
         }
-      } catch (err) {
-        return { success: false, message: 'No account found with this phone number.' };
+        this.saveUsers(users);
+
+        if (user.twoFactorEnabled) {
+          const otp = this.generateOTP();
+          user._pendingOtp = otp;
+          this._pendingUser = user;
+          return { success: true, requires2FA: true, otpHint: otp.slice(0, 2) + '****' };
+        }
+
+        this.createSession(user);
+        this.addLoginHistory(user, 'login');
+        return { success: true, user: this.sanitizeUser(user) };
       }
+
+      if (apiRes?.data?.requiresVerification) {
+        // ⚠️ Account found, PIN correct, but email not verified
+        return {
+          success: false,
+          requiresVerification: true,
+          userId: apiRes.data.userId,
+          emailSent: apiRes.data.emailSent || false,
+          devCode: apiRes.data.devCode || null,
+          hasRealEmail: apiRes.data.hasRealEmail || false,
+          message: apiRes.data.message || 'Account not yet verified. Please enter your verification code.'
+        };
+      }
+
+      if (apiRes && (apiRes.status === 401 || apiRes.status === 403)) {
+        // ❌ Server explicitly rejected — don't fall back to local cache
+        return { success: false, message: apiRes.data?.message || 'Invalid credentials.' };
+      }
+
+      // Server unreachable / timeout / 5xx → fall through to local cache
+    } catch (_) {
+      // Network error → fall through to local cache
     }
 
-    // Check if locked
+    // ── STEP 2: Offline fallback — check local storage ──────────────────────
+    const users = this.getAllUsers();
+    const last9 = normalizedPhone.slice(-9);
+    const user = users.find(u => u.phone === normalizedPhone || (u.phone && u.phone.slice(-9) === last9));
+
+    if (!user) {
+      return { success: false, message: 'No account found with this phone number.' };
+    }
+
     if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
       const remaining = Math.ceil((new Date(user.lockedUntil) - new Date()) / 1000);
       return { success: false, message: `Account locked. Try again in ${remaining}s.`, locked: true };
     }
 
     if (this.hashPin(pin) !== user.pinHash) {
-      // Check backend API in case credentials were reset or updated remotely
-      try {
-        const apiRes = await api.login(normalizedPhone, pin);
-        if (apiRes && apiRes.ok && apiRes.data?.user) {
-          user.pinHash = this.hashPin(pin);
-          user.loginAttempts = 0;
-          user.lockedUntil = null;
-          user.lastLogin = new Date().toISOString();
-          this.saveUsers(users);
-          this.createSession(user);
-          this.addLoginHistory(user, 'login');
-          return { success: true, user: this.sanitizeUser(user) };
-        } else if (apiRes?.data?.requiresVerification) {
-          // Account exists but is unverified — surface OTP modal
-          this._pendingVerifyUserId = apiRes.data.userId;
-          return {
-            success: false,
-            requiresVerification: true,
-            userId: apiRes.data.userId,
-            emailSent: apiRes.data.emailSent || false,
-            devCode: apiRes.data.devCode || null,
-            hasRealEmail: apiRes.data.hasRealEmail || false,
-            message: apiRes.data.message || 'Account not yet verified. Please enter your verification code.'
-          };
-        }
-      } catch (_) {}
-
       user.loginAttempts = (user.loginAttempts || 0) + 1;
-
       if (user.loginAttempts >= MAX_LOGIN_ATTEMPTS) {
         user.lockedUntil = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
         user.loginAttempts = 0;
@@ -295,72 +305,18 @@ class AuthEngine {
         this.addLoginHistory(user, 'lockout');
         return { success: false, message: `Too many failed attempts. Account locked for 5 minutes.`, locked: true };
       }
-
       this.saveUsers(users);
       const remaining = MAX_LOGIN_ATTEMPTS - user.loginAttempts;
       return { success: false, message: `Incorrect PIN. ${remaining} attempt${remaining !== 1 ? 's' : ''} remaining.` };
     }
 
-    // Successful login
+    // Local PIN matched (offline mode)
     user.loginAttempts = 0;
     user.lockedUntil = null;
     user.lastLogin = new Date().toISOString();
     this.saveUsers(users);
 
-    // --- Email/OTP Verification Gate ---
-    // If not verified locally, check backend first — they may be verified there
-    if (!user.verified) {
-      try {
-        const apiRes = await api.login(normalizedPhone, pin);
-        if (apiRes && apiRes.ok) {
-          // Backend accepted — trust it, mark verified locally and proceed
-          user.verified = true;
-          user.verificationCode = null;
-          this.saveUsers(users);
-          // Fall through to session creation below
-        } else {
-          // Backend also doesn't recognize them — force OTP
-          const code = user.verificationCode || this.generateOTP();
-          if (!user.verificationCode) {
-            user.verificationCode = code;
-            this.saveUsers(users);
-          }
-          this._pendingRegistrationUser = user;
-          return {
-            success: true,
-            requiresVerification: true,
-            userId: user.id,
-            emailSent: false,
-            devCode: code,
-            hasRealEmail: !!user.email && user.email.includes('@'),
-            message: `Please verify your account. Your authentication code is ${code}.`
-          };
-        }
-      } catch (_) {
-        // API unreachable — fall back to OTP gate
-        const code = user.verificationCode || this.generateOTP();
-        if (!user.verificationCode) {
-          user.verificationCode = code;
-          this.saveUsers(users);
-        }
-        this._pendingRegistrationUser = user;
-        return {
-          success: true,
-          requiresVerification: true,
-          userId: user.id,
-          emailSent: false,
-          devCode: code,
-          hasRealEmail: !!user.email && user.email.includes('@'),
-          message: `Please verify your account. Your authentication code is ${code}.`
-        };
-      }
-    }
-
-    // Sync trader session with backend API to acquire JWT
-    api.login(normalizedPhone, pin).catch(() => {});
-
     if (user.twoFactorEnabled) {
-      // Generate OTP and require verification
       const otp = this.generateOTP();
       user._pendingOtp = otp;
       this._pendingUser = user;
