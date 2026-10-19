@@ -113,7 +113,13 @@ class AuthEngine {
         if (apiRes.data.emailSent !== undefined) emailSent = apiRes.data.emailSent;
         if (apiRes.data.hasRealEmail !== undefined) hasRealEmail = apiRes.data.hasRealEmail;
       } else if (apiRes && !apiRes.ok) {
-        // If backend says 409 (already exists) or any other error, fall back to local OTP mode
+        if (apiRes.status === 409 || apiRes.data?.isExistingVerified) {
+          return {
+            success: false,
+            isExistingVerified: true,
+            message: apiRes.data?.message || 'This account is already registered. Please sign in.'
+          };
+        }
         console.warn('API registration non-OK, falling back to local OTP mode:', apiRes.data?.message);
       }
     } catch (e) {

@@ -508,18 +508,33 @@ class App {
         const submitBtn = regForm.querySelector('button[type="submit"]') || regForm.querySelector('.auth-submit-btn');
         if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating account...'; }
 
+        const pinVal = this.authPins?.reg || document.getElementById('reg-pin')?.value || '';
+        const confirmPinVal = this.authPins?.regConfirm || document.getElementById('reg-confirm-pin')?.value || '';
+
         const res = await auth.register({
-          fullName: document.getElementById('reg-name').value,
-          phone: document.getElementById('reg-phone').value,
-          email: document.getElementById('reg-email').value,
-          pin: this.authPins.reg,
-          confirmPin: this.authPins.regConfirm
+          fullName: (document.getElementById('reg-name')?.value || '').trim(),
+          phone: (document.getElementById('reg-phone')?.value || '').trim(),
+          email: (document.getElementById('reg-email')?.value || '').trim(),
+          pin: pinVal,
+          confirmPin: confirmPinVal
         });
 
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
 
+        // Manage inline error element directly above register button
+        let inlineErr = regForm.querySelector('.auth-inline-error');
+        if (!inlineErr) {
+          inlineErr = document.createElement('div');
+          inlineErr.className = 'auth-inline-error';
+          inlineErr.style.cssText = 'color:#ff4d6d;font-size:13px;text-align:center;margin:10px 0;padding:10px 14px;background:rgba(255,77,109,0.12);border-radius:6px;border:1px solid rgba(255,77,109,0.3);line-height:1.4;';
+          if (submitBtn && submitBtn.parentNode) {
+            submitBtn.parentNode.insertBefore(inlineErr, submitBtn);
+          }
+        }
+
         if (res.success) {
           sound.playClick();
+          if (inlineErr) inlineErr.style.display = 'none';
 
           this._pendingVerifyUserId = res.userId;
           this._pendingVerifyEmail = (document.getElementById('reg-email')?.value || '').trim();
@@ -556,27 +571,30 @@ class App {
             this.showToast('Please enter your authentication code.', 'info');
           }
 
-
           if (emailVerifyModal) {
             emailVerifyModal.classList.remove('hidden');
             emailVerifyModal.style.display = 'flex';
           }
           document.getElementById('email-otp-0')?.focus();
         } else {
-          // Always show a toast so it's visible regardless of scroll position
-          this.showToast(res.message || 'Registration failed. Please try again.', 'error');
-          this.showAuthMessage(res.message, 'error');
-          // Scroll auth screen to top so inline error is visible
-          const authScreen = document.getElementById('auth-screen');
-          if (authScreen) authScreen.scrollTop = 0;
-          // If this phone is already a verified account, switch to sign-in tab
+          // Display error visibly in both toast and inline directly above the button
+          const errMsg = res.message || 'Registration failed. Please try again.';
+          if (inlineErr) {
+            inlineErr.textContent = errMsg;
+            inlineErr.style.display = 'block';
+          }
+          this.showToast(errMsg, 'error');
+          this.showAuthMessage(errMsg, 'error');
+
+          // If this account is already registered, automatically offer sign-in tab switch
           if (res.isExistingVerified) {
             setTimeout(() => {
               const loginTab = document.getElementById('auth-tab-login');
               if (loginTab) loginTab.click();
               const loginPhone = document.getElementById('login-phone');
               if (loginPhone) loginPhone.value = document.getElementById('reg-phone')?.value || '';
-            }, 800);
+              this.showToast('Account already exists. Please enter your PIN to sign in, or click "Forgot PIN".', 'info');
+            }, 1200);
           }
         }
       });

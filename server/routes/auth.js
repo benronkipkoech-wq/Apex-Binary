@@ -44,7 +44,42 @@ router.post('/register', async (req, res) => {
 
     const existingUser = await User.findOne({ $or: [{ email: userEmail }, { phone: userPhone }] });
     if (existingUser) {
-      return res.status(409).json({ success: false, message: 'An account with this phone number or email already exists.' });
+      if (!existingUser.isVerified) {
+        // Unverified account — resume registration with updated PIN and fresh OTP code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        existingUser.verificationCode = verificationCode;
+        existingUser.password = authSecret;
+        if (traderName) existingUser.fullName = traderName;
+        await existingUser.save();
+
+        let emailSent = false;
+        if (hasRealEmail) {
+          try {
+            const emailResult = await sendVerificationEmail(existingUser.email, verificationCode);
+            emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
+          } catch (emailErr) {
+            console.error('[Resume Registration Email Error]:', emailErr.message);
+          }
+        }
+
+        return res.status(200).json({
+          success: true,
+          requiresVerification: true,
+          userId: existingUser._id,
+          emailSent,
+          hasRealEmail,
+          message: emailSent
+            ? `Account pending verification. An authentication code has been sent to ${existingUser.email}.`
+            : `Account pending verification. Your authentication code is ${verificationCode}.`,
+          ...(!emailSent && { devCode: verificationCode, devMode: true }),
+        });
+      }
+
+      return res.status(409).json({
+        success: false,
+        isExistingVerified: true,
+        message: 'This phone number or email is already registered. Please sign in or reset your PIN.'
+      });
     }
 
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
@@ -168,7 +203,33 @@ router.post('/login', async (req, res) => {
     }
 
     if (!user.isVerified) {
-      return res.status(403).json({ success: false, message: 'Account not verified. Please check your email for the verification code.' });
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      user.verificationCode = verificationCode;
+      await user.save();
+
+      let emailSent = false;
+      const isReal = user.email && !user.email.endsWith('@apexbinary.ke');
+      if (isReal) {
+        try {
+          const emailResult = await sendVerificationEmail(user.email, verificationCode);
+          emailSent = emailResult.provider !== 'dev-console' && emailResult.success !== false;
+        } catch (e) {
+          console.error('[Login Verification Email Error]:', e.message);
+        }
+      }
+
+      return res.status(200).json({
+        success: false,
+        requiresVerification: true,
+        userId: user._id,
+        email: user.email,
+        phone: user.phone,
+        emailSent,
+        devCode: !emailSent ? verificationCode : null,
+        message: emailSent
+          ? `Account not yet verified. An authentication code has been sent to ${user.email}.`
+          : `Account not yet verified. Your authentication code is ${verificationCode}.`,
+      });
     }
     const token = generateToken(user);
 
