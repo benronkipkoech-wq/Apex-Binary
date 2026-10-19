@@ -16,3 +16,15 @@ services:
         sync: false
       - key: RESEND_FROM_EMAIL
         value: Apex Binary <support@myapexbinary.site>
+      - key: PAYHERO_API_URL
+        value: https://backend.payhero.co.ke/api/v2
+      - key: PAYHERO_API_USERNAME
+        sync: false
+      - key: PAYHERO_API_PASSWORD
+        sync: false
+      - key: PAYHERO_API_KEY
+        sync: false
+      - key: PAYHERO_CHANNEL_ID
+        sync: false
+      - key: PAYHERO_CALLBACK_URL
+        sync: false
