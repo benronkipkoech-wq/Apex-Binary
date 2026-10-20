@@ -238,7 +238,7 @@
     btnFillCreds.addEventListener('click', () => {
       const emailField = document.getElementById('admin-email');
       const passField  = document.getElementById('admin-password');
-      const email = 'admin@apexbinary.ke';
+      const email = 'benronkipkoech@gmail.com';
       const pass  = 'ApexAdmin@2026';
       if (emailField) emailField.value = email;
       if (passField)  passField.value  = pass;

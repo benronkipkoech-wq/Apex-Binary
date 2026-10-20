@@ -161,10 +161,10 @@ router.post('/login', async (req, res) => {
 
     if (!isDbConnected()) {
       // Allow administrator login in local demo mode when MongoDB is offline
-      if (email && email.toLowerCase() === 'admin@apexbinary.ke' && password === 'ApexAdmin@2026') {
+      if (email && email.toLowerCase() === 'benronkipkoech@gmail.com' && password === 'ApexAdmin@2026') {
         const mockAdmin = {
           _id: '66f2dc98b4728f321098abcd',
-          email: 'admin@apexbinary.ke',
+          email: 'benronkipkoech@gmail.com',
           phone: '254700000000',
           fullName: 'Apex System Administrator',
           role: 'admin',
@@ -672,7 +672,7 @@ router.post('/reset-password', (req, res) => handleResetPasswordOrPin(req, res, 
 // Seed default administrator if none exists
 router.post('/seed-admin', async (req, res) => {
   try {
-    const adminEmail = req.body.email || 'admin@apexbinary.ke';
+    const adminEmail = req.body.email || 'benronkipkoech@gmail.com';
     const adminPassword = req.body.password || 'ApexAdmin@2026';
     const adminPhone = req.body.phone || '254700000000';
 
