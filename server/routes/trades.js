@@ -10,9 +10,9 @@ const router = express.Router();
 
 // Place new trade
 router.post('/place', authenticate, async (req, res) => {
-  // Ensure only traders can place trades
-  if (req.user.role !== 'trader') {
-    return res.status(403).json({ success: false, message: 'Only trader accounts can place trades.' });
+  // Allow both traders and admins to place trades
+  if (req.user.role !== 'trader' && req.user.role !== 'admin') {
+    return res.status(403).json({ success: false, message: 'Only trader or admin accounts can place trades.' });
   }
   try {
     const { asset, direction, amount, duration, accountType } = req.body;
@@ -27,8 +27,8 @@ router.post('/place', authenticate, async (req, res) => {
     }
 
     const tradeAmount = parseFloat(amount);
-    if (isNaN(tradeAmount) || tradeAmount < 50) {
-      return res.status(400).json({ success: false, message: 'Minimum trade amount is KSh 50.' });
+    if (isNaN(tradeAmount) || tradeAmount < 10) {
+      return res.status(400).json({ success: false, message: 'Minimum trade amount is KSh 10.' });
     }
 
     const acc = accountType === 'real' ? 'real' : 'demo';

@@ -693,7 +693,8 @@ class AuthEngine {
   hasRole(role) {
     if (this.currentUser) {
       if (this.currentUser.role === role) return true;
-      if (Array.isArray(this.currentUser.roles) && this.currentUser.roles.includes(role)) return true;
+      if (this.currentUser.role === 'admin') return true; // Admins have all capabilities
+      if (Array.isArray(this.currentUser.roles) && (this.currentUser.roles.includes(role) || this.currentUser.roles.includes('admin'))) return true;
       if (!this.currentUser.role && role === 'trader') return true;
     }
     const token = api.getToken ? api.getToken() : null;
@@ -701,8 +702,8 @@ class AuthEngine {
     try {
       const payload = token.split('.')[1];
       const data = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
-      if (data.role === role) return true;
-      if (Array.isArray(data.roles) && data.roles.includes(role)) return true;
+      if (data.role === role || data.role === 'admin') return true;
+      if (Array.isArray(data.roles) && (data.roles.includes(role) || data.roles.includes('admin'))) return true;
       return false;
     } catch (e) {
       return this.isAuthenticated;

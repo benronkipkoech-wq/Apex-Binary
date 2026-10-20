@@ -23,8 +23,8 @@ export class TradingEngine {
     if (accountType === 'real' && !auth.isLoggedIn()) {
       return { success: false, message: 'Please sign in or create an account to place Real Live trades.' };
     }
-    if (amount < 100) {
-      return { success: false, message: 'Minimum trade amount is KSh 100' };
+    if (amount < 10) {
+      return { success: false, message: 'Minimum trade amount is KSh 10' };
     }
 
     // Check wallet funds

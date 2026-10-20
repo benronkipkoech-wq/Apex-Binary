@@ -1212,25 +1212,25 @@
           <div class="desk-section">
             <div class="section-label-row">
               <label>INVESTMENT AMOUNT</label>
-              <span class="min-max-label">Min: KSh 100</span>
+              <span class="min-max-label">Min: KSh 10</span>
             </div>
             <div class="amount-stepper-wrapper">
               <button class="amount-step-btn" id="btn-amount-minus" title="Decrease stake">－</button>
               <div class="amount-input-wrapper">
                 <span class="amount-prefix">KSh</span>
-                <input type="number" id="trade-amount-input" class="amount-input" value="1000" min="100" max="500000" step="50">
+                <input type="number" id="trade-amount-input" class="amount-input" value="1000" min="10" max="500000" step="10">
               </div>
               <button class="amount-step-btn" id="btn-amount-plus" title="Increase stake">＋</button>
             </div>
 
             <!-- Quick Preset Chips -->
             <div class="amount-chips-grid">
+              <button class="amount-chip" data-val="50">+50</button>
               <button class="amount-chip" data-val="100">+100</button>
               <button class="amount-chip" data-val="500">+500</button>
               <button class="amount-chip" data-val="1000">+1,000</button>
-              <button class="amount-chip" data-val="5000">+5,000</button>
-              <button class="amount-chip action-chip" id="btn-amount-x2">x2</button>
               <button class="amount-chip action-chip" id="btn-amount-half">½</button>
+              <button class="amount-chip action-chip" id="btn-amount-all" title="Trade entire balance">ALL</button>
             </div>
           </div>
 

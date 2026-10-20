@@ -1946,7 +1946,15 @@ class App {
   // Order Desk Calculator
   updateOrderDeskCalculations() {
     const input = document.getElementById('trade-amount-input');
-    const amount = Math.max(100, parseFloat(input.value) || 100);
+    const isReal = wallet.getType() === 'real';
+    const bal = wallet.getBalance();
+
+    // Auto-adjust default 1000 stake if user is on Real account and has less than 1000
+    if (isReal && bal > 0 && bal < 1000 && (parseFloat(input.value) === 1000 || !input.value)) {
+      input.value = Math.max(10, Math.floor(bal));
+    }
+
+    const amount = Math.max(10, parseFloat(input.value) || 10);
     this.stakeAmount = amount;
 
     const payoutPct = market.currentAsset ? market.currentAsset.payout : 98;
@@ -1961,7 +1969,6 @@ class App {
     if (calcProfit) calcProfit.textContent = `+KSh ${profit.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
     if (calcReturn) calcReturn.textContent = `KSh ${totalReturn.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
 
-    const isReal = wallet.getType() === 'real';
     const curLabel = isReal ? 'KES' : 'KSh';
     const modeBadge = isReal ? 'REAL' : 'DEMO';
     const subText = `+${payoutPct}% (${curLabel} ${totalReturn.toLocaleString('en-KE', { minimumFractionDigits: 2 })}) • ${modeBadge}`;
@@ -2319,7 +2326,7 @@ class App {
 
     // 1. Order execution buttons
     document.getElementById('btn-trade-higher').addEventListener('click', () => {
-      if (wallet.getType() === 'real' && (!auth.isLoggedIn() || !auth.hasRole('trader'))) {
+      if (wallet.getType() === 'real' && !auth.isLoggedIn()) {
         this.openModal('auth-screen');
         this.showToast('Please sign in or create an account to trade on your Real Live account', 'info');
         return;
@@ -2328,7 +2335,7 @@ class App {
       this.executeTrade('higher');
     });
     document.getElementById('btn-trade-lower').addEventListener('click', () => {
-      if (wallet.getType() === 'real' && (!auth.isLoggedIn() || !auth.hasRole('trader'))) {
+      if (wallet.getType() === 'real' && !auth.isLoggedIn()) {
         this.openModal('auth-screen');
         this.showToast('Please sign in or create an account to trade on your Real Live account', 'info');
         return;
@@ -2358,13 +2365,17 @@ class App {
 
     document.getElementById('btn-amount-plus').addEventListener('click', () => {
       sound.playClick();
-      amountInput.value = (parseFloat(amountInput.value) || 0) + 100;
+      const cur = parseFloat(amountInput.value) || 0;
+      const step = cur < 100 ? 10 : 50;
+      amountInput.value = cur + step;
       this.updateOrderDeskCalculations();
     });
 
     document.getElementById('btn-amount-minus').addEventListener('click', () => {
       sound.playClick();
-      amountInput.value = Math.max(100, (parseFloat(amountInput.value) || 0) - 100);
+      const cur = parseFloat(amountInput.value) || 0;
+      const step = cur <= 100 ? 10 : 50;
+      amountInput.value = Math.max(10, cur - step);
       this.updateOrderDeskCalculations();
     });
 
@@ -2379,13 +2390,20 @@ class App {
 
     document.getElementById('btn-amount-x2').addEventListener('click', () => {
       sound.playClick();
-      amountInput.value = (parseFloat(amountInput.value) || 100) * 2;
+      amountInput.value = (parseFloat(amountInput.value) || 10) * 2;
       this.updateOrderDeskCalculations();
     });
 
     document.getElementById('btn-amount-half').addEventListener('click', () => {
       sound.playClick();
-      amountInput.value = Math.max(100, Math.floor((parseFloat(amountInput.value) || 200) / 2));
+      amountInput.value = Math.max(10, Math.floor((parseFloat(amountInput.value) || 20) / 2));
+      this.updateOrderDeskCalculations();
+    });
+
+    document.getElementById('btn-amount-all')?.addEventListener('click', () => {
+      sound.playClick();
+      const bal = wallet.getBalance();
+      amountInput.value = Math.max(10, Math.floor(bal));
       this.updateOrderDeskCalculations();
     });
 
@@ -3047,6 +3065,15 @@ class App {
       this.showToast('Please sign in or create an account to place Real Live trades.', 'info');
       this.openModal('auth-screen');
       return;
+    }
+
+    // Always ensure current input value is captured as stake
+    const amountInput = document.getElementById('trade-amount-input');
+    if (amountInput) {
+      const val = parseFloat(amountInput.value);
+      if (!isNaN(val) && val >= 10) {
+        this.stakeAmount = val;
+      }
     }
 
     const res = this.trading.placeTrade(direction, this.stakeAmount, this.selectedDuration);
