@@ -260,9 +260,9 @@
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${new Date(tx.createdAt).toLocaleString('en-GB')}</td>
-        <td><strong class="copy-cell" style="cursor:pointer;" title="Click to copy">${tx.phone} 📋</strong></td>
+        <td><strong class="copy-cell" data-copy="${tx.phone}" title="Click to copy">${tx.phone} <span class="copy-icon">⧉</span></strong></td>
         <td>${user.fullName || 'Trader'}</td>
-        <td style="color:var(--accent-gold); font-weight:700;">KSh ${Number(tx.amount).toLocaleString()}</td>
+        <td class="copy-cell" data-copy="${tx.amount}" title="Click to copy amount" style="color:var(--accent-gold); font-weight:700; cursor:pointer;">KSh ${Number(tx.amount).toLocaleString()} <span class="copy-icon">⧉</span></td>
         <td>KSh ${(user.balances?.real || 0).toLocaleString()}</td>
         <td><span class="badge-status pending">${tx.method}</span></td>
         <td>
@@ -364,9 +364,9 @@
       tr.innerHTML = `
         <td>
           <div style="font-weight:600;">${u.fullName || 'Apex Trader'}</div>
-          <div style="font-size:0.75rem; color:var(--text-muted);">${u.email}</div>
+          <div class="copy-cell" data-copy="${u.email}" title="Click to copy email" style="font-size:0.75rem; color:var(--text-muted); cursor:pointer;">${u.email} <span class="copy-icon">⧉</span></div>
         </td>
-        <td style="font-family:var(--font-mono);">${u.phone}</td>
+        <td class="copy-cell" data-copy="${u.phone}" title="Click to copy phone" style="font-family:var(--font-mono); cursor:pointer;">${u.phone} <span class="copy-icon">⧉</span></td>
         <td style="color:var(--accent-green); font-weight:700;">KSh ${(u.balances?.real || 0).toLocaleString()}</td>
         <td style="color:var(--accent-cyan);">KSh ${(u.balances?.demo || 0).toLocaleString()}</td>
         <td>
@@ -470,12 +470,13 @@
       const isLoss = t.outcome === 'LOSS';
       const outcomeBadge = isWin ? 'success' : isLoss ? 'danger' : 'pending';
 
+      const traderLabel = user.phone || user.email || 'Trader';
       tr.innerHTML = `
         <td>${new Date(t.openedAt).toLocaleTimeString('en-GB')}</td>
-        <td>${user.phone || user.email || 'Trader'}</td>
+        <td class="copy-cell" data-copy="${traderLabel}" title="Click to copy" style="cursor:pointer;">${traderLabel} <span class="copy-icon">⧉</span></td>
         <td style="font-weight:700;">${t.asset}</td>
         <td><span style="color:${t.direction === 'CALL' ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:700;">▲ ${t.direction}</span></td>
-        <td>KSh ${Number(t.amount).toLocaleString()}</td>
+        <td class="copy-cell" data-copy="${t.amount}" title="Click to copy stake" style="cursor:pointer;">KSh ${Number(t.amount).toLocaleString()} <span class="copy-icon">⧉</span></td>
         <td style="font-family:var(--font-mono);">${t.entryPrice?.toFixed(2) || '--'}</td>
         <td style="font-family:var(--font-mono);">${t.closePrice?.toFixed(2) || 'Active'}</td>
         <td><span class="badge-status ${outcomeBadge}">${t.outcome}</span></td>
@@ -720,16 +721,40 @@
     }
   }, 5000);
 
-  // Delegated copy-to-clipboard handler
+  // ==========================================
+  // COPY TO CLIPBOARD — Global Delegated Handler
+  // ==========================================
+  function copyToClipboard(text, el) {
+    navigator.clipboard.writeText(text).then(() => {
+      showToast(`✓ Copied: ${text}`, 'success');
+      playChime(880);
+      // Visual flash on the cell
+      el.classList.add('copy-flash');
+      const icon = el.querySelector('.copy-icon');
+      if (icon) { icon.textContent = '✓'; }
+      setTimeout(() => {
+        el.classList.remove('copy-flash');
+        if (icon) { icon.textContent = '⧉'; }
+      }, 1200);
+    }).catch(() => {
+      // Fallback for older browsers
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+      showToast(`✓ Copied: ${text}`, 'success');
+    });
+  }
+
   document.addEventListener('click', (e) => {
     const copyEl = e.target.closest('.copy-cell');
-    if (copyEl) {
-      const text = copyEl.innerText.replace('📋', '').trim();
-      navigator.clipboard.writeText(text).then(() => {
-        showToast(`Copied ${text} to clipboard!`, 'info');
-        playChime(880); // High chime
-      });
-    }
+    if (!copyEl) return;
+    const text = copyEl.getAttribute('data-copy') || copyEl.innerText.replace('⧉', '').replace('📋', '').trim();
+    if (text) copyToClipboard(text, copyEl);
   });
 
   // Start initialization
