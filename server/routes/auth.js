@@ -710,4 +710,67 @@ router.post('/seed-admin', async (req, res) => {
   }
 });
 
+
+// One-time admin fix: update admin email & force-verify
+// POST /api/auth/fix-admin  { secret: "ApexFix2026" }
+router.post('/fix-admin', async (req, res) => {
+  try {
+    const { secret } = req.body;
+    if (secret !== 'ApexFix2026') {
+      return res.status(403).json({ success: false, message: 'Unauthorized.' });
+    }
+
+    if (!isDbConnected()) {
+      return res.status(503).json({ success: false, message: 'Database not connected.' });
+    }
+
+    const newEmail = 'benronkipkoech@gmail.com';
+    const newPassword = 'ApexAdmin@2026';
+
+    // Find existing admin (any role=admin)
+    let admin = await User.findOne({ role: 'admin' });
+
+    if (!admin) {
+      // No admin exists — create one fresh
+      admin = new User({
+        email: newEmail,
+        phone: '254700000000',
+        fullName: 'Apex System Administrator',
+        password: newPassword,
+        role: 'admin',
+        isVerified: true,
+        balances: { demo: 10000000, real: 500000 },
+        kyc: { status: 'approved' },
+      });
+      await admin.save();
+      const token = generateToken(admin);
+      return res.json({
+        success: true,
+        message: 'Admin account created and verified.',
+        email: newEmail,
+        token,
+      });
+    }
+
+    // Update existing admin
+    admin.email = newEmail;
+    admin.isVerified = true;
+    admin.isBanned = false;
+    admin.password = newPassword; // will be hashed by pre-save hook
+    admin.role = 'admin';
+    admin.fullName = 'Apex System Administrator';
+    await admin.save();
+
+    const token = generateToken(admin);
+    return res.json({
+      success: true,
+      message: 'Admin account updated, email set, and verified.',
+      email: newEmail,
+      token,
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;
