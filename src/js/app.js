@@ -286,68 +286,13 @@ class App {
     const loginForm = document.getElementById('auth-login-form');
     const regForm = document.getElementById('auth-register-form');
 
-    const switchAuthTab = (isLogin) => {
-      const loginPhone = document.getElementById('login-phone');
-      const regPhone = document.getElementById('reg-phone');
-
-      if (isLogin) {
-        loginTab.classList.add('active');
-        regTab.classList.remove('active');
-        slider.classList.remove('register');
-        loginForm.classList.remove('hidden');
-        regForm.classList.add('hidden');
-        this.activeAuthKeypad = 'login';
-        if (regPhone?.value && !loginPhone?.value) {
-          loginPhone.value = regPhone.value;
-        }
-      } else {
-        regTab.classList.add('active');
-        loginTab.classList.remove('active');
-        slider.classList.add('register');
-        regForm.classList.remove('hidden');
-        loginForm.classList.add('hidden');
-        this.activeAuthKeypad = 'register';
-        if (loginPhone?.value && !regPhone?.value) {
-          regPhone.value = loginPhone.value;
-        }
-      }
-      this.clearAuthPins();
-      const authScreen = document.getElementById('auth-screen');
-      if (authScreen) authScreen.scrollTop = 0;
-      sound.playClick();
-    };
-
-    if (loginTab) loginTab.addEventListener('click', () => switchAuthTab(true));
-    if (regTab) regTab.addEventListener('click', () => switchAuthTab(false));
-
-    // Guest Nav Actions
-    const btnNavLogin = document.getElementById('btn-nav-login');
-    const btnNavRegister = document.getElementById('btn-nav-register');
-    const btnCloseAuth = document.getElementById('btn-close-auth');
-    const authScreen = document.getElementById('auth-screen');
-
-    if (btnNavLogin) btnNavLogin.addEventListener('click', () => {
-      authScreen.classList.remove('hidden');
-      switchAuthTab(true);
-    });
-
-    if (btnNavRegister) btnNavRegister.addEventListener('click', () => {
-      authScreen.classList.remove('hidden');
-      switchAuthTab(false);
-    });
-
-    if (btnCloseAuth) btnCloseAuth.addEventListener('click', () => {
-      authScreen.classList.add('hidden');
-      sound.playClick();
-    });
-
-    // PIN Input Logic (M-Pesa style keypads)
+    // PIN Input Logic (M-Pesa style keypads) — defined FIRST so switchAuthTab can call clearAuthPins
     this.authPins = {
       login: '',
       reg: '',
       regConfirm: ''
     };
-    this.activeAuthKeypad = 'login'; // login, register, registerConfirm
+    this.activeAuthKeypad = 'login';
 
     const updatePinDisplay = (type, val) => {
       let prefix = type === 'login' ? 'login-dot-' : (type === 'reg' ? 'reg-dot-' : 'reg-confirm-dot-');
@@ -438,6 +383,62 @@ class App {
       updatePinDisplay('reg', '');
       updatePinDisplay('regConfirm', '');
     };
+
+    // Tab switching listeners — defined AFTER clearAuthPins to avoid silent crash
+    const switchAuthTab = (isLogin) => {
+      const loginPhone = document.getElementById('login-phone');
+      const regPhone = document.getElementById('reg-phone');
+
+      if (isLogin) {
+        loginTab.classList.add('active');
+        regTab.classList.remove('active');
+        slider.classList.remove('register');
+        loginForm.classList.remove('hidden');
+        regForm.classList.add('hidden');
+        this.activeAuthKeypad = 'login';
+        if (regPhone?.value && !loginPhone?.value) {
+          loginPhone.value = regPhone.value;
+        }
+      } else {
+        regTab.classList.add('active');
+        loginTab.classList.remove('active');
+        slider.classList.add('register');
+        regForm.classList.remove('hidden');
+        loginForm.classList.add('hidden');
+        this.activeAuthKeypad = 'register';
+        if (loginPhone?.value && !regPhone?.value) {
+          regPhone.value = loginPhone.value;
+        }
+      }
+      this.clearAuthPins();
+      const authScreenEl = document.getElementById('auth-screen');
+      if (authScreenEl) authScreenEl.scrollTop = 0;
+      sound.playClick();
+    };
+
+    if (loginTab) loginTab.addEventListener('click', () => switchAuthTab(true));
+    if (regTab) regTab.addEventListener('click', () => switchAuthTab(false));
+
+    // Guest Nav Actions
+    const btnNavLogin = document.getElementById('btn-nav-login');
+    const btnNavRegister = document.getElementById('btn-nav-register');
+    const btnCloseAuth = document.getElementById('btn-close-auth');
+    const authScreen = document.getElementById('auth-screen');
+
+    if (btnNavLogin) btnNavLogin.addEventListener('click', () => {
+      authScreen.classList.remove('hidden');
+      switchAuthTab(true);
+    });
+
+    if (btnNavRegister) btnNavRegister.addEventListener('click', () => {
+      authScreen.classList.remove('hidden');
+      switchAuthTab(false);
+    });
+
+    if (btnCloseAuth) btnCloseAuth.addEventListener('click', () => {
+      authScreen.classList.add('hidden');
+      sound.playClick();
+    });
 
     // Forms Submission
     if (loginForm) {
