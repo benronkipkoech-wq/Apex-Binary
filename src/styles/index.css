@@ -3785,6 +3785,44 @@ input:checked + .slider:before {
   box-shadow: 0 0 0 3px rgba(0, 245, 155, 0.12);
 }
 
+/* Show/hide password toggle button — client app */
+.pw-toggle-wrap {
+  position: relative;
+}
+
+.pw-toggle-wrap .auth-input {
+  padding-right: 2.6rem;
+}
+
+.pw-eye-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 100%;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  z-index: 2;
+  user-select: none;
+  padding: 0;
+}
+
+.pw-eye-btn:hover {
+  color: var(--green-main);
+}
+
+.pw-eye-btn.pw-eye-active {
+  color: var(--green-main);
+}
+
 .auth-input-prefix {
   font-family: var(--font-sans);
   font-size: 13px;

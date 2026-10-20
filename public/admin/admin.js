@@ -178,7 +178,21 @@
   btnLogout.addEventListener('click', () => handleLogout('Signed out successfully.'));
 
   // ==========================================
-  // CREDENTIAL QUICK-COPY HANDLERS
+  // SHOW / HIDE PASSWORD TOGGLE
+  // ==========================================
+  document.addEventListener('click', (e) => {
+    const eyeBtn = e.target.closest('.btn-pw-eye');
+    if (!eyeBtn) return;
+    const targetId = eyeBtn.getAttribute('data-target');
+    const input = document.getElementById(targetId);
+    if (!input) return;
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    eyeBtn.innerHTML = isHidden ? '&#128064;' : '&#128065;'; // open eye / closed eye
+    eyeBtn.title = isHidden ? 'Hide password' : 'Show password';
+    eyeBtn.classList.toggle('pw-eye-active', isHidden);
+  });
+
   // ==========================================
 
   // Copy button beside each input field (copies field's current value)

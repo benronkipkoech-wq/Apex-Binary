@@ -308,16 +308,18 @@
           <div id="reset-pwd-container" class="hidden">
             <div class="auth-input-group">
               <label class="auth-label" for="reset-custom-password">New Password</label>
-              <div class="auth-input-wrapper">
-                <span class="auth-input-icon">🔒</span>
+              <div class="auth-input-wrapper pw-toggle-wrap">
+                <span class="auth-input-icon">&#128274;</span>
                 <input type="password" id="reset-custom-password" class="auth-input" placeholder="Minimum 4 characters">
+                <button type="button" class="pw-eye-btn" data-target="reset-custom-password" title="Show/hide password" aria-label="Toggle password visibility">&#128065;</button>
               </div>
             </div>
             <div class="auth-input-group">
               <label class="auth-label" for="reset-confirm-custom-password">Confirm New Password</label>
-              <div class="auth-input-wrapper">
-                <span class="auth-input-icon">🔒</span>
+              <div class="auth-input-wrapper pw-toggle-wrap">
+                <span class="auth-input-icon">&#128274;</span>
                 <input type="password" id="reset-confirm-custom-password" class="auth-input" placeholder="Repeat new password">
+                <button type="button" class="pw-eye-btn" data-target="reset-confirm-custom-password" title="Show/hide password" aria-label="Toggle password visibility">&#128065;</button>
               </div>
             </div>
           </div>
@@ -505,19 +507,28 @@
 
       <!-- Change PIN Sub-Form (hidden by default) -->
       <div class="security-section hidden" id="change-pin-section">
-        <h4 class="security-section-title">🔑 Change PIN</h4>
+        <h4 class="security-section-title">&#128273; Change PIN</h4>
         <div class="change-pin-form">
           <div class="auth-input-group compact">
             <label class="auth-label">Current PIN</label>
-            <input type="password" id="current-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric">
+            <div class="pw-toggle-wrap" style="position:relative; display:flex; align-items:center;">
+              <input type="password" id="current-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric" style="padding-right:2.5rem;">
+              <button type="button" class="pw-eye-btn" data-target="current-pin-input" title="Show/hide PIN" aria-label="Toggle PIN visibility">&#128065;</button>
+            </div>
           </div>
           <div class="auth-input-group compact">
             <label class="auth-label">New PIN</label>
-            <input type="password" id="new-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric">
+            <div class="pw-toggle-wrap" style="position:relative; display:flex; align-items:center;">
+              <input type="password" id="new-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric" style="padding-right:2.5rem;">
+              <button type="button" class="pw-eye-btn" data-target="new-pin-input" title="Show/hide PIN" aria-label="Toggle PIN visibility">&#128065;</button>
+            </div>
           </div>
           <div class="auth-input-group compact">
             <label class="auth-label">Confirm New PIN</label>
-            <input type="password" id="confirm-new-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric">
+            <div class="pw-toggle-wrap" style="position:relative; display:flex; align-items:center;">
+              <input type="password" id="confirm-new-pin-input" class="auth-input compact" maxlength="4" pattern="\d{4}" inputmode="numeric" style="padding-right:2.5rem;">
+              <button type="button" class="pw-eye-btn" data-target="confirm-new-pin-input" title="Show/hide PIN" aria-label="Toggle PIN visibility">&#128065;</button>
+            </div>
           </div>
           <div class="change-pin-actions">
             <button class="auth-submit-btn compact" id="btn-submit-change-pin">Update PIN</button>

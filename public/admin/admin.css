@@ -1209,6 +1209,34 @@ body.admin-body {
   color: #fff;
 }
 
+/* Eye toggle button (show/hide password) — admin */
+.btn-pw-eye {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 42px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-left: none;
+  color: var(--text-muted);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.btn-pw-eye:hover {
+  background: rgba(0, 240, 255, 0.1);
+  color: var(--accent-cyan);
+}
+
+.btn-pw-eye.pw-eye-active {
+  color: var(--accent-cyan);
+  background: rgba(0, 240, 255, 0.08);
+}
+
 /* Default credentials card */
 .creds-card {
   margin-top: 1rem;
