@@ -1869,6 +1869,112 @@ input:checked + .slider:before {
   box-shadow: 0 0 6px var(--green-glow);
 }
 
+/* Mode Tag Pill */
+.mode-tag-pill {
+  font-size: 8.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 5px;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--gold-main);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  margin-left: 2px;
+}
+
+.mode-tag-pill.green {
+  background: rgba(0, 245, 155, 0.2);
+  color: var(--green-main);
+  border-color: rgba(0, 245, 155, 0.35);
+}
+
+/* Desk Header Mode Chip */
+.desk-title-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.desk-mode-chip {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full);
+  transition: var(--transition);
+}
+
+.desk-mode-chip.demo {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--gold-main);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.desk-mode-chip.real {
+  background: rgba(0, 245, 155, 0.15);
+  color: var(--green-main);
+  border: 1px solid rgba(0, 245, 155, 0.3);
+  box-shadow: 0 0 8px rgba(0, 245, 155, 0.2);
+}
+
+/* Quick Action Bar under Switcher */
+.desk-mode-subactions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+
+.desk-subaction-btn {
+  background: transparent;
+  border: none;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.desk-subaction-btn.reload-btn {
+  color: var(--gold-main);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px dashed rgba(245, 158, 11, 0.3);
+}
+
+.desk-subaction-btn.reload-btn:hover {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: var(--gold-main);
+  transform: translateY(-1px);
+}
+
+.desk-subaction-btn.deposit-btn {
+  color: var(--green-main);
+  background: rgba(0, 245, 155, 0.12);
+  border: 1px solid rgba(0, 245, 155, 0.35);
+  box-shadow: 0 0 8px rgba(0, 245, 155, 0.15);
+}
+
+.desk-subaction-btn.deposit-btn:hover {
+  background: rgba(0, 245, 155, 0.22);
+  border-color: var(--green-main);
+  transform: translateY(-1px);
+}
+
+.trade-desk-card.mode-real {
+  border-color: rgba(0, 245, 155, 0.25);
+  box-shadow: 0 0 25px rgba(0, 245, 155, 0.05);
+}
+
+.trade-desk-card.mode-demo {
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
 .desk-section {
   display: flex;
   flex-direction: column;
@@ -4952,37 +5058,95 @@ body:not(.authenticated) #active-trades-badge {
   display: none !important;
 }
 
-/* Block trade buttons for guests */
+/* Real Mode Required Overlay on Trade Desk */
 .guest-trade-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(8, 11, 18, 0.7);
-  backdrop-filter: blur(4px);
+  background: rgba(8, 11, 18, 0.82);
+  backdrop-filter: blur(6px);
   z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-md);
-  opacity: 0;
-  pointer-events: none;
+  padding: 18px;
   transition: opacity 0.3s ease;
 }
 
-body:not(.authenticated) .order-desk-panel .guest-trade-overlay {
-  opacity: 1;
-  pointer-events: auto;
+.guest-trade-overlay.hidden {
+  display: none !important;
 }
 
-.guest-trade-msg {
-  background: var(--bg-card);
-  border: 1px solid var(--green-main);
-  padding: 12px 20px;
+.guest-lock-card {
+  background: linear-gradient(145deg, #121927, #0c111a);
+  border: 1px solid rgba(0, 245, 155, 0.35);
+  border-radius: var(--radius-md);
+  padding: 22px 18px;
+  text-align: center;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(0, 245, 155, 0.1);
+  max-width: 270px;
+  animation: fadeInModal 0.25s ease;
+}
+
+.guest-lock-icon {
+  font-size: 28px;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.guest-lock-title {
+  font-family: var(--font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.guest-lock-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin-bottom: 16px;
+}
+
+.guest-lock-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.guest-lock-btn {
+  width: 100%;
+  padding: 9px 14px;
+  font-size: 12px;
+  font-weight: 700;
   border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--green-main);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.guest-lock-btn.btn-auth {
+  background: linear-gradient(135deg, var(--green-main), #00c97a);
+  color: #05140b;
+  border: none;
+  box-shadow: 0 4px 14px rgba(0, 245, 155, 0.3);
+}
+
+.guest-lock-btn.btn-auth:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 245, 155, 0.45);
+}
+
+.guest-lock-btn.btn-demo {
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--gold-main);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.guest-lock-btn.btn-demo:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: var(--gold-main);
 }
 
 /* ==========================================================================

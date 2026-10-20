@@ -17,9 +17,11 @@ export class TradingEngine {
   }
 
   placeTrade(direction, amount, durationSec) {
-    // Require login for trade placement
-    if (!auth.isLoggedIn()) {
-      return { success: false, message: 'Please log in or create an account to place trades.' };
+    const accountType = wallet.getType();
+
+    // Real live trading strictly requires authentication
+    if (accountType === 'real' && !auth.isLoggedIn()) {
+      return { success: false, message: 'Please sign in or create an account to place Real Live trades.' };
     }
     if (amount < 100) {
       return { success: false, message: 'Minimum trade amount is KSh 100' };
@@ -27,7 +29,7 @@ export class TradingEngine {
 
     // Check wallet funds
     if (!wallet.deduct(amount)) {
-      const type = wallet.getType().toUpperCase();
+      const type = accountType.toUpperCase();
       return { success: false, message: `Insufficient funds in ${type} account. Please deposit or switch wallets.` };
     }
 
@@ -54,32 +56,34 @@ export class TradingEngine {
       expiryTimestamp,
       status: 'active',
       inTheMoney: false,
-      accountType: wallet.getType()
+      accountType
     };
 
     this.activeTrades.push(trade);
     sound.playTradePlaced();
     this.notify('trade_placed', { trade });
 
-    // Async sync trade to backend database
-    api.placeTrade({
-      asset: asset.name,
-      direction: isCallDir ? 'CALL' : 'PUT',
-      amount,
-      duration: durationSec,
-      accountType: trade.accountType
-    }).then(res => {
-      if (res.ok && res.data.success && res.data.updatedBalance !== undefined) {
-        if (trade.accountType === 'real') {
-          wallet.realBalance = res.data.updatedBalance;
-          localStorage.setItem('tycoon_real_balance', wallet.realBalance.toString());
-        } else {
-          wallet.demoBalance = res.data.updatedBalance;
-          localStorage.setItem('tycoon_demo_balance', wallet.demoBalance.toString());
+    // Async sync trade to backend database if authenticated
+    if (auth.isLoggedIn()) {
+      api.placeTrade({
+        asset: asset.name,
+        direction: isCallDir ? 'CALL' : 'PUT',
+        amount,
+        duration: durationSec,
+        accountType: trade.accountType
+      }).then(res => {
+        if (res.ok && res.data.success && res.data.updatedBalance !== undefined) {
+          if (trade.accountType === 'real') {
+            wallet.realBalance = res.data.updatedBalance;
+            localStorage.setItem('tycoon_real_balance', wallet.realBalance.toString());
+          } else {
+            wallet.demoBalance = res.data.updatedBalance;
+            localStorage.setItem('tycoon_demo_balance', wallet.demoBalance.toString());
+          }
+          wallet.notify();
         }
-        wallet.notify();
-      }
-    }).catch(() => {});
+      }).catch(() => {});
+    }
 
     return { success: true, trade };
   }

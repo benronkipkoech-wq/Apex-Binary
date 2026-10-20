@@ -144,6 +144,7 @@ class App {
       if (authGroup) authGroup.classList.add('hidden');
       if (guestGroup) guestGroup.classList.remove('hidden');
     }
+    this.updateWalletUI();
   }
 
   updateSecurityPanelUI() {
@@ -1383,11 +1384,39 @@ class App {
     if (deskDemoBal) deskDemoBal.textContent = wallet.formatCurrency(demoBalance);
     if (deskRealBal) deskRealBal.textContent = wallet.formatCurrency(realBalance);
 
+    // Keep trade desk card visual theme in sync
+    const deskCard = document.getElementById('trade-desk-card');
+    if (deskCard) {
+      deskCard.classList.toggle('mode-real', isReal);
+      deskCard.classList.toggle('mode-demo', !isReal);
+    }
+
+    // Trade Desk Active Mode Chip
+    const modeChip = document.getElementById('desk-mode-chip');
+    if (modeChip) {
+      modeChip.className = `desk-mode-chip ${isReal ? 'real' : 'demo'}`;
+      modeChip.textContent = isReal ? 'REAL KES LIVE' : 'DEMO ACCOUNT';
+    }
+
+    // Quick Subactions in Trade Desk (Refill vs Deposit)
+    const btnResetDemo = document.getElementById('btn-desk-reset-demo');
+    const btnDepositReal = document.getElementById('btn-desk-deposit-real');
+    if (btnResetDemo) btnResetDemo.classList.toggle('hidden', isReal);
+    if (btnDepositReal) btnDepositReal.classList.toggle('hidden', !isReal);
+
+    // Guest Real Overlay: Only show if Real mode is selected while guest is not logged in
+    const guestOverlay = document.getElementById('guest-trade-overlay');
+    if (guestOverlay) {
+      const showLock = isReal && !auth.isLoggedIn();
+      guestOverlay.classList.toggle('hidden', !showLock);
+    }
+
     const withdrawAvail = document.getElementById('withdraw-avail-balance');
     if (withdrawAvail) {
       withdrawAvail.textContent = wallet.formatCurrency(realBalance);
     }
 
+    this.updateOrderDeskCalculations();
     this.renderMpesaLog();
   }
 
@@ -1909,17 +1938,27 @@ class App {
     const amount = Math.max(100, parseFloat(input.value) || 100);
     this.stakeAmount = amount;
 
-    const payoutPct = market.currentAsset.payout;
+    const payoutPct = market.currentAsset ? market.currentAsset.payout : 98;
     const profit = amount * (payoutPct / 100);
     const totalReturn = amount + profit;
 
-    document.getElementById('calc-payout-pct').textContent = `${payoutPct}%`;
-    document.getElementById('calc-profit-amount').textContent = `+KSh ${profit.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
-    document.getElementById('calc-total-return').textContent = `KSh ${totalReturn.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+    const calcPayout = document.getElementById('calc-payout-pct');
+    const calcProfit = document.getElementById('calc-profit-amount');
+    const calcReturn = document.getElementById('calc-total-return');
 
-    const subText = `+${payoutPct}% (KSh ${totalReturn.toLocaleString('en-KE', { minimumFractionDigits: 2 })})`;
-    document.getElementById('higher-payout-sub').textContent = subText;
-    document.getElementById('lower-payout-sub').textContent = subText;
+    if (calcPayout) calcPayout.textContent = `${payoutPct}%`;
+    if (calcProfit) calcProfit.textContent = `+KSh ${profit.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+    if (calcReturn) calcReturn.textContent = `KSh ${totalReturn.toLocaleString('en-KE', { minimumFractionDigits: 2 })}`;
+
+    const isReal = wallet.getType() === 'real';
+    const curLabel = isReal ? 'KES' : 'KSh';
+    const modeBadge = isReal ? 'REAL' : 'DEMO';
+    const subText = `+${payoutPct}% (${curLabel} ${totalReturn.toLocaleString('en-KE', { minimumFractionDigits: 2 })}) • ${modeBadge}`;
+
+    const higherSub = document.getElementById('higher-payout-sub');
+    const lowerSub = document.getElementById('lower-payout-sub');
+    if (higherSub) higherSub.textContent = subText;
+    if (lowerSub) lowerSub.textContent = subText;
   }
 
   // Trades List Rendering
@@ -1963,6 +2002,7 @@ class App {
           const currentPrice = market.getCurrentPrice();
           const pnlStatus = t.inTheMoney ? 'IN THE MONEY' : 'OUT OF MONEY';
           const expectedReturn = t.inTheMoney ? (t.amount * (1 + t.payoutRate / 100)) : 0;
+          const accType = t.accountType || 'demo';
 
           return `
             <div class="trade-card ${t.inTheMoney ? 'in-the-money' : 'out-of-money'}">
@@ -1971,6 +2011,7 @@ class App {
                   <span>${t.assetIcon}</span>
                   <span>${t.assetName}</span>
                 </span>
+                <span class="badge ${accType === 'real' ? 'real-badge' : 'demo-badge'}">${accType === 'real' ? 'REAL' : 'DEMO'}</span>
                 <span class="trade-direction ${isCall ? 'higher' : 'lower'}">
                   ${isCall ? '▲ HIGHER' : '▼ LOWER'}
                 </span>
@@ -2011,6 +2052,7 @@ class App {
         closedList.innerHTML = closed.map(t => {
           const isWin = t.status === 'won';
           const isCall = t.direction === 'higher';
+          const accType = t.accountType || 'demo';
           return `
             <div class="trade-card ${isWin ? 'in-the-money' : 'out-of-money'}">
               <div class="trade-card-top">
@@ -2018,6 +2060,7 @@ class App {
                   <span>${t.assetIcon}</span>
                   <span>${t.assetName}</span>
                 </span>
+                <span class="badge ${accType === 'real' ? 'real-badge' : 'demo-badge'}">${accType === 'real' ? 'REAL' : 'DEMO'}</span>
                 <span class="trade-direction ${isCall ? 'higher' : 'lower'}">
                   ${isCall ? '▲ CALL' : '▼ PUT'}
                 </span>
@@ -2027,7 +2070,7 @@ class App {
                 <span>Exit: ${t.exitPrice.toFixed(t.decimals)}</span>
               </div>
               <div class="trade-pnl-row">
-                <span class="badge ${isWin ? 'real-badge' : 'demo-badge'}" style="${!isWin ? 'color: var(--red-main); background: rgba(255,51,102,0.15); border-color: rgba(255,51,102,0.3);' : ''}">
+                <span class="badge" style="${isWin ? 'color: var(--green-main); background: rgba(0,245,155,0.15); border: 1px solid rgba(0,245,155,0.3);' : 'color: var(--red-main); background: rgba(255,51,102,0.15); border: 1px solid rgba(255,51,102,0.3);'}">
                   ${isWin ? 'WON +KSh ' + t.profit.toLocaleString() : 'LOST -KSh ' + t.amount.toLocaleString()}
                 </span>
                 <small style="color: #64748b;">${new Date(t.exitTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
@@ -2251,16 +2294,18 @@ class App {
   attachEventListeners() {
     // 1. Order execution buttons
     document.getElementById('btn-trade-higher').addEventListener('click', () => {
-      if (!auth.isLoggedIn() || !auth.hasRole('trader')) {
+      if (wallet.getType() === 'real' && (!auth.isLoggedIn() || !auth.hasRole('trader'))) {
         this.openModal('auth-screen');
+        this.showToast('Please sign in or create an account to trade on your Real Live account', 'info');
         return;
       }
 
       this.executeTrade('higher');
     });
     document.getElementById('btn-trade-lower').addEventListener('click', () => {
-      if (!auth.isLoggedIn() || !auth.hasRole('trader')) {
+      if (wallet.getType() === 'real' && (!auth.isLoggedIn() || !auth.hasRole('trader'))) {
         this.openModal('auth-screen');
+        this.showToast('Please sign in or create an account to trade on your Real Live account', 'info');
         return;
       }
 
@@ -2383,16 +2428,16 @@ class App {
       sound.playClick();
     });
 
-    // 7. Wallet Switcher & Reload
+    // 7. Wallet Switcher & Reload (Universal Demo & Real)
     const walletPill = document.getElementById('wallet-pill-btn');
     const walletMenu = document.getElementById('wallet-menu');
-    walletPill.addEventListener('click', () => {
+    walletPill?.addEventListener('click', () => {
       walletMenu.classList.toggle('hidden');
       sound.playClick();
     });
 
     document.addEventListener('click', (e) => {
-      if (!walletPill.contains(e.target) && !walletMenu.contains(e.target)) {
+      if (walletPill && walletMenu && !walletPill.contains(e.target) && !walletMenu.contains(e.target)) {
         walletMenu.classList.add('hidden');
       }
       if (!drawTrigger.contains(e.target) && !drawDropdown.contains(e.target)) {
@@ -2400,34 +2445,55 @@ class App {
       }
     });
 
-    document.getElementById('menu-select-demo').addEventListener('click', () => {
+    const switchToDemo = () => {
       wallet.setType('demo');
       sound.playClick();
-      walletMenu.classList.add('hidden');
-      this.showToast('Switched to Demo Account (KSh)', 'info');
-    });
+      walletMenu?.classList.add('hidden');
+      this.showToast('Switched to Demo Account (KSh 1,000,000 Practice Funds)', 'info');
+    };
 
-    document.getElementById('menu-select-real').addEventListener('click', () => {
+    const switchToReal = () => {
       wallet.setType('real');
       sound.playClick();
-      walletMenu.classList.add('hidden');
-      this.showToast('Switched to Real Account (KES)', 'info');
-    });
+      walletMenu?.classList.add('hidden');
+      if (!auth.isLoggedIn()) {
+        this.showToast('Real Live Account selected. Sign in to deposit & trade live.', 'info');
+      } else {
+        this.showToast('Switched to Real Account (Live KES)', 'success');
+      }
+    };
+
+    document.getElementById('menu-select-demo')?.addEventListener('click', switchToDemo);
+    document.getElementById('menu-select-real')?.addEventListener('click', switchToReal);
 
     // Trade Desk Quick Switcher (Demo vs Real)
-    document.getElementById('desk-btn-demo')?.addEventListener('click', () => {
-      wallet.setType('demo');
-      sound.playClick();
-      this.showToast('Switched to Demo Account (Virtual KSh)', 'info');
+    document.getElementById('desk-btn-demo')?.addEventListener('click', switchToDemo);
+    document.getElementById('desk-btn-real')?.addEventListener('click', switchToReal);
+
+    // Quick Refill Demo in Trade Desk
+    document.getElementById('btn-desk-reset-demo')?.addEventListener('click', () => {
+      wallet.resetDemoBalance();
+      sound.playMpesaCash();
+      this.showToast('Demo balance refilled to KSh 1,000,000.00', 'success');
     });
 
-    document.getElementById('desk-btn-real')?.addEventListener('click', () => {
-      wallet.setType('real');
+    // Quick Deposit Real in Trade Desk
+    document.getElementById('btn-desk-deposit-real')?.addEventListener('click', () => {
       sound.playClick();
-      this.showToast('Switched to Real Account (Live KES)', 'info');
+      openDepositFlow();
     });
 
-    document.getElementById('btn-reload-demo').addEventListener('click', (e) => {
+    // Real Account Locked Overlay Buttons
+    document.getElementById('btn-lock-signin')?.addEventListener('click', () => {
+      sound.playClick();
+      this.openModal('auth-screen');
+    });
+
+    document.getElementById('btn-lock-demo')?.addEventListener('click', () => {
+      switchToDemo();
+    });
+
+    document.getElementById('btn-reload-demo')?.addEventListener('click', (e) => {
       e.stopPropagation();
       wallet.resetDemoBalance();
       this.showToast('Demo balance reset to KSh 1,000,000.00', 'success');
@@ -2939,20 +3005,23 @@ class App {
     }
     sound.vibrate([25]);
 
-    if (!auth.isLoggedIn()) {
-      this.showToast('Please log in or create an account to place trades.', 'error');
+    const isReal = wallet.getType() === 'real';
+    if (isReal && !auth.isLoggedIn()) {
+      this.showToast('Please sign in or create an account to place Real Live trades.', 'info');
       this.openModal('auth-screen');
       return;
     }
+
     const res = this.trading.placeTrade(direction, this.stakeAmount, this.selectedDuration);
     if (!res.success) {
       this.showToast(res.message, 'error');
-      if (res.message.includes('Insufficient funds')) {
+      if (res.message.includes('Insufficient funds') && isReal) {
         this.openModal('modal-mpesa-deposit');
       }
     } else {
       const dirText = direction === 'higher' ? 'HIGHER (CALL)' : 'LOWER (PUT)';
-      this.showToast(`${dirText} order placed for KSh ${this.stakeAmount.toLocaleString()}!`, 'success');
+      const accLabel = isReal ? 'REAL' : 'DEMO';
+      this.showToast(`${dirText} order placed [${accLabel}] for KSh ${this.stakeAmount.toLocaleString()}!`, 'success');
     }
   }
 }

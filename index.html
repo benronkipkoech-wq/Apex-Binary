@@ -601,6 +601,41 @@
           </a>
         </div>
 
+        <!-- Account Switcher Dropdown (Universal: Demo & Real) -->
+        <div class="wallet-switcher" id="wallet-switcher">
+          <button class="wallet-pill" id="wallet-pill-btn" title="Toggle between Demo practice funds and Real KES balance">
+            <span class="wallet-status-dot"></span>
+            <div class="wallet-info">
+              <span class="wallet-type-label" id="wallet-type-label">DEMO ACCOUNT</span>
+              <span class="wallet-balance-display" id="wallet-balance-display">KSh 1,000,000.00</span>
+            </div>
+            <span class="dropdown-chevron">▾</span>
+          </button>
+
+          <!-- Wallet Dropdown Menu -->
+          <div class="wallet-menu hidden" id="wallet-menu">
+            <div class="wallet-menu-item active" id="menu-select-demo">
+              <div class="menu-item-header">
+                <span class="badge demo-badge">DEMO</span>
+                <span class="menu-balance" id="menu-demo-balance">KSh 1,000,000.00</span>
+              </div>
+              <p class="menu-sub">Virtual funds for risk-free trading strategies</p>
+              <button class="reload-demo-btn" id="btn-reload-demo" title="Refill demo to KSh 1,000,000">↺ Reset to KSh 1,000,000</button>
+            </div>
+
+            <div class="wallet-menu-divider"></div>
+
+            <div class="wallet-menu-item" id="menu-select-real">
+              <div class="menu-item-header">
+                <span class="badge real-badge">REAL KES</span>
+                <span class="menu-balance" id="menu-real-balance">KSh 0.00</span>
+              </div>
+              <p class="menu-sub">Live trading with instant M-Pesa payouts</p>
+              <button class="menu-deposit-btn" id="btn-menu-deposit">Deposit via M-Pesa</button>
+            </div>
+          </div>
+        </div>
+
         <!-- AUTHENTICATED USER NAV -->
         <div class="nav-auth-group" id="nav-auth-group">
           <!-- Trader Level & XP Pill -->
@@ -619,41 +654,6 @@
               <span class="slider round"></span>
             </label>
             <span class="toggle-label">1-Click</span>
-          </div>
-
-          <!-- Account Switcher Dropdown -->
-          <div class="wallet-switcher" id="wallet-switcher">
-            <button class="wallet-pill" id="wallet-pill-btn">
-              <span class="wallet-status-dot"></span>
-              <div class="wallet-info">
-                <span class="wallet-type-label" id="wallet-type-label">DEMO ACCOUNT</span>
-                <span class="wallet-balance-display" id="wallet-balance-display">KSh 1,000,000.00</span>
-              </div>
-              <span class="dropdown-chevron">▾</span>
-            </button>
-
-            <!-- Wallet Dropdown Menu -->
-            <div class="wallet-menu hidden" id="wallet-menu">
-              <div class="wallet-menu-item active" id="menu-select-demo">
-                <div class="menu-item-header">
-                  <span class="badge demo-badge">DEMO</span>
-                  <span class="menu-balance" id="menu-demo-balance">KSh 1,000,000.00</span>
-                </div>
-                <p class="menu-sub">Virtual funds for risk-free trading strategies</p>
-                <button class="reload-demo-btn" id="btn-reload-demo" title="Refill demo to KSh 1,000,000">↺ Reset to KSh 1,000,000</button>
-              </div>
-
-              <div class="wallet-menu-divider"></div>
-
-              <div class="wallet-menu-item" id="menu-select-real">
-                <div class="menu-item-header">
-                  <span class="badge real-badge">REAL KES</span>
-                  <span class="menu-balance" id="menu-real-balance">KSh 0.00</span>
-                </div>
-                <p class="menu-sub">Live trading with instant M-Pesa payouts</p>
-                <button class="menu-deposit-btn" id="btn-menu-deposit">Deposit via M-Pesa</button>
-              </div>
-            </div>
           </div>
 
           <!-- M-Pesa Deposit Button -->
@@ -1111,12 +1111,25 @@
 
       <!-- Right Trade Desk (Execution Panel) -->
       <aside class="trade-desk">
-        <div class="trade-desk-card">
-          <div class="guest-trade-overlay" id="guest-trade-overlay">
-            <div class="guest-trade-msg">Sign In to Trade</div>
+        <div class="trade-desk-card mode-demo" id="trade-desk-card">
+          <!-- Real Account Locked Overlay (Appears when in Real Mode and guest is not signed in) -->
+          <div class="guest-trade-overlay hidden" id="guest-trade-overlay">
+            <div class="guest-lock-card">
+              <span class="guest-lock-icon">🔐</span>
+              <h4 class="guest-lock-title">Real Account Locked</h4>
+              <p class="guest-lock-desc">Sign in or register to trade live with real KES and instant M-Pesa payouts.</p>
+              <div class="guest-lock-buttons">
+                <button type="button" class="guest-lock-btn btn-auth" id="btn-lock-signin">Sign In / Register</button>
+                <button type="button" class="guest-lock-btn btn-demo" id="btn-lock-demo">Practice on Demo (KSh 1M)</button>
+              </div>
+            </div>
           </div>
+
           <div class="desk-header">
-            <span class="desk-title">FIXED TIME ORDER</span>
+            <div class="desk-title-group">
+              <span class="desk-title">FIXED TIME ORDER</span>
+              <span class="desk-mode-chip demo" id="desk-mode-chip">DEMO ACCOUNT</span>
+            </div>
             <span class="payout-highlight" id="desk-payout-rate">+98%</span>
           </div>
 
@@ -1126,15 +1139,27 @@
               <span class="mode-title-row">
                 <span class="mode-dot gold"></span>
                 <span>Demo</span>
+                <span class="mode-tag-pill">Virtual</span>
               </span>
-              <span class="mode-bal-sub" id="desk-demo-bal">KSh 1,000,000</span>
+              <span class="mode-bal-sub" id="desk-demo-bal">KSh 1,000,000.00</span>
             </button>
             <button type="button" class="desk-mode-btn" id="desk-btn-real">
               <span class="mode-title-row">
                 <span class="mode-dot green"></span>
                 <span>Real Live</span>
+                <span class="mode-tag-pill green">KES</span>
               </span>
               <span class="mode-bal-sub" id="desk-real-bal">KSh 0.00</span>
+            </button>
+          </div>
+
+          <!-- Quick Action Bar under Switcher -->
+          <div class="desk-mode-subactions" id="desk-mode-subactions">
+            <button type="button" class="desk-subaction-btn reload-btn" id="btn-desk-reset-demo" title="Reset Demo balance to KSh 1,000,000">
+              <span>↺ Refill Demo (KSh 1,000,000)</span>
+            </button>
+            <button type="button" class="desk-subaction-btn deposit-btn hidden" id="btn-desk-deposit-real" title="Deposit funds via M-Pesa">
+              <span>⚡ Deposit via M-Pesa</span>
             </button>
           </div>
 
