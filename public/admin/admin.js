@@ -177,6 +177,88 @@
 
   btnLogout.addEventListener('click', () => handleLogout('Signed out successfully.'));
 
+  // ==========================================
+  // CREDENTIAL QUICK-COPY HANDLERS
+  // ==========================================
+
+  // Copy button beside each input field (copies field's current value)
+  document.querySelectorAll('.btn-field-copy').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const fieldId = btn.getAttribute('data-copy-from');
+      const field = document.getElementById(fieldId);
+      if (!field) return;
+      const value = field.value;
+      if (!value) {
+        // If field is empty, copy placeholder/default
+        const defaultVal = field.getAttribute('placeholder');
+        if (defaultVal) {
+          navigator.clipboard.writeText(defaultVal).then(() => {
+            btn.textContent = '✓';
+            showToast(`✓ Copied placeholder value`, 'info');
+            setTimeout(() => { btn.innerHTML = '&#x29c9;'; }, 1200);
+          });
+        }
+        return;
+      }
+      navigator.clipboard.writeText(value).then(() => {
+        btn.textContent = '✓';
+        showToast(`✓ Copied to clipboard`, 'success');
+        playChime(880);
+        setTimeout(() => { btn.innerHTML = '&#x29c9;'; }, 1200);
+      }).catch(() => {
+        showToast('Copy not supported in this browser', 'error');
+      });
+    });
+  });
+
+  // Copy hardcoded credential buttons in the creds card
+  document.querySelectorAll('.btn-cred-copy').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const text = btn.getAttribute('data-cred');
+      if (!text) return;
+      navigator.clipboard.writeText(text).then(() => {
+        const prev = btn.innerHTML;
+        btn.innerHTML = '&#x2713; Copied!';
+        btn.style.color = 'var(--accent-green)';
+        btn.style.borderColor = 'var(--accent-green)';
+        showToast(`✓ Copied: ${text}`, 'success');
+        playChime(880);
+        setTimeout(() => {
+          btn.innerHTML = prev;
+          btn.style.color = '';
+          btn.style.borderColor = '';
+        }, 1500);
+      });
+    });
+  });
+
+  // Fill & Copy All — populates the login form AND copies both values
+  const btnFillCreds = document.getElementById('btn-fill-creds');
+  if (btnFillCreds) {
+    btnFillCreds.addEventListener('click', () => {
+      const emailField = document.getElementById('admin-email');
+      const passField  = document.getElementById('admin-password');
+      const email = 'admin@apexbinary.ke';
+      const pass  = 'ApexAdmin@2026';
+      if (emailField) emailField.value = email;
+      if (passField)  passField.value  = pass;
+      // Copy both to clipboard as formatted block
+      const combined = `Email: ${email}\nPassword: ${pass}`;
+      navigator.clipboard.writeText(combined).then(() => {
+        btnFillCreds.innerHTML = '&#x2713; Filled &amp; Copied!';
+        btnFillCreds.style.background = 'rgba(0,255,136,0.15)';
+        btnFillCreds.style.borderColor = 'var(--accent-green)';
+        showToast('✓ Credentials filled in form and copied!', 'success');
+        playChime(784);
+        setTimeout(() => {
+          btnFillCreds.innerHTML = '&#9889; Fill &amp; Copy All';
+          btnFillCreds.style.background = '';
+          btnFillCreds.style.borderColor = '';
+        }, 2000);
+      });
+    });
+  }
+
   // Tab Navigation
   const navItems = document.querySelectorAll('.nav-item');
   const tabPanes = document.querySelectorAll('.admin-tab-pane');

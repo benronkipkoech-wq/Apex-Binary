@@ -1170,3 +1170,173 @@ body.admin-body {
   color: var(--accent-green);
 }
 
+/* ==========================================================================
+   CREDENTIAL COPY UI — Login Modal & Sidebar
+   ========================================================================== */
+
+/* Input row with inline copy button */
+.input-copy-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.input-copy-row input {
+  flex: 1;
+  border-radius: 8px 0 0 8px !important;
+  border-right: none !important;
+}
+
+.btn-field-copy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 44px;
+  width: 42px;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid var(--border-focus);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  color: var(--accent-cyan);
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.btn-field-copy:hover {
+  background: rgba(0, 240, 255, 0.18);
+  color: #fff;
+}
+
+/* Default credentials card */
+.creds-card {
+  margin-top: 1rem;
+  background: rgba(0, 240, 255, 0.04);
+  border: 1px solid rgba(0, 240, 255, 0.15);
+  border-radius: 10px;
+  padding: 0.85rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.creds-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 0.15rem;
+}
+
+.creds-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+
+.creds-label {
+  width: 60px;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  flex-shrink: 0;
+}
+
+.creds-value {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-main);
+  background: rgba(255,255,255,0.04);
+  padding: 3px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.btn-cred-copy {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 6px;
+  color: var(--accent-cyan);
+  font-size: 0.72rem;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.btn-cred-copy:hover {
+  background: rgba(0, 240, 255, 0.1);
+  border-color: var(--accent-cyan);
+}
+
+.btn-fill-all {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.5rem;
+  background: rgba(0, 240, 255, 0.07);
+  border: 1px solid rgba(0, 240, 255, 0.25);
+  border-radius: 8px;
+  color: var(--accent-cyan);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  letter-spacing: 0.03em;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.btn-fill-all:hover {
+  background: rgba(0, 240, 255, 0.14);
+  border-color: var(--accent-cyan);
+  color: #fff;
+}
+
+/* Sidebar credentials card */
+.sidebar-creds-card {
+  background: rgba(0, 240, 255, 0.04);
+  border: 1px solid rgba(0, 240, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.65rem 0.75rem;
+  margin-bottom: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.sidebar-creds-header {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 0.2rem;
+}
+
+.sidebar-cred-row {
+  display: flex;
+  align-items: center;
+}
+
+.sidebar-cred-val {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

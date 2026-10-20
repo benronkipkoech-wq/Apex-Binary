@@ -31,11 +31,17 @@
       <form id="admin-login-form" class="auth-form">
         <div class="form-group">
           <label for="admin-email">Administrator Email</label>
-          <input type="email" id="admin-email" placeholder="admin@apexbinary.ke" required autocomplete="email">
+          <div class="input-copy-row">
+            <input type="email" id="admin-email" placeholder="admin@apexbinary.ke" required autocomplete="email">
+            <button type="button" class="btn-field-copy" data-copy-from="admin-email" title="Copy email">&#x29c9;</button>
+          </div>
         </div>
         <div class="form-group">
           <label for="admin-password">Secure Password</label>
-          <input type="password" id="admin-password" placeholder="••••••••••••" required autocomplete="current-password">
+          <div class="input-copy-row">
+            <input type="password" id="admin-password" placeholder="••••••••••••" required autocomplete="current-password">
+            <button type="button" class="btn-field-copy" data-copy-from="admin-password" title="Copy password">&#x29c9;</button>
+          </div>
         </div>
         <button type="submit" id="btn-admin-login" class="btn-primary-glow">
           <span>Authenticate & Access Console</span>
@@ -45,6 +51,27 @@
 
       <div class="seed-helper">
         <p>First-time setup? <button type="button" id="btn-seed-admin" class="btn-link">Seed Default Admin Account</button></p>
+      </div>
+
+      <!-- Default Credentials Quick-Copy Card -->
+      <div class="creds-card" id="default-creds-card">
+        <div class="creds-card-header">
+          <span>&#128272;</span>
+          <span>Default Admin Credentials</span>
+        </div>
+        <div class="creds-row">
+          <span class="creds-label">Email</span>
+          <span class="creds-value">admin@apexbinary.ke</span>
+          <button type="button" class="btn-cred-copy" data-cred="admin@apexbinary.ke" title="Copy email">&#x29c9; Copy</button>
+        </div>
+        <div class="creds-row">
+          <span class="creds-label">Password</span>
+          <span class="creds-value">ApexAdmin@2026</span>
+          <button type="button" class="btn-cred-copy" data-cred="ApexAdmin@2026" title="Copy password">&#x29c9; Copy</button>
+        </div>
+        <button type="button" id="btn-fill-creds" class="btn-fill-all">
+          &#9889; Fill &amp; Copy All
+        </button>
       </div>
     </div>
   </div>
@@ -129,6 +156,16 @@
             <div class="env-row"><span class="label">Platform:</span> <span class="val">Apex Binary v1.0</span></div>
             <div class="env-row"><span class="label">Storage:</span> <span class="val highlight">MongoDB Atlas</span></div>
             <div class="env-row"><span class="label">Gateway:</span> <span class="val">Safaricom Daraja</span></div>
+          </div>
+          <!-- Admin Quick Credentials (sidebar) -->
+          <div class="sidebar-creds-card">
+            <div class="sidebar-creds-header">🔐 Admin Access</div>
+            <div class="sidebar-cred-row">
+              <span class="sidebar-cred-val copy-cell" data-copy="admin@apexbinary.ke" title="Click to copy">admin@apexbinary.ke <span class="copy-icon">⧉</span></span>
+            </div>
+            <div class="sidebar-cred-row">
+              <span class="sidebar-cred-val copy-cell" data-copy="ApexAdmin@2026" title="Click to copy">ApexAdmin@2026 <span class="copy-icon">⧉</span></span>
+            </div>
           </div>
           <a href="/" target="_blank" class="btn-view-trader-app">
             <span>Open Trader Portal</span> ↗
