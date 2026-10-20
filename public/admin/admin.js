@@ -615,10 +615,12 @@
     const rates = s.payoutRates || {};
 
     sliders.forEach(({ id, valId, asset }) => {
-      const rateVal = rates[asset] ? Math.round(rates[asset] * 100) : null;
-      if (rateVal) {
-        document.getElementById(id).value = rateVal;
-        document.getElementById(valId).textContent = `${rateVal}%`;
+      const rateVal = (rates[asset] !== undefined && rates[asset] !== null) ? Math.round(rates[asset] * 100) : null;
+      if (rateVal !== null && !isNaN(rateVal)) {
+        const input = document.getElementById(id);
+        const label = document.getElementById(valId);
+        if (input) input.value = rateVal;
+        if (label) label.textContent = `${rateVal}%`;
       }
     });
 
