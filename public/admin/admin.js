@@ -273,27 +273,90 @@
     });
   }
 
-  // Tab Navigation
+  // Tab Navigation & Mobile Drawer
   const navItems = document.querySelectorAll('.nav-item');
   const tabPanes = document.querySelectorAll('.admin-tab-pane');
+  const mobileDockBtns = document.querySelectorAll('.mobile-dock-btn');
+  const adminSidebar = document.getElementById('admin-sidebar');
+  const adminBackdrop = document.getElementById('admin-sidebar-backdrop');
+  const btnAdminMobileToggle = document.getElementById('btn-admin-mobile-toggle');
+  const btnCloseSidebar = document.getElementById('btn-close-sidebar');
+  const btnMobileMore = document.getElementById('btn-mobile-more');
+
+  function openMobileSidebar() {
+    adminSidebar?.classList.add('open');
+    adminBackdrop?.classList.add('active');
+    document.body.classList.add('sidebar-open');
+  }
+
+  function closeMobileSidebar() {
+    adminSidebar?.classList.remove('open');
+    adminBackdrop?.classList.remove('active');
+    document.body.classList.remove('sidebar-open');
+  }
+
+  btnAdminMobileToggle?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (adminSidebar?.classList.contains('open')) {
+      closeMobileSidebar();
+    } else {
+      openMobileSidebar();
+    }
+  });
+
+  btnCloseSidebar?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeMobileSidebar();
+  });
+
+  adminBackdrop?.addEventListener('click', closeMobileSidebar);
+
+  btnMobileMore?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openMobileSidebar();
+  });
+
+  function switchTab(targetTab) {
+    if (!targetTab) return;
+
+    navItems.forEach((n) => {
+      n.classList.toggle('active', n.getAttribute('data-tab') === targetTab);
+    });
+
+    mobileDockBtns.forEach((d) => {
+      if (d.getAttribute('data-tab')) {
+        d.classList.toggle('active', d.getAttribute('data-tab') === targetTab);
+      }
+    });
+
+    tabPanes.forEach((p) => p.classList.remove('active'));
+
+    const pane = document.getElementById(`tab-${targetTab}`);
+    if (pane) pane.classList.add('active');
+
+    closeMobileSidebar();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    if (targetTab === 'overview') loadOverviewMetrics();
+    if (targetTab === 'cashier') loadPendingWithdrawals();
+    if (targetTab === 'traders') loadTraders();
+    if (targetTab === 'trades') loadRecentTrades();
+    if (targetTab === 'risk') loadSettings();
+    if (targetTab === 'analytics') loadWinRateAnalytics();
+  }
 
   navItems.forEach((btn) => {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-tab');
-      navItems.forEach((n) => n.classList.remove('active'));
-      tabPanes.forEach((p) => p.classList.remove('active'));
-
-      btn.classList.add('active');
-      const pane = document.getElementById(`tab-${targetTab}`);
-      if (pane) pane.classList.add('active');
-
-      if (targetTab === 'overview') loadOverviewMetrics();
-      if (targetTab === 'cashier') loadPendingWithdrawals();
-      if (targetTab === 'traders') loadTraders();
-      if (targetTab === 'trades') loadRecentTrades();
-      if (targetTab === 'risk') loadSettings();
-      if (targetTab === 'analytics') loadWinRateAnalytics();
+      switchTab(targetTab);
     });
+  });
+
+  mobileDockBtns.forEach((btn) => {
+    const targetTab = btn.getAttribute('data-tab');
+    if (targetTab) {
+      btn.addEventListener('click', () => switchTab(targetTab));
+    }
   });
 
   // ==========================================
@@ -315,11 +378,17 @@
     document.getElementById('open-trades-count').textContent = m.activeTradesCount;
     document.getElementById('open-risk-exposure').textContent = `KSh ${Number(m.openRisk).toLocaleString()}`;
 
+    const mobBadge = document.getElementById('mobile-dock-cashier-badge');
     if (m.pendingWithdrawals > 0) {
       pendingBadge.textContent = m.pendingWithdrawals;
       pendingBadge.classList.remove('hidden');
+      if (mobBadge) {
+        mobBadge.textContent = m.pendingWithdrawals;
+        mobBadge.classList.remove('hidden');
+      }
     } else {
       pendingBadge.classList.add('hidden');
+      mobBadge?.classList.add('hidden');
     }
   }
 

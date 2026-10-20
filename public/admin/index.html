@@ -85,6 +85,11 @@
     <!-- Top Executive Header -->
     <header class="admin-topbar">
       <div class="topbar-left">
+        <button id="btn-admin-mobile-toggle" class="admin-mobile-menu-btn" aria-label="Toggle navigation" title="Menu">
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+          <span class="hamburger-bar"></span>
+        </button>
         <div class="admin-logo">
           <span class="logo-mark">▲</span>
           <div class="logo-titles">
@@ -122,8 +127,18 @@
     </header>
 
     <div class="admin-main-wrap">
+      <!-- Mobile Backdrop Overlay -->
+      <div id="admin-sidebar-backdrop" class="admin-sidebar-backdrop"></div>
+
       <!-- Left Sidebar Navigation -->
-      <aside class="admin-sidebar">
+      <aside class="admin-sidebar" id="admin-sidebar">
+        <div class="sidebar-mobile-header">
+          <div class="sidebar-mobile-brand">
+            <span class="logo-mark">▲</span>
+            <span class="sidebar-mobile-brand-title">APEX CONSOLE</span>
+          </div>
+          <button id="btn-close-sidebar" class="btn-sidebar-close" aria-label="Close menu">✕</button>
+        </div>
         <nav class="sidebar-nav">
           <button class="nav-item active" data-tab="overview">
             <span class="nav-icon">📊</span>
@@ -618,6 +633,31 @@
 
   <!-- Toast Notification Center -->
   <div id="toast-container" class="toast-container"></div>
+
+  <!-- Mobile Bottom Quick Navigation Dock -->
+  <nav class="admin-mobile-dock" id="admin-mobile-dock">
+    <button class="mobile-dock-btn active" data-tab="overview">
+      <span class="dock-icon">📊</span>
+      <span class="dock-label">Overview</span>
+    </button>
+    <button class="mobile-dock-btn" data-tab="cashier">
+      <span class="dock-icon">💸</span>
+      <span class="dock-label">Cashier</span>
+      <span class="dock-badge hidden" id="mobile-dock-cashier-badge">0</span>
+    </button>
+    <button class="mobile-dock-btn" data-tab="traders">
+      <span class="dock-icon">👥</span>
+      <span class="dock-label">Traders</span>
+    </button>
+    <button class="mobile-dock-btn" data-tab="risk">
+      <span class="dock-icon">⚙️</span>
+      <span class="dock-label">Limits</span>
+    </button>
+    <button class="mobile-dock-btn" id="btn-mobile-more" data-action="toggle-menu">
+      <span class="dock-icon">☰</span>
+      <span class="dock-label">More</span>
+    </button>
+  </nav>
 
   <script src="/admin/admin.js"></script>
 </body>
