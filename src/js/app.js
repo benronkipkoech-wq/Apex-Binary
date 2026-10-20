@@ -1384,6 +1384,17 @@ class App {
     if (deskDemoBal) deskDemoBal.textContent = wallet.formatCurrency(demoBalance);
     if (deskRealBal) deskRealBal.textContent = wallet.formatCurrency(realBalance);
 
+    // Keep top navigation 1-click segmented toggle in sync
+    const navBtnDemo = document.getElementById('nav-btn-demo');
+    const navBtnReal = document.getElementById('nav-btn-real');
+    if (navBtnDemo) navBtnDemo.classList.toggle('active', !isReal);
+    if (navBtnReal) navBtnReal.classList.toggle('active', isReal);
+
+    const navDemoBal = document.getElementById('nav-demo-bal');
+    const navRealBal = document.getElementById('nav-real-bal');
+    if (navDemoBal) navDemoBal.textContent = wallet.formatCurrency(demoBalance);
+    if (navRealBal) navRealBal.textContent = wallet.formatCurrency(realBalance);
+
     // Keep trade desk card visual theme in sync
     const deskCard = document.getElementById('trade-desk-card');
     if (deskCard) {
@@ -2431,7 +2442,8 @@ class App {
     // 7. Wallet Switcher & Reload (Universal Demo & Real)
     const walletPill = document.getElementById('wallet-pill-btn');
     const walletMenu = document.getElementById('wallet-menu');
-    walletPill?.addEventListener('click', () => {
+    walletPill?.addEventListener('click', (e) => {
+      e.stopPropagation();
       walletMenu.classList.toggle('hidden');
       sound.playClick();
     });
@@ -2462,6 +2474,17 @@ class App {
         this.showToast('Switched to Real Account (Live KES)', 'success');
       }
     };
+
+    // Top Navigation 1-Click Segmented Toggle Buttons
+    document.getElementById('nav-btn-demo')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchToDemo();
+    });
+
+    document.getElementById('nav-btn-real')?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchToReal();
+    });
 
     document.getElementById('menu-select-demo')?.addEventListener('click', switchToDemo);
     document.getElementById('menu-select-real')?.addEventListener('click', switchToReal);

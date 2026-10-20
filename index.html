@@ -601,16 +601,36 @@
           </a>
         </div>
 
-        <!-- Account Switcher Dropdown (Universal: Demo & Real) -->
+        <!-- Account Switcher Segmented Toggle (1-Click Demo vs Real) -->
         <div class="wallet-switcher" id="wallet-switcher">
-          <button class="wallet-pill" id="wallet-pill-btn" title="Toggle between Demo practice funds and Real KES balance">
-            <span class="wallet-status-dot"></span>
-            <div class="wallet-info">
-              <span class="wallet-type-label" id="wallet-type-label">DEMO ACCOUNT</span>
-              <span class="wallet-balance-display" id="wallet-balance-display">KSh 1,000,000.00</span>
-            </div>
-            <span class="dropdown-chevron">▾</span>
-          </button>
+          <div class="nav-wallet-toggle" id="nav-wallet-toggle">
+            <!-- 1-Click Demo Switch Button -->
+            <button type="button" class="nav-mode-btn active" id="nav-btn-demo" title="1-Click Switch to Demo Practice Account">
+              <span class="nav-mode-dot gold"></span>
+              <div class="nav-mode-info">
+                <span class="nav-mode-tag">DEMO</span>
+                <span class="nav-mode-bal" id="nav-demo-bal">KSh 1,000,000.00</span>
+              </div>
+            </button>
+
+            <!-- 1-Click Real Switch Button -->
+            <button type="button" class="nav-mode-btn" id="nav-btn-real" title="1-Click Switch to Real Live KES Account">
+              <span class="nav-mode-dot green"></span>
+              <div class="nav-mode-info">
+                <span class="nav-mode-tag">REAL KES</span>
+                <span class="nav-mode-bal" id="nav-real-bal">KSh 0.00</span>
+              </div>
+            </button>
+
+            <!-- Dropdown Menu Trigger -->
+            <button type="button" class="nav-wallet-menu-trigger" id="wallet-pill-btn" title="Account Options & Refill Menu">
+              <span class="dropdown-chevron">▾</span>
+            </button>
+          </div>
+
+          <!-- Hidden compatibility elements -->
+          <span id="wallet-type-label" class="hidden">DEMO ACCOUNT</span>
+          <span id="wallet-balance-display" class="hidden">KSh 1,000,000.00</span>
 
           <!-- Wallet Dropdown Menu -->
           <div class="wallet-menu hidden" id="wallet-menu">
@@ -620,7 +640,7 @@
                 <span class="menu-balance" id="menu-demo-balance">KSh 1,000,000.00</span>
               </div>
               <p class="menu-sub">Virtual funds for risk-free trading strategies</p>
-              <button class="reload-demo-btn" id="btn-reload-demo" title="Refill demo to KSh 1,000,000">↺ Reset to KSh 1,000,000</button>
+              <button type="button" class="reload-demo-btn" id="btn-reload-demo" title="Refill demo to KSh 1,000,000">↺ Reset to KSh 1,000,000</button>
             </div>
 
             <div class="wallet-menu-divider"></div>
@@ -631,7 +651,7 @@
                 <span class="menu-balance" id="menu-real-balance">KSh 0.00</span>
               </div>
               <p class="menu-sub">Live trading with instant M-Pesa payouts</p>
-              <button class="menu-deposit-btn" id="btn-menu-deposit">Deposit via M-Pesa</button>
+              <button type="button" class="menu-deposit-btn" id="btn-menu-deposit">Deposit via M-Pesa</button>
             </div>
           </div>
         </div>

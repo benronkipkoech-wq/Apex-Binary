@@ -164,8 +164,8 @@ body {
   box-sizing: border-box;
   width: 100%;
   max-width: 100vw;
-  z-index: 50;
-  overflow: hidden;
+  z-index: 100;
+  overflow: visible;
 }
 
 .nav-left {
@@ -427,84 +427,153 @@ input:checked + .slider:before {
   border-radius: 50%;
 }
 
-/* Wallet Switcher */
+/* Wallet Switcher & Universal Top Nav Toggle */
 .wallet-switcher {
   position: relative;
+  z-index: 150;
 }
 
-.wallet-pill {
+.nav-wallet-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: var(--bg-card);
+  background: rgba(0, 0, 0, 0.4);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-full);
-  padding: 4px 14px 4px 8px;
-  cursor: pointer;
+  padding: 3px;
+  gap: 3px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   transition: var(--transition);
 }
 
-.wallet-pill:hover {
+.nav-wallet-toggle:hover {
   border-color: var(--border-light);
-  background: var(--bg-card-hover);
 }
 
-.wallet-status-dot {
-  width: 10px;
-  height: 10px;
+.nav-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  padding: 4px 10px 4px 8px;
+  cursor: pointer;
+  transition: var(--transition);
+  color: var(--text-muted);
+}
+
+.nav-mode-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-main);
+}
+
+.nav-mode-dot {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
+  transition: var(--transition);
+}
+
+.nav-mode-dot.gold {
   background: var(--gold-main);
-  box-shadow: 0 0 8px var(--gold-glow);
+  box-shadow: 0 0 6px var(--gold-glow);
 }
 
-.wallet-pill.is-real .wallet-status-dot {
+.nav-mode-dot.green {
   background: var(--green-main);
-  box-shadow: 0 0 8px var(--green-glow);
+  box-shadow: 0 0 6px var(--green-glow);
 }
 
-.wallet-info {
+.nav-mode-info {
   display: flex;
   flex-direction: column;
   text-align: left;
 }
 
-.wallet-type-label {
-  font-size: 9px;
+.nav-mode-tag {
+  font-size: 8.5px;
   font-weight: 800;
-  color: var(--text-muted);
   letter-spacing: 0.5px;
-}
-
-.wallet-balance-display {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.dropdown-chevron {
-  font-size: 11px;
   color: var(--text-muted);
-  margin-left: 2px;
+}
+
+.nav-mode-bal {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Active State for Demo Button in Top Nav */
+.nav-mode-btn.active#nav-btn-demo {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.45);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.15);
+}
+
+.nav-mode-btn.active#nav-btn-demo .nav-mode-tag {
+  color: var(--gold-main);
+}
+
+.nav-mode-btn.active#nav-btn-demo .nav-mode-bal {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.3);
+}
+
+/* Active State for Real Button in Top Nav */
+.nav-mode-btn.active#nav-btn-real {
+  background: rgba(0, 245, 155, 0.14);
+  border-color: rgba(0, 245, 155, 0.45);
+  box-shadow: 0 2px 10px rgba(0, 245, 155, 0.15);
+}
+
+.nav-mode-btn.active#nav-btn-real .nav-mode-tag {
+  color: var(--green-main);
+}
+
+.nav-mode-btn.active#nav-btn-real .nav-mode-bal {
+  color: #fff;
+  text-shadow: 0 0 8px rgba(0, 245, 155, 0.3);
+}
+
+/* Menu Trigger Arrow in Top Nav */
+.nav-wallet-menu-trigger {
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 4px 7px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+}
+
+.nav-wallet-menu-trigger:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
 }
 
 /* Wallet Menu Dropdown */
 .wallet-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
-  width: 280px;
-  background: var(--bg-card);
+  width: 290px;
+  background: #0f141f;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 245, 155, 0.08);
   padding: 12px;
-  z-index: 100;
-  backdrop-filter: blur(20px);
+  z-index: 1000;
+  backdrop-filter: blur(24px);
 }
 
 .wallet-menu.hidden {
-  display: none;
+  display: none !important;
 }
 
 .wallet-menu-item {
