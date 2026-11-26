@@ -3,13 +3,38 @@ import User from '../models/User.js';
 import Trade from '../models/Trade.js';
 import Transaction from '../models/Transaction.js';
 import Setting from '../models/Setting.js';
+import AuditLog from '../models/AuditLog.js';
 import { authenticate, requireAdmin } from '../middleware/auth.js';
 import { isDbConnected } from '../config/db.js';
+import { initiateB2CPayout, isPayHeroConfigured } from '../services/payheroService.js';
 
 const router = express.Router();
 
 // Apply auth and admin check to all admin routes
 router.use(authenticate, requireAdmin);
+
+function getAccountTypeFilter(accountTypeParam) {
+  const scope = (accountTypeParam || 'real').toLowerCase();
+  if (scope === 'real') return { accountType: 'real' };
+  if (scope === 'demo') return { accountType: 'demo' };
+  return {};
+}
+
+async function recordAudit(req, { action, targetType, targetId = null, details = {} }) {
+  try {
+    if (!isDbConnected() || !req.user) return;
+    await AuditLog.create({
+      adminId: req.user._id,
+      adminEmail: req.user.email || req.user.phone || 'admin',
+      action,
+      targetType,
+      targetId: targetId ? String(targetId) : null,
+      details,
+    });
+  } catch (err) {
+    console.warn('[AuditLog] Failed to record audit entry:', err.message);
+  }
+}
 
 // Platform Overview Metrics
 router.get('/metrics', async (req, res) => {
@@ -30,6 +55,8 @@ router.get('/metrics', async (req, res) => {
         },
       });
     }
+
+    const accFilter = getAccountTypeFilter(req.query.accountType);
 
     const [
       totalUsers,
@@ -53,7 +80,7 @@ router.get('/metrics', async (req, res) => {
         { $group: { _id: null, count: { $sum: 1 }, total: { $sum: '$amount' } } },
       ]),
       Trade.aggregate([
-        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, ...accFilter } },
         {
           $group: {
             _id: null,
@@ -63,7 +90,7 @@ router.get('/metrics', async (req, res) => {
         },
       ]),
       Trade.aggregate([
-        { $match: { outcome: 'PENDING' } },
+        { $match: { outcome: 'PENDING', ...accFilter } },
         { $group: { _id: null, count: { $sum: 1 }, totalExposure: { $sum: '$amount' } } },
       ]),
     ]);
@@ -191,6 +218,12 @@ router.patch('/users/:id', async (req, res) => {
     }
 
     await user.save();
+    await recordAudit(req, {
+      action: 'UPDATE_USER',
+      targetType: 'USER',
+      targetId: user._id,
+      details: { email: user.email, isBanned, role, kycStatus, adjustRealBalance, adjustDemoBalance },
+    });
     return res.json({ success: true, message: 'User updated successfully', user });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
@@ -242,12 +275,13 @@ router.get('/withdrawals/pending', async (req, res) => {
   }
 });
 
-// Approve Withdrawal (Simulate B2C disbursement or complete)
+// Approve Withdrawal (Triggers PayHero B2C if configured, or records manual receipt)
 router.post('/withdrawals/:id/approve', async (req, res) => {
   try {
-    const receipt = req.body.mpesaReceipt || 'B2C' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    const manualReceipt = (req.body.mpesaReceipt || '').trim();
 
     if (!isDbConnected()) {
+      const receipt = manualReceipt || 'B2C' + Math.random().toString(36).substring(2, 9).toUpperCase();
       return res.json({
         success: true,
         message: `Withdrawal approved & disbursed! Receipt: ${receipt} (Demo Mode)`,
@@ -258,14 +292,47 @@ router.post('/withdrawals/:id/approve', async (req, res) => {
     if (!tx || tx.type !== 'WITHDRAWAL') return res.status(404).json({ success: false, message: 'Withdrawal not found' });
     if (tx.status !== 'PENDING') return res.status(400).json({ success: false, message: `Withdrawal is already ${tx.status}` });
 
+    let receipt = manualReceipt;
+    let b2cTriggered = false;
+
+    if (!receipt && isPayHeroConfigured()) {
+      try {
+        const b2cRes = await initiateB2CPayout({
+          amount: tx.amount,
+          phone: tx.phone,
+          reference: `WD-${tx._id}`,
+        });
+        if (b2cRes.success) {
+          receipt = b2cRes.receipt;
+          b2cTriggered = !b2cRes.simulated;
+        }
+      } catch (b2cErr) {
+        return res.status(502).json({
+          success: false,
+          message: `PayHero B2C payout failed: ${b2cErr.message}`,
+        });
+      }
+    }
+
+    if (!receipt) {
+      receipt = 'B2C' + Math.random().toString(36).substring(2, 9).toUpperCase();
+    }
+
     tx.status = 'COMPLETED';
     tx.mpesaReceipt = receipt;
     tx.adminReviewer = req.user._id;
     await tx.save();
 
+    await recordAudit(req, {
+      action: 'APPROVE_WITHDRAWAL',
+      targetType: 'WITHDRAWAL',
+      targetId: tx._id,
+      details: { amount: tx.amount, phone: tx.phone, receipt, b2cTriggered },
+    });
+
     return res.json({
       success: true,
-      message: `Withdrawal of KSh ${tx.amount.toLocaleString()} approved and disbursed to ${tx.phone}. Receipt: ${receipt}`,
+      message: `Withdrawal of KSh ${tx.amount.toLocaleString()} approved${b2cTriggered ? ' via PayHero B2C' : ''} and disbursed to ${tx.phone}. Receipt: ${receipt}`,
       transaction: tx,
     });
   } catch (error) {
@@ -299,6 +366,13 @@ router.post('/withdrawals/:id/reject', async (req, res) => {
       user.balances.real = (user.balances.real || 0) + tx.amount;
       await user.save();
     }
+
+    await recordAudit(req, {
+      action: 'REJECT_WITHDRAWAL',
+      targetType: 'WITHDRAWAL',
+      targetId: tx._id,
+      details: { amount: tx.amount, phone: tx.phone, reason: tx.rejectionReason },
+    });
 
     return res.json({
       success: true,
@@ -405,11 +479,12 @@ router.get('/analytics/win-rate', async (req, res) => {
 
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const accFilter = getAccountTypeFilter(req.query.accountType);
 
     const [overallAgg, byAssetAgg, byDirectionAgg, dailyAgg] = await Promise.all([
       // Overall totals
       Trade.aggregate([
-        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, ...accFilter } },
         {
           $group: {
             _id: null,
@@ -422,7 +497,7 @@ router.get('/analytics/win-rate', async (req, res) => {
 
       // Per-asset breakdown
       Trade.aggregate([
-        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, ...accFilter } },
         {
           $group: {
             _id: '$asset',
@@ -437,7 +512,7 @@ router.get('/analytics/win-rate', async (req, res) => {
 
       // CALL vs PUT breakdown
       Trade.aggregate([
-        { $match: { outcome: { $in: ['WIN', 'LOSS'] } } },
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, ...accFilter } },
         {
           $group: {
             _id: '$direction',
@@ -450,7 +525,7 @@ router.get('/analytics/win-rate', async (req, res) => {
 
       // 7-day daily trend
       Trade.aggregate([
-        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, openedAt: { $gte: sevenDaysAgo } } },
+        { $match: { outcome: { $in: ['WIN', 'LOSS'] }, openedAt: { $gte: sevenDaysAgo }, ...accFilter } },
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$openedAt', timezone: 'Africa/Nairobi' } },
@@ -551,7 +626,27 @@ router.put('/settings', async (req, res) => {
     }
 
     await setting.save();
+    await recordAudit(req, {
+      action: 'UPDATE_SETTINGS',
+      targetType: 'SETTINGS',
+      targetId: 'platform_settings',
+      details: { minDeposit, minWithdrawal, maxTradeLimit, maintenanceMode, adminWinRate, userWinRate },
+    });
     return res.json({ success: true, message: 'Settings updated successfully', settings: setting });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// Admin Audit Logs
+router.get('/audit-logs', async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.json({ success: true, logs: [] });
+    }
+    const limit = Math.min(parseInt(req.query.limit) || 100, 250);
+    const logs = await AuditLog.find({}).sort({ createdAt: -1 }).limit(limit);
+    return res.json({ success: true, logs });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

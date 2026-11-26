@@ -8,6 +8,39 @@ import { getMarketPrice, updateMarketPrice, normalizeSymbol } from '../services/
 
 const router = express.Router();
 
+// Public read-only trading configuration (win rates, limits, maintenance mode)
+router.get('/config', async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.json({
+        success: true,
+        config: {
+          adminWinRate: 80,
+          userWinRate: 1,
+          minDeposit: 500,
+          minWithdrawal: 500,
+          maxTradeLimit: 100000,
+          maintenanceMode: false,
+        },
+      });
+    }
+    const setting = await Setting.findOne({ key: 'platform_settings' });
+    return res.json({
+      success: true,
+      config: {
+        adminWinRate: setting?.adminWinRate ?? 80,
+        userWinRate: setting?.userWinRate ?? 1,
+        minDeposit: setting?.minDeposit ?? 500,
+        minWithdrawal: setting?.minWithdrawal ?? 500,
+        maxTradeLimit: setting?.maxTradeLimit ?? 100000,
+        maintenanceMode: setting?.maintenanceMode ?? false,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // Place new trade
 router.post('/place', authenticate, async (req, res) => {
   // Allow both traders and admins to place trades

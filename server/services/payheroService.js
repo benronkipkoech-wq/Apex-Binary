@@ -335,9 +335,69 @@ export async function initiateStkPush({ amount, phone, reference, callbackUrl })
   };
 }
 
+/**
+ * Initiate an M-Pesa B2C Payout (Withdrawal Disbursement) via PayHero
+ */
+export async function initiateB2CPayout({ amount, phone, reference, callbackUrl }) {
+  const authHeader = getAuthHeader();
+  const { channelId } = getPayHeroCredentials();
+
+  if (!authHeader) {
+    return { success: false, simulated: true, message: 'PayHero credentials not configured' };
+  }
+
+  let activeChannel = channelId || cachedChannelId;
+  if (!activeChannel) {
+    try {
+      const channelsRes = await getPaymentChannels();
+      const list = Array.isArray(channelsRes)
+        ? channelsRes
+        : (channelsRes.data || channelsRes.channels || []);
+      if (list && list.length > 0) {
+        activeChannel = list[0].id || list[0].channel_id;
+        cachedChannelId = activeChannel;
+      }
+    } catch (err) {
+      console.warn('[PayHero B2C Channel Discovery Warning]:', err.message);
+    }
+  }
+
+  const formattedPhone = formatMpesaPhone(phone);
+  const baseUrl = getApiBaseUrl();
+  const payload = {
+    amount: Math.round(amount),
+    phone_number: formattedPhone,
+    network_code: '63902', // Safaricom M-Pesa
+    external_reference: reference,
+    ...(activeChannel ? { channel_id: isNaN(Number(activeChannel)) ? activeChannel : Number(activeChannel) } : {}),
+    ...(callbackUrl ? { callback_url: callbackUrl } : {}),
+  };
+
+  const res = await fetch(`${baseUrl}/withdraw`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: authHeader },
+    body: JSON.stringify(payload),
+  });
+  const text = await res.text();
+  let data = {};
+  try { data = JSON.parse(text); } catch (_) { data = { raw: text }; }
+
+  if (!res.ok || data.success === false || data.status === 'Failed') {
+    const errorMsg = data.message || data.error || `PayHero B2C HTTP ${res.status}`;
+    throw new Error(errorMsg);
+  }
+
+  return {
+    success: true,
+    simulated: false,
+    receipt: data.transaction_reference || data.reference || data.CheckoutRequestID || reference,
+    data,
+  };
+}
 
 export default {
   initiateStkPush,
+  initiateB2CPayout,
   isPayHeroConfigured,
   formatMpesaPhone,
   getPaymentChannels,

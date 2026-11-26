@@ -137,6 +137,10 @@ class ApiService {
   }
 
   // Trading endpoints
+  async getTradingConfig() {
+    return this.request('/trades/config');
+  }
+
   async placeTrade({ asset, direction, amount, duration, accountType }) {
     return this.request('/trades/place', 'POST', {
       asset,

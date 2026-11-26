@@ -158,23 +158,6 @@
     }
   });
 
-  // Seed Admin Action
-  btnSeedAdmin.addEventListener('click', async () => {
-    btnSeedAdmin.disabled = true;
-    btnSeedAdmin.textContent = 'Seeding account...';
-    const { ok, data } = await apiCall('/auth/seed-admin', 'POST', {});
-    btnSeedAdmin.disabled = false;
-    btnSeedAdmin.textContent = 'Seed Default Admin Account';
-
-    if (ok) {
-      document.getElementById('admin-email').value = data.credentials.email;
-      document.getElementById('admin-password').value = data.credentials.defaultPassword;
-      showToast('Default admin seeded! Password filled. Click Authenticate.', 'success');
-    } else {
-      showToast(data.message || 'Could not seed admin (might already exist).', 'error');
-    }
-  });
-
   btnLogout.addEventListener('click', () => handleLogout('Signed out successfully.'));
 
   // ==========================================
@@ -192,86 +175,6 @@
     eyeBtn.title = isHidden ? 'Hide password' : 'Show password';
     eyeBtn.classList.toggle('pw-eye-active', isHidden);
   });
-
-  // ==========================================
-
-  // Copy button beside each input field (copies field's current value)
-  document.querySelectorAll('.btn-field-copy').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const fieldId = btn.getAttribute('data-copy-from');
-      const field = document.getElementById(fieldId);
-      if (!field) return;
-      const value = field.value;
-      if (!value) {
-        // If field is empty, copy placeholder/default
-        const defaultVal = field.getAttribute('placeholder');
-        if (defaultVal) {
-          navigator.clipboard.writeText(defaultVal).then(() => {
-            btn.textContent = '✓';
-            showToast(`✓ Copied placeholder value`, 'info');
-            setTimeout(() => { btn.innerHTML = '&#x29c9;'; }, 1200);
-          });
-        }
-        return;
-      }
-      navigator.clipboard.writeText(value).then(() => {
-        btn.textContent = '✓';
-        showToast(`✓ Copied to clipboard`, 'success');
-        playChime(880);
-        setTimeout(() => { btn.innerHTML = '&#x29c9;'; }, 1200);
-      }).catch(() => {
-        showToast('Copy not supported in this browser', 'error');
-      });
-    });
-  });
-
-  // Copy hardcoded credential buttons in the creds card
-  document.querySelectorAll('.btn-cred-copy').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const text = btn.getAttribute('data-cred');
-      if (!text) return;
-      navigator.clipboard.writeText(text).then(() => {
-        const prev = btn.innerHTML;
-        btn.innerHTML = '&#x2713; Copied!';
-        btn.style.color = 'var(--accent-green)';
-        btn.style.borderColor = 'var(--accent-green)';
-        showToast(`✓ Copied: ${text}`, 'success');
-        playChime(880);
-        setTimeout(() => {
-          btn.innerHTML = prev;
-          btn.style.color = '';
-          btn.style.borderColor = '';
-        }, 1500);
-      });
-    });
-  });
-
-  // Fill & Copy All — populates the login form AND copies both values
-  const btnFillCreds = document.getElementById('btn-fill-creds');
-  if (btnFillCreds) {
-    btnFillCreds.addEventListener('click', () => {
-      const emailField = document.getElementById('admin-email');
-      const passField  = document.getElementById('admin-password');
-      const email = 'benronkipkoech@gmail.com';
-      const pass  = 'ApexAdmin@2026';
-      if (emailField) emailField.value = email;
-      if (passField)  passField.value  = pass;
-      // Copy both to clipboard as formatted block
-      const combined = `Email: ${email}\nPassword: ${pass}`;
-      navigator.clipboard.writeText(combined).then(() => {
-        btnFillCreds.innerHTML = '&#x2713; Filled &amp; Copied!';
-        btnFillCreds.style.background = 'rgba(0,255,136,0.15)';
-        btnFillCreds.style.borderColor = 'var(--accent-green)';
-        showToast('✓ Credentials filled in form and copied!', 'success');
-        playChime(784);
-        setTimeout(() => {
-          btnFillCreds.innerHTML = '&#9889; Fill &amp; Copy All';
-          btnFillCreds.style.background = '';
-          btnFillCreds.style.borderColor = '';
-        }, 2000);
-      });
-    });
-  }
 
   // Tab Navigation & Mobile Drawer
   const navItems = document.querySelectorAll('.nav-item');
@@ -343,6 +246,7 @@
     if (targetTab === 'trades') loadRecentTrades();
     if (targetTab === 'risk') loadSettings();
     if (targetTab === 'analytics') loadWinRateAnalytics();
+    if (targetTab === 'audit') loadAuditLogs();
   }
 
   navItems.forEach((btn) => {
@@ -368,12 +272,23 @@
   document.getElementById('btn-goto-cashier')?.addEventListener('click', () => switchTab('cashier'));
   document.getElementById('btn-goto-risk')?.addEventListener('click', () => switchTab('risk'));
 
+  let accountScope = 'real';
+
+  document.querySelectorAll('#overview-scope-pills .filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#overview-scope-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      accountScope = pill.getAttribute('data-scope') || 'real';
+      loadOverviewMetrics();
+    });
+  });
+
   // ==========================================
   // TAB 1: OVERVIEW METRICS
   // ==========================================
   async function loadOverviewMetrics() {
     const [{ ok, data }, settingsRes] = await Promise.all([
-      apiCall('/admin/metrics'),
+      apiCall(`/admin/metrics?accountType=${accountScope}`),
       apiCall('/admin/settings'),
     ]);
 
@@ -1018,7 +933,7 @@
   // TAB 6: WIN RATE ANALYTICS
   // ==========================================
   async function loadWinRateAnalytics() {
-    const { ok, data } = await apiCall('/admin/analytics/win-rate');
+    const { ok, data } = await apiCall(`/admin/analytics/win-rate?accountType=${accountScope}`);
     if (!ok || !data.analytics) {
       showToast('Failed to load analytics data', 'error');
       return;
@@ -1105,6 +1020,45 @@
   document.getElementById('btn-refresh-analytics')?.addEventListener('click', () => {
     loadWinRateAnalytics();
     showToast('Analytics refreshed', 'success');
+  });
+
+  // ==========================================
+  // TAB 7: ADMIN AUDIT LOG
+  // ==========================================
+  async function loadAuditLogs() {
+    const tbody = document.getElementById('audit-tbody');
+    if (!tbody) return;
+    tbody.innerHTML = `<tr><td colspan="5" class="loading-state">Loading audit trail...</td></tr>`;
+
+    const { ok, data } = await apiCall('/admin/audit-logs?limit=100');
+    if (!ok || !data.logs) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Failed to load audit logs.</td></tr>`;
+      return;
+    }
+
+    if (data.logs.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No administrative actions recorded yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = '';
+    data.logs.forEach((log) => {
+      const tr = document.createElement('tr');
+      const detailsText = log.details ? JSON.stringify(log.details) : '--';
+      tr.innerHTML = `
+        <td>${new Date(log.createdAt).toLocaleString('en-GB')}</td>
+        <td style="font-family:var(--font-mono); font-size:0.8rem;">${log.adminEmail || 'admin'}</td>
+        <td><span class="badge-status success">${log.action}</span></td>
+        <td style="font-family:var(--font-mono); font-size:0.78rem; color:var(--accent-cyan);">${log.targetType}${log.targetId ? ' #' + String(log.targetId).slice(-6) : ''}</td>
+        <td style="font-family:var(--font-mono); font-size:0.75rem; color:var(--text-muted); max-width:360px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${detailsText.replace(/"/g, '&quot;')}">${detailsText}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('btn-refresh-audit')?.addEventListener('click', () => {
+    loadAuditLogs();
+    showToast('Audit log refreshed', 'success');
   });
 
   // Auto-Refresh Loop (Every 5s when active)

@@ -217,7 +217,7 @@ class AuthEngine {
       }
     } catch (_) {}
 
-    const isMatch = apiSuccess || (user && user.verificationCode === cleanCode) || cleanCode === '123456';
+    const isMatch = apiSuccess || (user && user.verificationCode === cleanCode);
     if (!isMatch) {
       return { success: false, message: 'Invalid authentication code. Please check and try again.' };
     }
