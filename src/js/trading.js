@@ -35,9 +35,9 @@ export class TradingEngine {
   placeTrade(direction, amount, durationSec) {
     const accountType = wallet.getType();
 
-    // Real live trading strictly requires authentication
-    if (accountType === 'real' && !auth.isLoggedIn()) {
-      return { success: false, message: 'Please sign in or create an account to place Real Live trades.' };
+    // Both Demo and Real trading strictly require authentication
+    if (!auth.isLoggedIn()) {
+      return { success: false, message: 'Please sign in or create an account before placing trades.' };
     }
     if (amount < 10) {
       return { success: false, message: 'Minimum trade amount is KSh 10' };

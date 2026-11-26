@@ -2335,18 +2335,18 @@ class App {
 
     // 1. Order execution buttons
     document.getElementById('btn-trade-higher').addEventListener('click', () => {
-      if (wallet.getType() === 'real' && !auth.isLoggedIn()) {
+      if (!auth.isLoggedIn()) {
         this.openModal('auth-screen');
-        this.showToast('Please sign in or create an account to trade on your Real Live account', 'info');
+        this.showToast('Please sign in or create an account before placing trades', 'info');
         return;
       }
 
       this.executeTrade('higher');
     });
     document.getElementById('btn-trade-lower').addEventListener('click', () => {
-      if (wallet.getType() === 'real' && !auth.isLoggedIn()) {
+      if (!auth.isLoggedIn()) {
         this.openModal('auth-screen');
-        this.showToast('Please sign in or create an account to trade on your Real Live account', 'info');
+        this.showToast('Please sign in or create an account before placing trades', 'info');
         return;
       }
 
@@ -3069,12 +3069,13 @@ class App {
     }
     sound.vibrate([25]);
 
-    const isReal = wallet.getType() === 'real';
-    if (isReal && !auth.isLoggedIn()) {
-      this.showToast('Please sign in or create an account to place Real Live trades.', 'info');
+    if (!auth.isLoggedIn()) {
+      this.showToast('Please sign in or create an account before placing trades.', 'info');
       this.openModal('auth-screen');
       return;
     }
+
+    const isReal = wallet.getType() === 'real';
 
     // Always ensure current input value is captured as stake
     const amountInput = document.getElementById('trade-amount-input');
