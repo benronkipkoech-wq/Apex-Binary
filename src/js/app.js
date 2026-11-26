@@ -331,7 +331,13 @@ class App {
         }
         updatePinDisplay('login', this.authPins.login);
         if (this.authPins.login.length === 4) {
-          document.getElementById('btn-login').click();
+          const lf = document.getElementById('auth-login-form');
+          const lb = document.getElementById('btn-login');
+          if (lf && typeof lf.requestSubmit === 'function') {
+            lf.requestSubmit(lb || undefined);
+          } else if (lb) {
+            lb.click();
+          }
         }
         return;
       }
@@ -533,6 +539,7 @@ class App {
             this.showToast(`2FA required. Hint: ${res.otpHint}`, 'info');
             document.getElementById('otp-0').focus();
           } else {
+            document.getElementById('auth-screen')?.classList.add('hidden');
             sound.playTradeWon(); // Success sound
             wallet.syncBalance();
           }
