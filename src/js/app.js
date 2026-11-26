@@ -9,6 +9,7 @@ import { wsFeed } from './websocket.js';
 import { TradingBotsEngine } from './bots.js';
 import { auth } from './auth.js';
 import { api } from './api.js';
+import { security } from './security.js';
 
 class App {
   constructor() {
