@@ -14,7 +14,6 @@
   const loginModal = document.getElementById('admin-login-modal');
   const loginForm = document.getElementById('admin-login-form');
   const loginError = document.getElementById('login-error-alert');
-  const btnSeedAdmin = document.getElementById('btn-seed-admin');
   const dashboardContainer = document.getElementById('admin-dashboard-container');
   const btnLogout = document.getElementById('btn-logout');
 
@@ -62,9 +61,9 @@
       });
 
       const data = await res.json().catch(() => ({}));
-      if (res.status === 401 || res.status === 403) {
+      if (res.status === 401) {
         if (adminToken && endpoint !== '/auth/login') {
-          handleLogout('Session expired or unauthorized.');
+          handleLogout('Session expired. Please sign in again.');
         }
       }
       return { ok: res.ok, status: res.status, data };
@@ -112,12 +111,16 @@
 
   function showLogin() {
     dashboardContainer.classList.add('hidden');
+    dashboardContainer.style.display = 'none';
+    loginModal.style.display = 'flex';
     loginModal.classList.add('active');
   }
 
   function showDashboard() {
     loginModal.classList.remove('active');
+    loginModal.style.display = 'none';
     dashboardContainer.classList.remove('hidden');
+    dashboardContainer.style.display = 'flex';
     adminUserName.textContent = adminUser?.fullName || 'Super Administrator';
     checkHealth();
     loadOverviewMetrics();
@@ -137,24 +140,41 @@
     e.preventDefault();
     loginError.classList.add('hidden');
 
-    const email = document.getElementById('admin-email').value.trim();
-    const password = document.getElementById('admin-password').value;
+    const submitBtn = document.getElementById('btn-admin-login');
+    const prevBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Authenticating...</span>';
+    }
 
-    const { ok, data } = await apiCall('/auth/login', 'POST', { email, password });
-    if (ok && data.token) {
-      if (data.user?.role !== 'admin') {
-        loginError.textContent = 'Access Denied: This account does not possess administrator privileges.';
+    try {
+      const email = document.getElementById('admin-email').value.trim();
+      const password = document.getElementById('admin-password').value;
+
+      const { ok, data } = await apiCall('/auth/login', 'POST', { email, password });
+      if (ok && data.token) {
+        if (data.user?.role !== 'admin') {
+          loginError.textContent = 'Access Denied: This account does not possess administrator privileges.';
+          loginError.classList.remove('hidden');
+          return;
+        }
+        adminToken = data.token;
+        adminUser = data.user;
+        localStorage.setItem('apex_admin_token', adminToken);
+        showDashboard();
+        showToast('Authenticated as Administrator', 'success');
+      } else {
+        loginError.textContent = data.message || 'Login failed. Please check credentials.';
         loginError.classList.remove('hidden');
-        return;
       }
-      adminToken = data.token;
-      adminUser = data.user;
-      localStorage.setItem('apex_admin_token', adminToken);
-      showDashboard();
-      showToast('Authenticated as Administrator', 'success');
-    } else {
-      loginError.textContent = data.message || 'Login failed. Please check credentials.';
+    } catch (err) {
+      loginError.textContent = err?.message || 'Unexpected error during login.';
       loginError.classList.remove('hidden');
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = prevBtnHtml;
+      }
     }
   });
 
