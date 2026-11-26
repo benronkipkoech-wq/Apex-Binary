@@ -263,6 +263,18 @@
             </div>
           </div>
 
+          <!-- Pending Cashier Alert Banner (auto-shown when withdrawals await) -->
+          <div id="overview-cashier-alert" class="quick-action-banner hidden">
+            <div class="qab-left">
+              <span class="qab-icon">⚡</span>
+              <div>
+                <strong id="qab-title">Pending M-Pesa Withdrawals</strong>
+                <span id="qab-desc">0 requests awaiting disbursement</span>
+              </div>
+            </div>
+            <button id="btn-goto-cashier" class="btn-primary-glow btn-sm">Review Queue →</button>
+          </div>
+
           <!-- Quick Actions & Risk Overview -->
           <div class="overview-split-grid">
             <div class="card-glass">
@@ -297,6 +309,24 @@
                 </div>
               </div>
             </div>
+
+            <div class="card-glass">
+              <div class="card-head-inline">
+                <h3 class="card-title" style="margin:0;">Win Rate Engine</h3>
+                <button id="btn-goto-risk" class="btn-link">Configure →</button>
+              </div>
+              <div class="risk-meter-box">
+                <div class="risk-stat">
+                  <span class="stat-label">Admin Account Win Rate:</span>
+                  <span class="stat-value" id="overview-admin-wr" style="color:var(--accent-green); font-family:var(--font-mono); font-weight:700;">80%</span>
+                </div>
+                <div class="risk-stat">
+                  <span class="stat-label">Regular Trader Win Rate:</span>
+                  <span class="stat-value" id="overview-user-wr" style="color:var(--accent-cyan); font-family:var(--font-mono); font-weight:700;">1%</span>
+                </div>
+              </div>
+              <p class="risk-note">Live probability weights enforced by the server-side trading resolution engine.</p>
+            </div>
           </div>
         </section>
 
@@ -307,18 +337,22 @@
           <div class="pane-header">
             <div>
               <h1 class="pane-title">M-Pesa Cashier Queue</h1>
-              <p class="pane-desc">Review and authorize pending trader withdrawal requests.</p>
+              <p class="pane-desc">Review pending withdrawal requests and inspect full M-Pesa transaction history.</p>
             </div>
-            <div style="display:flex; gap:0.75rem;">
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+              <div class="filter-pills" id="cashier-view-pills">
+                <button class="filter-pill active" data-cashier-view="pending">Pending Queue</button>
+                <button class="filter-pill" data-cashier-view="history">All Transactions</button>
+              </div>
               <button id="btn-export-cashier-csv" class="btn-secondary">📥 Export CSV</button>
-              <button id="btn-refresh-withdrawals" class="btn-secondary">↻ Refresh Queue</button>
+              <button id="btn-refresh-withdrawals" class="btn-secondary">↻ Refresh</button>
             </div>
           </div>
 
           <div class="table-card glass">
             <div class="table-responsive">
               <table class="data-table" id="withdrawals-table">
-                <thead>
+                <thead id="cashier-thead">
                   <tr>
                     <th>Date / Time</th>
                     <th>Trader Phone</th>
@@ -344,11 +378,19 @@
           <div class="pane-header">
             <div>
               <h1 class="pane-title">Trader Accounts Directory</h1>
-              <p class="pane-desc">Inspect trader profiles, balances, KYC status, and security locks.</p>
+              <p class="pane-desc">Inspect trader profiles, balances, KYC status, roles, and security locks.</p>
             </div>
-            <div class="search-bar">
-              <input type="text" id="user-search-input" placeholder="Search by phone, email, or name...">
-              <button id="btn-search-users" class="btn-secondary">Search</button>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+              <div class="filter-pills" id="trader-filter-pills">
+                <button class="filter-pill active" data-trader-filter="all">All</button>
+                <button class="filter-pill" data-trader-filter="active">Active</button>
+                <button class="filter-pill" data-trader-filter="suspended">Suspended</button>
+                <button class="filter-pill" data-trader-filter="admin">Admins</button>
+              </div>
+              <div class="search-bar">
+                <input type="text" id="user-search-input" placeholder="Search by phone, email, or name...">
+                <button id="btn-search-users" class="btn-secondary">Search</button>
+              </div>
             </div>
           </div>
 
@@ -383,10 +425,23 @@
               <h1 class="pane-title">Live Trading Audit Log</h1>
               <p class="pane-desc">Chronological feed of trades executed across the platform.</p>
             </div>
-            <div style="display:flex; gap:0.75rem;">
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+              <div class="filter-pills" id="trade-filter-pills">
+                <button class="filter-pill active" data-trade-filter="ALL">All</button>
+                <button class="filter-pill" data-trade-filter="WIN">Wins</button>
+                <button class="filter-pill" data-trade-filter="LOSS">Losses</button>
+                <button class="filter-pill" data-trade-filter="PENDING">Pending</button>
+              </div>
+              <input type="text" id="trade-search-input" class="compact-search" placeholder="Filter by trader or asset...">
               <button id="btn-export-trades-csv" class="btn-secondary">📥 Export CSV</button>
               <button id="btn-refresh-trades" class="btn-secondary">↻ Refresh Feed</button>
             </div>
+          </div>
+
+          <div class="trade-summary-strip" id="trade-summary-strip">
+            <div class="summary-chip"><span>Showing:</span> <strong id="trades-shown-count">0</strong></div>
+            <div class="summary-chip"><span>Total Stake:</span> <strong id="trades-total-stake">KSh 0</strong></div>
+            <div class="summary-chip"><span>House Net P/L:</span> <strong id="trades-house-pl">KSh 0</strong></div>
           </div>
 
           <div class="table-card glass">
@@ -496,6 +551,36 @@
                   <p class="toggle-desc">Temporarily freeze new trades and deposits for maintenance.</p>
                 </div>
                 <input type="checkbox" id="setting-maintenance" class="styled-checkbox">
+              </div>
+            </div>
+
+            <div class="card-glass winrate-control-card">
+              <h3 class="card-title">Win Rate Control Engine</h3>
+              <p class="card-subtitle">Configure server-side win probability weights by account role.</p>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>Admin Win Rate</span>
+                  <span id="setting-admin-wr-val" class="rate-val" style="color:var(--accent-green);">80%</span>
+                </div>
+                <input type="range" id="setting-admin-wr" min="0" max="100" value="80" class="styled-range">
+                <small class="form-help">Probability of winning trades for accounts with Administrator role.</small>
+              </div>
+
+              <div class="slider-group">
+                <div class="slider-header">
+                  <span>Regular User Win Rate</span>
+                  <span id="setting-user-wr-val" class="rate-val" style="color:var(--accent-gold);">1%</span>
+                </div>
+                <input type="range" id="setting-user-wr" min="0" max="100" value="1" class="styled-range">
+                <small class="form-help">Probability of winning trades for standard trader accounts.</small>
+              </div>
+
+              <div class="risk-meter-box" style="margin-top:1rem;">
+                <div class="risk-stat">
+                  <span class="stat-label">Effective House Edge (Users):</span>
+                  <span class="stat-value highlight" id="setting-house-edge-preview">99%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -627,6 +712,34 @@
           <small class="form-help">Enter positive number to credit, negative to debit.</small>
         </div>
         <button type="submit" class="btn-primary-glow">Apply Balance Adjustment</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==========================================
+       MODAL: CASHIER APPROVE / REJECT ACTION
+       ========================================== -->
+  <div id="cashier-action-modal" class="modal-overlay">
+    <div class="modal-glass">
+      <div class="modal-head">
+        <h3 id="cashier-modal-title">Authorize Withdrawal</h3>
+        <button class="btn-close-modal" id="btn-close-cashier-modal">✕</button>
+      </div>
+      <p id="cashier-modal-desc" class="modal-sub"></p>
+
+      <form id="cashier-action-form">
+        <input type="hidden" id="cashier-tx-id">
+        <input type="hidden" id="cashier-tx-action">
+        <input type="hidden" id="cashier-tx-amount">
+        <div class="form-group">
+          <label id="cashier-input-label" for="cashier-input-val">M-Pesa B2C Receipt Code</label>
+          <input type="text" id="cashier-input-val" placeholder="Leave blank for auto-generated receipt">
+          <small id="cashier-input-help" class="form-help">Optional: Enter Safaricom transaction reference.</small>
+        </div>
+        <div style="display:flex; gap:0.75rem; margin-top:1.25rem;">
+          <button type="button" id="btn-cancel-cashier-modal" class="btn-secondary" style="flex:1; justify-content:center;">Cancel</button>
+          <button type="submit" id="btn-confirm-cashier-modal" class="btn-primary-glow" style="flex:2;">Confirm</button>
+        </div>
       </form>
     </div>
   </div>

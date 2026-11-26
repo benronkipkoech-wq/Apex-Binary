@@ -500,11 +500,22 @@ router.get('/analytics/win-rate', async (req, res) => {
   }
 });
 
-// Get Platform Settings (Payouts, Limits)
+// Get Platform Settings (Payouts, Limits, Win Rates)
 router.get('/settings', async (req, res) => {
   try {
     if (!isDbConnected()) {
-      return res.json({ success: true, settings: { payoutRates: {}, minDeposit: 50, minWithdrawal: 200, maxTradeLimit: 50000, maintenanceMode: false } });
+      return res.json({
+        success: true,
+        settings: {
+          payoutRates: {},
+          minDeposit: 50,
+          minWithdrawal: 200,
+          maxTradeLimit: 50000,
+          maintenanceMode: false,
+          adminWinRate: 80,
+          userWinRate: 1,
+        },
+      });
     }
     let setting = await Setting.findOne({ key: 'platform_settings' });
     if (!setting) {
@@ -523,7 +534,7 @@ router.put('/settings', async (req, res) => {
     if (!isDbConnected()) {
       return res.status(503).json({ success: false, message: 'Database offline. Cannot update settings.' });
     }
-    const { payoutRates, minDeposit, minWithdrawal, maxTradeLimit, maintenanceMode } = req.body;
+    const { payoutRates, minDeposit, minWithdrawal, maxTradeLimit, maintenanceMode, adminWinRate, userWinRate } = req.body;
     let setting = await Setting.findOne({ key: 'platform_settings' });
     if (!setting) setting = new Setting({ key: 'platform_settings' });
 
@@ -532,9 +543,40 @@ router.put('/settings', async (req, res) => {
     if (minWithdrawal !== undefined) setting.minWithdrawal = minWithdrawal;
     if (maxTradeLimit !== undefined) setting.maxTradeLimit = maxTradeLimit;
     if (typeof maintenanceMode === 'boolean') setting.maintenanceMode = maintenanceMode;
+    if (adminWinRate !== undefined && !isNaN(parseFloat(adminWinRate))) {
+      setting.adminWinRate = Math.min(100, Math.max(0, parseFloat(adminWinRate)));
+    }
+    if (userWinRate !== undefined && !isNaN(parseFloat(userWinRate))) {
+      setting.userWinRate = Math.min(100, Math.max(0, parseFloat(userWinRate)));
+    }
 
     await setting.save();
     return res.json({ success: true, message: 'Settings updated successfully', settings: setting });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// All Cashier Transactions History (Deposits & Withdrawals)
+router.get('/transactions', async (req, res) => {
+  try {
+    if (!isDbConnected()) {
+      return res.json({ success: true, transactions: [] });
+    }
+    const filter = {};
+    if (req.query.type && ['DEPOSIT', 'WITHDRAWAL'].includes(req.query.type.toUpperCase())) {
+      filter.type = req.query.type.toUpperCase();
+    }
+    if (req.query.status && ['PENDING', 'COMPLETED', 'FAILED', 'REJECTED'].includes(req.query.status.toUpperCase())) {
+      filter.status = req.query.status.toUpperCase();
+    }
+    const limit = Math.min(parseInt(req.query.limit) || 100, 250);
+    const transactions = await Transaction.find(filter)
+      .populate('userId', 'email phone fullName balances')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    return res.json({ success: true, transactions });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

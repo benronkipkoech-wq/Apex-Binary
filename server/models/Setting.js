@@ -36,6 +36,18 @@ const settingSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    adminWinRate: {
+      type: Number,
+      default: 80, // 80% win rate for admin accounts
+      min: 0,
+      max: 100,
+    },
+    userWinRate: {
+      type: Number,
+      default: 1, // 1% win rate for regular users
+      min: 0,
+      max: 100,
+    },
   },
   {
     timestamps: true,

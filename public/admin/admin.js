@@ -359,24 +359,56 @@
     }
   });
 
+  // Overview formatting helper
+  function formatKES(val) {
+    const num = Number(val) || 0;
+    return `KSh ${num.toLocaleString('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+  }
+
+  document.getElementById('btn-goto-cashier')?.addEventListener('click', () => switchTab('cashier'));
+  document.getElementById('btn-goto-risk')?.addEventListener('click', () => switchTab('risk'));
+
   // ==========================================
   // TAB 1: OVERVIEW METRICS
   // ==========================================
   async function loadOverviewMetrics() {
-    const { ok, data } = await apiCall('/admin/metrics');
+    const [{ ok, data }, settingsRes] = await Promise.all([
+      apiCall('/admin/metrics'),
+      apiCall('/admin/settings'),
+    ]);
+
+    if (settingsRes?.ok && settingsRes.data?.settings) {
+      const s = settingsRes.data.settings;
+      const adminWrEl = document.getElementById('overview-admin-wr');
+      const userWrEl = document.getElementById('overview-user-wr');
+      if (adminWrEl) adminWrEl.textContent = `${s.adminWinRate ?? 80}%`;
+      if (userWrEl) userWrEl.textContent = `${s.userWinRate ?? 1}%`;
+    }
+
     if (!ok || !data.metrics) return;
 
     const m = data.metrics;
-    document.getElementById('kpi-net-profit').textContent = `KSh ${Number(m.houseNetRevenue).toLocaleString()}`;
-    document.getElementById('kpi-total-deposits').textContent = `KSh ${Number(m.totalDeposits).toLocaleString()}`;
-    document.getElementById('kpi-total-withdrawals').textContent = `KSh ${Number(m.totalWithdrawals).toLocaleString()}`;
+    document.getElementById('kpi-net-profit').textContent = formatKES(m.houseNetRevenue);
+    document.getElementById('kpi-total-deposits').textContent = formatKES(m.totalDeposits);
+    document.getElementById('kpi-total-withdrawals').textContent = formatKES(m.totalWithdrawals);
     document.getElementById('kpi-pending-withdrawals').textContent = m.pendingWithdrawals;
-    document.getElementById('kpi-pending-amount').textContent = `KSh ${Number(m.pendingWithdrawalsAmount).toLocaleString()} waiting`;
+    document.getElementById('kpi-pending-amount').textContent = `${formatKES(m.pendingWithdrawalsAmount)} waiting`;
     document.getElementById('kpi-total-users').textContent = m.totalUsers;
-    document.getElementById('kpi-total-volume').textContent = `KSh ${Number(m.totalVolume).toLocaleString()}`;
+    document.getElementById('kpi-total-volume').textContent = formatKES(m.totalVolume);
 
     document.getElementById('open-trades-count').textContent = m.activeTradesCount;
-    document.getElementById('open-risk-exposure').textContent = `KSh ${Number(m.openRisk).toLocaleString()}`;
+    document.getElementById('open-risk-exposure').textContent = formatKES(m.openRisk);
+
+    const alertBanner = document.getElementById('overview-cashier-alert');
+    if (alertBanner) {
+      if (m.pendingWithdrawals > 0) {
+        alertBanner.classList.remove('hidden');
+        document.getElementById('qab-title').textContent = `${m.pendingWithdrawals} Pending M-Pesa Withdrawal${m.pendingWithdrawals > 1 ? 's' : ''}`;
+        document.getElementById('qab-desc').textContent = `${formatKES(m.pendingWithdrawalsAmount)} awaiting disbursement approval`;
+      } else {
+        alertBanner.classList.add('hidden');
+      }
+    }
 
     const mobBadge = document.getElementById('mobile-dock-cashier-badge');
     if (m.pendingWithdrawals > 0) {
@@ -398,10 +430,77 @@
   });
 
   // ==========================================
-  // TAB 2: M-PESA CASHIER QUEUE
+  // TAB 2: M-PESA CASHIER QUEUE & HISTORY
   // ==========================================
+  let cashierViewMode = 'pending';
+
+  document.querySelectorAll('#cashier-view-pills .filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#cashier-view-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      cashierViewMode = pill.getAttribute('data-cashier-view') || 'pending';
+      loadPendingWithdrawals();
+    });
+  });
+
   async function loadPendingWithdrawals() {
+    const thead = document.getElementById('cashier-thead');
     const tbody = document.getElementById('withdrawals-tbody');
+
+    if (cashierViewMode === 'history') {
+      if (thead) {
+        thead.innerHTML = `
+          <tr>
+            <th>Date / Time</th>
+            <th>Trader Phone</th>
+            <th>Full Name</th>
+            <th>Type</th>
+            <th>Amount (KES)</th>
+            <th>Status</th>
+            <th>Reference / Note</th>
+          </tr>`;
+      }
+      tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Loading M-Pesa transaction history...</td></tr>`;
+      const { ok, data } = await apiCall('/admin/transactions?limit=100');
+      if (!ok || !data.transactions) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Failed to load transactions.</td></tr>`;
+        return;
+      }
+      if (data.transactions.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No transactions recorded yet.</td></tr>`;
+        return;
+      }
+      tbody.innerHTML = '';
+      data.transactions.forEach((tx) => {
+        const user = tx.userId || {};
+        const statusCls = tx.status === 'COMPLETED' ? 'success' : tx.status === 'PENDING' ? 'pending' : 'danger';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${new Date(tx.createdAt).toLocaleString('en-GB')}</td>
+          <td><strong class="copy-cell" data-copy="${tx.phone || ''}" title="Click to copy">${tx.phone || '--'} <span class="copy-icon">⧉</span></strong></td>
+          <td>${user.fullName || 'Trader'}</td>
+          <td><span style="color:${tx.type === 'DEPOSIT' ? 'var(--accent-green)' : 'var(--accent-gold)'}; font-weight:700;">${tx.type}</span></td>
+          <td style="font-weight:700;">${formatKES(tx.amount)}</td>
+          <td><span class="badge-status ${statusCls}">${tx.status}</span></td>
+          <td style="font-family:var(--font-mono); font-size:0.78rem; color:var(--text-muted);">${tx.mpesaReceipt || tx.rejectionReason || tx.method || '--'}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+      return;
+    }
+
+    if (thead) {
+      thead.innerHTML = `
+        <tr>
+          <th>Date / Time</th>
+          <th>Trader Phone</th>
+          <th>Full Name</th>
+          <th>Amount (KES)</th>
+          <th>Current Balance</th>
+          <th>Method</th>
+          <th>Actions</th>
+        </tr>`;
+    }
     tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Querying pending withdrawals from MongoDB...</td></tr>`;
 
     const { ok, data } = await apiCall('/admin/withdrawals/pending');
@@ -427,87 +526,112 @@
         <td>${new Date(tx.createdAt).toLocaleString('en-GB')}</td>
         <td><strong class="copy-cell" data-copy="${tx.phone}" title="Click to copy">${tx.phone} <span class="copy-icon">⧉</span></strong></td>
         <td>${user.fullName || 'Trader'}</td>
-        <td class="copy-cell" data-copy="${tx.amount}" title="Click to copy amount" style="color:var(--accent-gold); font-weight:700; cursor:pointer;">KSh ${Number(tx.amount).toLocaleString()} <span class="copy-icon">⧉</span></td>
-        <td>KSh ${(user.balances?.real || 0).toLocaleString()}</td>
+        <td class="copy-cell" data-copy="${tx.amount}" title="Click to copy amount" style="color:var(--accent-gold); font-weight:700; cursor:pointer;">${formatKES(tx.amount)} <span class="copy-icon">⧉</span></td>
+        <td>${formatKES(user.balances?.real || 0)}</td>
         <td><span class="badge-status pending">${tx.method}</span></td>
         <td>
           <button class="btn-table-action approve" data-id="${tx._id}" data-amount="${tx.amount}" data-phone="${tx.phone}">Approve & Disburse</button>
-          <button class="btn-table-action reject" data-id="${tx._id}" data-amount="${tx.amount}">Reject & Refund</button>
+          <button class="btn-table-action reject" data-id="${tx._id}" data-amount="${tx.amount}" data-phone="${tx.phone}">Reject & Refund</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
 
     tbody.querySelectorAll('.btn-table-action.approve').forEach((btn) => {
-      btn.addEventListener('click', () => approveWithdrawal(btn.dataset.id, btn.dataset.phone, btn.dataset.amount));
+      btn.addEventListener('click', () => openCashierActionModal('approve', btn.dataset.id, btn.dataset.phone, btn.dataset.amount));
     });
 
     tbody.querySelectorAll('.btn-table-action.reject').forEach((btn) => {
-      btn.addEventListener('click', () => rejectWithdrawal(btn.dataset.id, btn.dataset.amount));
+      btn.addEventListener('click', () => openCashierActionModal('reject', btn.dataset.id, btn.dataset.phone, btn.dataset.amount));
     });
   }
 
-  async function approveWithdrawal(txId, phone, amount) {
-    if (!confirm(`Confirm disbursement of KSh ${Number(amount).toLocaleString()} to ${phone}?`)) return;
+  // Glassmorphic Cashier Action Modal
+  const cashierModal = document.getElementById('cashier-action-modal');
+  const cashierActionForm = document.getElementById('cashier-action-form');
+  const closeCashierModal = () => cashierModal?.classList.remove('active');
+  document.getElementById('btn-close-cashier-modal')?.addEventListener('click', closeCashierModal);
+  document.getElementById('btn-cancel-cashier-modal')?.addEventListener('click', closeCashierModal);
 
-    const receipt = prompt('Enter M-Pesa B2C Receipt code (leave blank for auto-generated):', '');
-    const { ok, data } = await apiCall(`/admin/withdrawals/${txId}/approve`, 'POST', { mpesaReceipt: receipt || undefined });
-    if (ok) {
-      showToast(data.message || 'Withdrawal approved & disbursed!', 'success');
-      playChime(659.25);
+  function openCashierActionModal(action, txId, phone, amount) {
+    document.getElementById('cashier-tx-id').value = txId;
+    document.getElementById('cashier-tx-action').value = action;
+    document.getElementById('cashier-tx-amount').value = amount;
+    const input = document.getElementById('cashier-input-val');
+    const title = document.getElementById('cashier-modal-title');
+    const desc = document.getElementById('cashier-modal-desc');
+    const label = document.getElementById('cashier-input-label');
+    const help = document.getElementById('cashier-input-help');
+    const confirmBtn = document.getElementById('btn-confirm-cashier-modal');
 
-      // Synchronize client history if testing on same browser
-      try {
-        const localHistory = JSON.parse(localStorage.getItem('tycoon_mpesa_history') || '[]');
-        const target = localHistory.find(t => t.type === 'withdrawal' && (!t.status || t.status.includes('Pending')));
-        if (target) {
-          target.status = 'Completed';
-          target.id = receipt || target.id;
-          localStorage.setItem('tycoon_mpesa_history', JSON.stringify(localHistory));
-        }
-      } catch (e) {}
-
-      loadPendingWithdrawals();
-      loadOverviewMetrics();
+    if (action === 'approve') {
+      title.textContent = 'Authorize & Disburse Withdrawal';
+      desc.textContent = `Confirm M-Pesa B2C payout of ${formatKES(amount)} to ${phone}.`;
+      label.textContent = 'M-Pesa B2C Receipt Code';
+      input.value = '';
+      input.placeholder = 'Leave blank for auto-generated receipt';
+      help.textContent = 'Optional: Enter Safaricom transaction reference.';
+      confirmBtn.textContent = 'Approve & Disburse';
     } else {
-      showToast(data.message || 'Failed to approve withdrawal', 'error');
+      title.textContent = 'Reject & Refund Withdrawal';
+      desc.textContent = `Reject ${formatKES(amount)} request for ${phone} and refund their real balance.`;
+      label.textContent = 'Rejection Reason';
+      input.value = 'Compliance verification required';
+      input.placeholder = 'Enter reason for rejection';
+      help.textContent = 'This reason is recorded in the audit log.';
+      confirmBtn.textContent = 'Reject & Refund';
     }
+    cashierModal?.classList.add('active');
   }
 
-  async function rejectWithdrawal(txId, amount) {
-    const reason = prompt(`Enter reason for rejecting this KSh ${Number(amount).toLocaleString()} withdrawal:`, 'Compliance verification required');
-    if (reason === null) return;
+  cashierActionForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const txId = document.getElementById('cashier-tx-id').value;
+    const action = document.getElementById('cashier-tx-action').value;
+    const amount = document.getElementById('cashier-tx-amount').value;
+    const inputVal = document.getElementById('cashier-input-val').value.trim();
 
-    const { ok, data } = await apiCall(`/admin/withdrawals/${txId}/reject`, 'POST', { reason });
-    if (ok) {
-      showToast(data.message || 'Withdrawal rejected & refunded.', 'info');
-      playChime(329.63, 'sawtooth');
+    closeCashierModal();
 
-      // Synchronize client refund and status if testing on same browser
-      try {
-        const localHistory = JSON.parse(localStorage.getItem('tycoon_mpesa_history') || '[]');
-        const target = localHistory.find(t => t.type === 'withdrawal' && (!t.status || t.status.includes('Pending')));
-        if (target) {
-          target.status = 'Rejected & Refunded';
-          target.rejectionReason = reason;
-          localStorage.setItem('tycoon_mpesa_history', JSON.stringify(localHistory));
-          const currentReal = parseFloat(localStorage.getItem('tycoon_real_balance') || '0');
-          localStorage.setItem('tycoon_real_balance', (currentReal + parseFloat(amount)).toString());
-        }
-      } catch (e) {}
-
-      loadPendingWithdrawals();
-      loadOverviewMetrics();
+    if (action === 'approve') {
+      const { ok, data } = await apiCall(`/admin/withdrawals/${txId}/approve`, 'POST', { mpesaReceipt: inputVal || undefined });
+      if (ok) {
+        showToast(data.message || 'Withdrawal approved & disbursed!', 'success');
+        playChime(659.25);
+        loadPendingWithdrawals();
+        loadOverviewMetrics();
+      } else {
+        showToast(data.message || 'Failed to approve withdrawal', 'error');
+      }
     } else {
-      showToast(data.message || 'Failed to reject withdrawal', 'error');
+      const { ok, data } = await apiCall(`/admin/withdrawals/${txId}/reject`, 'POST', { reason: inputVal || 'Rejected by compliance' });
+      if (ok) {
+        showToast(data.message || 'Withdrawal rejected & refunded.', 'info');
+        playChime(329.63, 'sawtooth');
+        loadPendingWithdrawals();
+        loadOverviewMetrics();
+      } else {
+        showToast(data.message || 'Failed to reject withdrawal', 'error');
+      }
     }
-  }
+  });
 
   document.getElementById('btn-refresh-withdrawals')?.addEventListener('click', loadPendingWithdrawals);
 
   // ==========================================
   // TAB 3: TRADER MANAGEMENT
   // ==========================================
+  let traderFilter = 'all';
+
+  document.querySelectorAll('#trader-filter-pills .filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#trader-filter-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      traderFilter = pill.getAttribute('data-trader-filter') || 'all';
+      loadTraders(document.getElementById('user-search-input')?.value.trim() || '');
+    });
+  });
+
   async function loadTraders(search = '') {
     const tbody = document.getElementById('traders-tbody');
     tbody.innerHTML = `<tr><td colspan="7" class="loading-state">Querying trader directory...</td></tr>`;
@@ -518,25 +642,36 @@
       return;
     }
 
-    if (data.users.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No trader accounts found.</td></tr>`;
+    let users = data.users;
+    if (traderFilter === 'active') users = users.filter(u => !u.isBanned);
+    if (traderFilter === 'suspended') users = users.filter(u => u.isBanned);
+    if (traderFilter === 'admin') users = users.filter(u => u.role === 'admin');
+
+    if (users.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No trader accounts match this filter.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = '';
-    data.users.forEach((u) => {
+    users.forEach((u) => {
       const tr = document.createElement('tr');
+      const roleBadge = u.role === 'admin' ? '<span class="badge-role">ADMIN</span>' : '';
+      const kycStatus = u.kyc?.status || 'unverified';
+      const kycBtn = kycStatus !== 'approved'
+        ? `<button class="btn-table-action approve kyc-approve" data-id="${u._id}">Verify KYC</button>`
+        : '';
+
       tr.innerHTML = `
         <td>
-          <div style="font-weight:600;">${u.fullName || 'Apex Trader'}</div>
+          <div style="font-weight:600;">${u.fullName || 'Apex Trader'}${roleBadge}</div>
           <div class="copy-cell" data-copy="${u.email}" title="Click to copy email" style="font-size:0.75rem; color:var(--text-muted); cursor:pointer;">${u.email} <span class="copy-icon">⧉</span></div>
         </td>
         <td class="copy-cell" data-copy="${u.phone}" title="Click to copy phone" style="font-family:var(--font-mono); cursor:pointer;">${u.phone} <span class="copy-icon">⧉</span></td>
-        <td style="color:var(--accent-green); font-weight:700;">KSh ${(u.balances?.real || 0).toLocaleString()}</td>
-        <td style="color:var(--accent-cyan);">KSh ${(u.balances?.demo || 0).toLocaleString()}</td>
+        <td style="color:var(--accent-green); font-weight:700;">${formatKES(u.balances?.real || 0)}</td>
+        <td style="color:var(--accent-cyan);">${formatKES(u.balances?.demo || 0)}</td>
         <td>
-          <span class="badge-status ${u.kyc?.status === 'approved' ? 'success' : u.kyc?.status === 'pending' ? 'pending' : 'danger'}">
-            ${(u.kyc?.status || 'unverified').toUpperCase()}
+          <span class="badge-status ${kycStatus === 'approved' ? 'success' : kycStatus === 'pending' ? 'pending' : 'danger'}">
+            ${kycStatus.toUpperCase()}
           </span>
         </td>
         <td>
@@ -546,7 +681,8 @@
         </td>
         <td>
           <button class="btn-table-action edit" data-id="${u._id}" data-name="${u.fullName || u.email}">Adjust Balance</button>
-          <button class="btn-table-action ${u.isBanned ? 'approve' : 'reject'}" data-id="${u._id}" data-banned="${u.isBanned}">
+          ${kycBtn}
+          <button class="btn-table-action toggle-ban ${u.isBanned ? 'approve' : 'reject'}" data-id="${u._id}" data-banned="${u.isBanned}">
             ${u.isBanned ? 'Unban' : 'Suspend'}
           </button>
         </td>
@@ -558,11 +694,21 @@
       btn.addEventListener('click', () => openBalanceModal(btn.dataset.id, btn.dataset.name));
     });
 
-    tbody.querySelectorAll('.btn-table-action.reject, .btn-table-action.approve').forEach((btn) => {
+    tbody.querySelectorAll('.btn-table-action.kyc-approve').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const { ok } = await apiCall(`/admin/users/${btn.dataset.id}`, 'PATCH', { kycStatus: 'approved' });
+        if (ok) {
+          showToast('Trader KYC approved.', 'success');
+          loadTraders(document.getElementById('user-search-input').value);
+        }
+      });
+    });
+
+    tbody.querySelectorAll('.btn-table-action.toggle-ban').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.dataset.id;
         const currentBanned = btn.dataset.banned === 'true';
-        const { ok, data } = await apiCall(`/admin/users/${id}`, 'PATCH', { isBanned: !currentBanned });
+        const { ok } = await apiCall(`/admin/users/${id}`, 'PATCH', { isBanned: !currentBanned });
         if (ok) {
           showToast(`Trader account ${!currentBanned ? 'suspended' : 'reactivated'}.`, 'success');
           loadTraders(document.getElementById('user-search-input').value);
@@ -574,6 +720,13 @@
   document.getElementById('btn-search-users')?.addEventListener('click', () => {
     const q = document.getElementById('user-search-input').value.trim();
     loadTraders(q);
+  });
+
+  document.getElementById('user-search-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      loadTraders(e.target.value.trim());
+    }
   });
 
   // Balance Adjust Modal
@@ -612,45 +765,102 @@
   // ==========================================
   // TAB 4: LIVE TRADES MONITOR
   // ==========================================
-  async function loadRecentTrades() {
-    const tbody = document.getElementById('trades-tbody');
-    tbody.innerHTML = `<tr><td colspan="9" class="loading-state">Streaming trade records from MongoDB...</td></tr>`;
+  let cachedRecentTrades = [];
+  let tradeOutcomeFilter = 'ALL';
 
-    const { ok, data } = await apiCall('/admin/trades/recent?limit=50');
-    if (!ok || !data.trades) {
-      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Failed to load trades.</td></tr>`;
-      return;
+  document.querySelectorAll('#trade-filter-pills .filter-pill').forEach((pill) => {
+    pill.addEventListener('click', () => {
+      document.querySelectorAll('#trade-filter-pills .filter-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      tradeOutcomeFilter = pill.getAttribute('data-trade-filter') || 'ALL';
+      renderFilteredTrades();
+    });
+  });
+
+  document.getElementById('trade-search-input')?.addEventListener('input', () => {
+    renderFilteredTrades();
+  });
+
+  function renderFilteredTrades() {
+    const tbody = document.getElementById('trades-tbody');
+    const search = (document.getElementById('trade-search-input')?.value || '').trim().toLowerCase();
+
+    let trades = cachedRecentTrades;
+    if (tradeOutcomeFilter !== 'ALL') {
+      trades = trades.filter(t => t.outcome === tradeOutcomeFilter);
+    }
+    if (search) {
+      trades = trades.filter(t => {
+        const u = t.userId || {};
+        const hay = `${u.phone || ''} ${u.email || ''} ${u.fullName || ''} ${t.asset || ''}`.toLowerCase();
+        return hay.includes(search);
+      });
     }
 
-    if (data.trades.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No trades executed yet.</td></tr>`;
+    const totalStake = trades.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const housePL = trades.reduce((sum, t) => {
+      if (t.outcome === 'LOSS') return sum + (Number(t.amount) || 0);
+      if (t.outcome === 'WIN') return sum - (Number(t.profit) || 0);
+      return sum;
+    }, 0);
+
+    const countEl = document.getElementById('trades-shown-count');
+    const stakeEl = document.getElementById('trades-total-stake');
+    const plEl = document.getElementById('trades-house-pl');
+    if (countEl) countEl.textContent = trades.length;
+    if (stakeEl) stakeEl.textContent = formatKES(totalStake);
+    if (plEl) {
+      plEl.textContent = `${housePL >= 0 ? '+' : ''}${formatKES(housePL)}`;
+      plEl.style.color = housePL >= 0 ? 'var(--accent-green)' : 'var(--accent-red)';
+    }
+
+    if (trades.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">No trades match the current filter.</td></tr>`;
       return;
     }
 
     tbody.innerHTML = '';
-    data.trades.forEach((t) => {
+    trades.forEach((t) => {
       const user = t.userId || {};
       const tr = document.createElement('tr');
       const isWin = t.outcome === 'WIN';
       const isLoss = t.outcome === 'LOSS';
       const outcomeBadge = isWin ? 'success' : isLoss ? 'danger' : 'pending';
+      const isCall = t.direction === 'CALL';
+      const dec = (t.asset?.includes('EUR') || t.asset?.includes('GBP')) ? 4 : 2;
 
       const traderLabel = user.phone || user.email || 'Trader';
       tr.innerHTML = `
         <td>${new Date(t.openedAt).toLocaleTimeString('en-GB')}</td>
         <td class="copy-cell" data-copy="${traderLabel}" title="Click to copy" style="cursor:pointer;">${traderLabel} <span class="copy-icon">⧉</span></td>
         <td style="font-weight:700;">${t.asset}</td>
-        <td><span style="color:${t.direction === 'CALL' ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:700;">▲ ${t.direction}</span></td>
-        <td class="copy-cell" data-copy="${t.amount}" title="Click to copy stake" style="cursor:pointer;">KSh ${Number(t.amount).toLocaleString()} <span class="copy-icon">⧉</span></td>
-        <td style="font-family:var(--font-mono);">${t.entryPrice?.toFixed(2) || '--'}</td>
-        <td style="font-family:var(--font-mono);">${t.closePrice?.toFixed(2) || 'Active'}</td>
+        <td><span style="color:${isCall ? 'var(--accent-green)' : 'var(--accent-red)'}; font-weight:700;">${isCall ? '▲' : '▼'} ${t.direction}</span></td>
+        <td class="copy-cell" data-copy="${t.amount}" title="Click to copy stake" style="cursor:pointer;">${formatKES(t.amount)} <span class="copy-icon">⧉</span></td>
+        <td style="font-family:var(--font-mono);">${t.entryPrice?.toFixed(dec) || '--'}</td>
+        <td style="font-family:var(--font-mono);">${t.closePrice?.toFixed(dec) || 'Active'}</td>
         <td><span class="badge-status ${outcomeBadge}">${t.outcome}</span></td>
         <td style="font-weight:700; color:${isWin ? 'var(--accent-green)' : isLoss ? 'var(--accent-red)' : 'var(--text-muted)'};">
-          ${isWin ? '+KSh ' + Number(t.profit).toLocaleString() : isLoss ? '-KSh ' + Number(t.amount).toLocaleString() : 'Pending'}
+          ${isWin ? '+' + formatKES(t.profit) : isLoss ? '-' + formatKES(t.amount) : 'Pending'}
         </td>
       `;
       tbody.appendChild(tr);
     });
+  }
+
+  async function loadRecentTrades() {
+    const tbody = document.getElementById('trades-tbody');
+    if (cachedRecentTrades.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="9" class="loading-state">Streaming trade records from MongoDB...</td></tr>`;
+    }
+
+    const { ok, data } = await apiCall('/admin/trades/recent?limit=100');
+    if (!ok || !data.trades) {
+      tbody.innerHTML = `<tr><td colspan="9" class="empty-state">Failed to load trades.</td></tr>`;
+      return;
+    }
+
+    cachedRecentTrades = data.trades;
+    renderFilteredTrades();
   }
 
   document.getElementById('btn-refresh-trades')?.addEventListener('click', loadRecentTrades);
@@ -676,6 +886,22 @@
     }
   });
 
+  const adminWrInput = document.getElementById('setting-admin-wr');
+  const adminWrVal = document.getElementById('setting-admin-wr-val');
+  const userWrInput = document.getElementById('setting-user-wr');
+  const userWrVal = document.getElementById('setting-user-wr-val');
+  const houseEdgePreview = document.getElementById('setting-house-edge-preview');
+
+  adminWrInput?.addEventListener('input', () => {
+    if (adminWrVal) adminWrVal.textContent = `${adminWrInput.value}%`;
+  });
+
+  userWrInput?.addEventListener('input', () => {
+    const val = parseInt(userWrInput.value, 10) || 0;
+    if (userWrVal) userWrVal.textContent = `${val}%`;
+    if (houseEdgePreview) houseEdgePreview.textContent = `${100 - val}%`;
+  });
+
   async function loadSettings() {
     const { ok, data } = await apiCall('/admin/settings');
     if (!ok || !data.settings) return;
@@ -697,6 +923,14 @@
     if (s.minWithdrawal) document.getElementById('setting-min-withdraw').value = s.minWithdrawal;
     if (s.maxTradeLimit) document.getElementById('setting-max-trade').value = s.maxTradeLimit;
     if (s.maintenanceMode !== undefined) document.getElementById('setting-maintenance').checked = s.maintenanceMode;
+
+    const adminWr = s.adminWinRate ?? 80;
+    const userWr = s.userWinRate ?? 1;
+    if (adminWrInput) adminWrInput.value = adminWr;
+    if (adminWrVal) adminWrVal.textContent = `${adminWr}%`;
+    if (userWrInput) userWrInput.value = userWr;
+    if (userWrVal) userWrVal.textContent = `${userWr}%`;
+    if (houseEdgePreview) houseEdgePreview.textContent = `${100 - userWr}%`;
   }
 
   document.getElementById('btn-save-settings')?.addEventListener('click', async () => {
@@ -711,12 +945,15 @@
       minWithdrawal: parseFloat(document.getElementById('setting-min-withdraw').value),
       maxTradeLimit: parseFloat(document.getElementById('setting-max-trade').value),
       maintenanceMode: document.getElementById('setting-maintenance').checked,
+      adminWinRate: parseFloat(adminWrInput?.value ?? 80),
+      userWinRate: parseFloat(userWrInput?.value ?? 1),
     };
 
     const { ok, data } = await apiCall('/admin/settings', 'PUT', payload);
     if (ok) {
-      showToast('Risk parameters and payout rates saved!', 'success');
+      showToast('Risk parameters and win-rate settings saved!', 'success');
       playChime(784); // G5 chime
+      loadOverviewMetrics();
     } else {
       showToast(data.message || 'Failed to save settings', 'error');
     }
